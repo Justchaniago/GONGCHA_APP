@@ -260,7 +260,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.rewardsFooter}>
-              <Gift size={16} color={tierTheme.footerIcon} />
+              <Gift size={14} color={tierTheme.footerIcon} />
               <Text style={styles.rewardsFooterText}>{loading ? 'Syncing rewards...' : footerMessage}</Text>
             </View>
           </View>
@@ -327,7 +327,7 @@ export default function HomeScreen() {
                 <Text style={styles.walletAmount}>{loading ? '...' : currentPoints.toLocaleString('id-ID')}</Text>
               </View>
               <View style={[styles.trophyIconBg, { backgroundColor: tierTheme.trophyBg }]}>
-                <Trophy size={24} color="#2A1F1F" />
+                <Trophy size={21} color="#2A1F1F" />
               </View>
             </View>
 
@@ -340,7 +340,7 @@ export default function HomeScreen() {
               </View>
               <TouchableOpacity style={styles.redeemButton} accessibilityRole="button" accessibilityLabel="Redeem Catalog">
                 <Text style={[styles.redeemButtonText, { color: tierTheme.redeemAccent }]}>Redeem Catalog</Text>
-                <ChevronRight size={12} color={tierTheme.redeemAccent} />
+                <ChevronRight size={11} color={tierTheme.redeemAccent} />
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -457,14 +457,14 @@ const styles = StyleSheet.create({
   // --- REWARDS CARD (TOP) ---
   rewardsCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 30,
+    borderRadius: 22,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: '#3A2E2A',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.09,
+    shadowRadius: 12,
+    elevation: 3,
     borderWidth: 1,
     borderColor: '#F3E9DC',
   },
@@ -472,62 +472,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 15,
+    marginBottom: 7,
   },
   rewardsLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#8C7B75',
     fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    marginBottom: 2,
   },
   rewardsPoints: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#2A1F1F',
   },
   tierBadge: {
     backgroundColor: '#D4A853',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginBottom: 3,
   },
   tierText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     color: '#2A1F1F',
   },
   percentBadge: {
     backgroundColor: '#B91C2F',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
     alignSelf: 'flex-end',
   },
   percentText: {
     color: '#FFF',
     fontWeight: 'bold',
-    fontSize: 11,
+    fontSize: 10,
   },
   progressBarBg: {
-    height: 10,
+    height: 6,
     backgroundColor: '#F0E6DA',
-    borderRadius: 5,
+    borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 3,
   },
   rewardsFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   rewardsFooterText: {
-    fontSize: 12,
+    fontSize: 9,
     color: '#8C7B75',
     fontWeight: '500',
   },
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    marginBottom: 30,
+    marginBottom: 20,
     gap: 6,
   },
   dot: {
@@ -606,23 +606,23 @@ const styles = StyleSheet.create({
     color: '#2A1F1F',
   },
   walletCard: {
-    borderRadius: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
     position: 'relative',
     overflow: 'hidden',
     shadowColor: '#2A1F1F',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
   },
   walletLiquid: {
     position: 'absolute',
     right: -18,
-    bottom: -34,
-    width: 108,
-    height: 160,
+    bottom: -28,
+    width: 98,
+    height: 146,
     opacity: 0.28,
     transform: [{ rotate: '-10deg' }],
   },
@@ -633,27 +633,27 @@ const styles = StyleSheet.create({
   },
   walletLabel: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginBottom: 4,
+    fontSize: 11,
+    marginBottom: 3,
   },
   walletAmount: {
     color: '#FFF',
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: 'bold',
     letterSpacing: 0.4,
   },
   trophyIconBg: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     backgroundColor: 'rgba(212, 168, 83, 0.88)',
-    borderRadius: 12,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   walletDivider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    marginVertical: 14,
+    marginVertical: 10,
   },
   walletBottomRow: {
     flexDirection: 'row',
@@ -663,21 +663,21 @@ const styles = StyleSheet.create({
   walletBenefitTitle: {
     color: '#FFF',
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
   },
   walletBenefitDesc: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 10,
+    fontSize: 9,
     marginTop: 2,
-    maxWidth: 180,
+    maxWidth: 170,
   },
   redeemButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 14,
     gap: 4,
     shadowColor: '#2A1F1F',
     shadowOffset: { width: 0, height: 3 },
@@ -688,6 +688,6 @@ const styles = StyleSheet.create({
   redeemButtonText: {
     color: '#B91C2F',
     fontWeight: 'bold',
-    fontSize: 11,
+    fontSize: 10,
   },
 });
