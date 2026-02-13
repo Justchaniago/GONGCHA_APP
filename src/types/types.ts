@@ -1,12 +1,20 @@
 export type MemberTier = 'Silver' | 'Gold' | 'Platinum';
 
+export interface XpRecord {
+  id: string;
+  date: string;
+  amount: number;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   phoneNumber: string;
   currentPoints: number;
-  lifetimePoints: number;
+  tierXp: number;
+  xpHistory: XpRecord[];
   tier: MemberTier;
+  joinedDate: string;
 }
 
 export interface Transaction {
@@ -14,4 +22,5 @@ export interface Transaction {
   date: string;
   amount: number;
   pointsEarned: number;
+  items: string[];
 }

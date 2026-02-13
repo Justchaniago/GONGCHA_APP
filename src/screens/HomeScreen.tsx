@@ -19,9 +19,9 @@ import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import MockBackend from '../services/MockBackend';
 import { MemberTier, UserProfile } from '../types/types';
 
-const resolveTier = (lifetimePoints: number): MemberTier => {
-  if (lifetimePoints >= MockBackend.TIER_MILESTONES.Platinum) return 'Platinum';
-  if (lifetimePoints >= MockBackend.TIER_MILESTONES.Gold) return 'Gold';
+const resolveTier = (tierXp: number): MemberTier => {
+  if (tierXp >= MockBackend.TIER_MILESTONES.Platinum) return 'Platinum';
+  if (tierXp >= MockBackend.TIER_MILESTONES.Gold) return 'Gold';
   return 'Silver';
 };
 
@@ -124,37 +124,27 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const lifetimePoints = userData?.lifetimePoints ?? 0;
+  const tierXp = userData?.tierXp ?? 0;
   const currentPoints = userData?.currentPoints ?? 0;
   const tier = userData?.tier ?? 'Silver';
   const tierTheme = TIER_THEME[tier];
 
-  const tierBase =
-    tier === 'Gold' ? MockBackend.TIER_MILESTONES.Gold : tier === 'Platinum' ? MockBackend.TIER_MILESTONES.Platinum : 0;
+  const getNextTierTarget = (currentTier: MemberTier) => {
+    if (currentTier === 'Silver') return MockBackend.TIER_MILESTONES.Gold;
+    if (currentTier === 'Gold') return MockBackend.TIER_MILESTONES.Platinum;
+    return MockBackend.TIER_MILESTONES.Platinum;
+  };
 
-  const tierTarget =
-    tier === 'Silver'
-      ? MockBackend.TIER_MILESTONES.Gold
-      : tier === 'Gold'
-        ? MockBackend.TIER_MILESTONES.Platinum
-        : MockBackend.TIER_MILESTONES.Platinum;
+  const target = getNextTierTarget(tier);
+  const isPlatinum = tier === 'Platinum';
+  const progress = isPlatinum ? 100 : Math.max(0, Math.min((tierXp / target) * 100, 100));
 
-  const progressCurrent = tier === 'Platinum' ? tierTarget : Math.max(0, lifetimePoints - tierBase);
-  const progressTotal = tier === 'Silver' ? tierTarget : tier === 'Gold' ? tierTarget - tierBase : 1;
-
-  const progress = tier === 'Platinum' ? 100 : Math.max(0, Math.min(100, (progressCurrent / progressTotal) * 100));
-
-  const remainingToNextTier =
-    tier === 'Silver'
-      ? Math.max(0, MockBackend.TIER_MILESTONES.Gold - lifetimePoints)
-      : tier === 'Gold'
-        ? Math.max(0, MockBackend.TIER_MILESTONES.Platinum - lifetimePoints)
-        : 0;
+  const remainingToNextTier = isPlatinum ? 0 : Math.max(0, target - tierXp);
 
   const footerMessage =
-    tier === 'Platinum'
-      ? 'You reached Platinum. Enjoy all top-tier member benefits!'
-      : `${remainingToNextTier} XP to reach ${tier === 'Silver' ? 'Gold' : 'Platinum'} & unlock benefits!`;
+    isPlatinum
+      ? 'You are Top Tier!'
+      : `${remainingToNextTier} XP to reach next Tier!`;
 
   const promoCardWidth = width - 40;
 
@@ -164,12 +154,20 @@ export default function HomeScreen() {
     setIsEarning(true);
 
     const pointsEarned = Math.floor(50000 / MockBackend.POINT_CONVERSION);
-    const optimisticLifetime = userData.lifetimePoints + pointsEarned;
+    const optimisticTierXp = userData.tierXp + pointsEarned;
     const optimisticUser: UserProfile = {
       ...userData,
       currentPoints: userData.currentPoints + pointsEarned,
-      lifetimePoints: optimisticLifetime,
-      tier: resolveTier(optimisticLifetime),
+      tierXp: optimisticTierXp,
+      xpHistory: [
+        {
+          id: `xp_optimistic_${Date.now()}`,
+          date: new Date().toISOString(),
+          amount: pointsEarned,
+        },
+        ...(userData.xpHistory || []),
+      ],
+      tier: resolveTier(optimisticTierXp),
     };
 
     setUserData(optimisticUser);
@@ -239,7 +237,7 @@ export default function HomeScreen() {
             <View style={styles.rewardsHeader}>
               <View>
                 <Text style={styles.rewardsLabel}>MEMBERSHIP STATUS</Text>
-                <Text style={styles.rewardsPoints}>{loading ? 'Loading...' : `${lifetimePoints} / ${tierTarget} XP`}</Text>
+                <Text style={styles.rewardsPoints}>{loading ? 'Loading...' : `${tierXp} / ${target} XP`}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <View style={[styles.tierBadge, { backgroundColor: tierTheme.tierBadgeBg }]}>

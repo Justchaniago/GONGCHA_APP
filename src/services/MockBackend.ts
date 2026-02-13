@@ -1,102 +1,134 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MemberTier, Transaction, UserProfile } from '../types/types';
+import { UserProfile, MemberTier, XpRecord } from '../types/types';
 
-const STORAGE_KEYS = {
-  USER: 'gc_user_profile',
-  TRANSACTIONS: 'gc_transactions',
-};
+const DB_KEY_USER = '@gongcha_user_v2';
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const resolveTier = (lifetimePoints: number): MemberTier => {
-  if (lifetimePoints >= 5000) return 'Platinum';
-  if (lifetimePoints >= 1000) return 'Gold';
-  return 'Silver';
+const RULES = {
+  CONVERSION_RATE: 100,
+  TIER_LIMITS: {
+    Silver: 0,
+    Gold: 5000,
+    Platinum: 15000,
+  },
+  XP_VALIDITY_DAYS: 365,
 };
 
 export const MockBackend = {
-  POINT_CONVERSION: 100,
+  POINT_CONVERSION: RULES.CONVERSION_RATE,
   TIER_MILESTONES: {
-    Gold: 1000,
-    Platinum: 5000,
+    Gold: RULES.TIER_LIMITS.Gold,
+    Platinum: RULES.TIER_LIMITS.Platinum,
   },
 
-  async getUser(): Promise<UserProfile | null> {
-    await sleep(500);
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER);
-    if (!raw) return null;
+  _calculateTierStatus(xpHistory: XpRecord[]): { activeXp: number; newTier: MemberTier; activeRecords: XpRecord[] } {
+    const now = new Date();
+    const cutoffDate = new Date(now);
+    cutoffDate.setDate(now.getDate() - RULES.XP_VALIDITY_DAYS);
 
-    try {
-      return JSON.parse(raw) as UserProfile;
-    } catch {
-      return null;
+    const activeRecords = xpHistory.filter((record) => new Date(record.date) > cutoffDate);
+    const activeXp = activeRecords.reduce((sum, record) => sum + record.amount, 0);
+
+    let newTier: MemberTier = 'Silver';
+    if (activeXp >= RULES.TIER_LIMITS.Platinum) {
+      newTier = 'Platinum';
+    } else if (activeXp >= RULES.TIER_LIMITS.Gold) {
+      newTier = 'Gold';
     }
+
+    return { activeXp, newTier, activeRecords };
   },
 
   async initUser(phoneNumber: string): Promise<UserProfile> {
-    await sleep(500);
-    const existing = await this.getUser();
-    if (existing) return existing;
+    await delay(500);
+    const existing = await AsyncStorage.getItem(DB_KEY_USER);
+    if (existing) return JSON.parse(existing) as UserProfile;
 
-    const sanitizedPhone = phoneNumber.trim() || '8123456789';
-    const user: UserProfile = {
-      id: `user_${sanitizedPhone}`,
+    const newUser: UserProfile = {
+      id: `u_${Date.now()}`,
       name: 'Ferry Rusly',
-      phoneNumber: sanitizedPhone,
-      currentPoints: 350,
-      lifetimePoints: 350,
+      phoneNumber: phoneNumber || '8123456789',
+      currentPoints: 0,
+      tierXp: 0,
+      xpHistory: [],
       tier: 'Silver',
+      joinedDate: new Date().toISOString(),
     };
 
-    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-    await AsyncStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(newUser));
+    return newUser;
+  },
+
+  async getUser(): Promise<UserProfile | null> {
+    await delay(300);
+    const data = await AsyncStorage.getItem(DB_KEY_USER);
+    if (!data) return null;
+
+    let user = JSON.parse(data) as UserProfile;
+    const { activeXp, newTier, activeRecords } = this._calculateTierStatus(user.xpHistory || []);
+
+    if (user.tierXp !== activeXp || user.tier !== newTier || activeRecords.length !== (user.xpHistory || []).length) {
+      user = {
+        ...user,
+        tierXp: activeXp,
+        tier: newTier,
+        xpHistory: activeRecords,
+      };
+      await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(user));
+    }
+
     return user;
   },
 
   async addTransaction(amount: number): Promise<UserProfile> {
-    await sleep(500);
+    await delay(800);
+    const userStr = await AsyncStorage.getItem(DB_KEY_USER);
+    if (!userStr) throw new Error('User not found');
 
-    let user = await this.getUser();
-    if (!user) {
-      user = await this.initUser('8123456789');
-    }
+    let user = JSON.parse(userStr) as UserProfile;
+    const earnedVal = Math.floor(amount / RULES.CONVERSION_RATE);
 
-    const pointsEarned = Math.floor(Math.max(0, amount) / this.POINT_CONVERSION);
+    user.currentPoints += earnedVal;
+
+    const newXpRecord: XpRecord = {
+      id: `xp_${Date.now()}`,
+      date: new Date().toISOString(),
+      amount: earnedVal,
+    };
+    user.xpHistory.push(newXpRecord);
+
+    const { activeXp, newTier, activeRecords } = this._calculateTierStatus(user.xpHistory);
     const updatedUser: UserProfile = {
       ...user,
-      currentPoints: user.currentPoints + pointsEarned,
-      lifetimePoints: user.lifetimePoints + pointsEarned,
-      tier: resolveTier(user.lifetimePoints + pointsEarned),
+      tierXp: activeXp,
+      tier: newTier,
+      xpHistory: activeRecords,
     };
 
-    const rawTransactions = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-    let transactions: Transaction[] = [];
-    if (rawTransactions) {
-      try {
-        transactions = JSON.parse(rawTransactions) as Transaction[];
-      } catch {
-        transactions = [];
-      }
-    }
+    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));
+    return updatedUser;
+  },
 
-    const nextTransaction: Transaction = {
-      id: `trx_${Date.now()}`,
-      date: new Date().toISOString(),
-      amount,
-      pointsEarned,
+  async redeemPoints(cost: number): Promise<UserProfile> {
+    const userStr = await AsyncStorage.getItem(DB_KEY_USER);
+    if (!userStr) throw new Error('User not found');
+    const user = JSON.parse(userStr) as UserProfile;
+
+    if (user.currentPoints < cost) throw new Error('Poin tidak cukup');
+
+    const updatedUser: UserProfile = {
+      ...user,
+      currentPoints: user.currentPoints - cost,
     };
 
-    await AsyncStorage.multiSet([
-      [STORAGE_KEYS.USER, JSON.stringify(updatedUser)],
-      [STORAGE_KEYS.TRANSACTIONS, JSON.stringify([nextTransaction, ...transactions])],
-    ]);
-
+    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));
     return updatedUser;
   },
 
   async resetData(): Promise<void> {
-    await sleep(500);
-    await AsyncStorage.clear();
+    await delay(500);
+    await AsyncStorage.removeItem(DB_KEY_USER);
   },
 };
 
