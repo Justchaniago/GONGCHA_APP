@@ -7,6 +7,7 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MenuScreen from '../screens/MenuScreen';
+import QrPlaceholderScreen from '../screens/QrPlaceholderScreen';
 import RewardsScreen from '../screens/RewardsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
@@ -19,6 +20,7 @@ export type RootStackParamList = {
 export type RootTabParamList = {
   Home: undefined;
   Menu: undefined;
+  QR: undefined;
   Rewards: undefined;
   Profile: undefined;
 };
@@ -36,6 +38,7 @@ function MainTabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Menu" component={MenuScreen} />
+      <Tab.Screen name="QR" component={QrPlaceholderScreen} />
       <Tab.Screen name="Rewards" component={RewardsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

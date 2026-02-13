@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120, // Space untuk Bottom Nav
+    paddingBottom: 170,
   },
 
   // --- HEADER ---
