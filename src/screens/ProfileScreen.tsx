@@ -129,7 +129,13 @@ export default function ProfileScreen() {
   };
 
   const HistoryModal = () => (
-    <Modal visible={showHistory} animationType="slide" presentationStyle="fullScreen">
+    <Modal
+      visible={showHistory}
+      animationType="fade"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onRequestClose={() => setShowHistory(false)}
+    >
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>History</Text>

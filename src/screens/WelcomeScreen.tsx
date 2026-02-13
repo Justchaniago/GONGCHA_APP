@@ -64,12 +64,6 @@ export default function WelcomeScreen() {
   const signupOtpRefs = useRef<Array<TextInput | null>>([null, null, null, null]);
   const signupTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (viewMode === 'initial') {
-      sheetTranslateY.setValue(sheetHiddenOffset);
-    }
-  }, [sheetHiddenOffset, sheetTranslateY, viewMode]);
-
   const clamp = (value: number, min: number, max: number) => {
     return Math.min(Math.max(value, min), max);
   };
@@ -163,7 +157,6 @@ export default function WelcomeScreen() {
   const handleBackToSelection = () => {
     Keyboard.dismiss();
     animateTransition(() => {
-      setViewMode('initial');
       setPhoneNumber('');
       setLoginOtp(['', '', '', '']);
       setLoginResendTimer(30);
@@ -178,7 +171,12 @@ export default function WelcomeScreen() {
         Animated.timing(getStartedOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
         Animated.timing(getStartedTranslateY, { toValue: 0, duration: 250, useNativeDriver: true }),
         Animated.timing(sheetTranslateY, { toValue: sheetHiddenOffset, duration: 250, useNativeDriver: true }),
-      ]).start();
+      ]).start(() => {
+        setViewMode('initial');
+        sheetTranslateY.setValue(sheetHiddenOffset);
+        getStartedOpacity.setValue(1);
+        getStartedTranslateY.setValue(0);
+      });
     });
   };
 

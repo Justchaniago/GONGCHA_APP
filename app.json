@@ -1,39 +1,37 @@
 {
   "expo": {
-    "name": "gongcha_member_app",
-    "slug": "gongcha_member_app",
+    "name": "Gong Cha ID",
+    "slug": "gongcha-id-pilot",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+
+    "icon": "./assets/images/logo1.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
+
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/images/logo1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFF8F0"
     },
+
     "ios": {
       "supportsTablet": true,
-      "infoPlist": {
-        "UIViewControllerBasedStatusBarAppearance": true
-      }
+      "bundleIdentifier": "com.gongcha.id.pilot"
     },
+
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/logo1.png",
+        "backgroundColor": "#FFF8F0"
       },
-      "statusBar": {
-        "translucent": true,
-        "backgroundColor": "#00000000",
-        "barStyle": "dark-content"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.gongcha.id.pilot"
     },
+
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/images/logo1.png"
     },
+
     "plugins": [
       "expo-font"
     ]

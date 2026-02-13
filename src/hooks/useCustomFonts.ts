@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 
 export default function useCustomFonts() {
   const [fontsLoaded] = useFonts({
-    Coolvetica: require('../../assets/fonts/Coolvetica.otf'),
+    Coolvetica: require('../../assets/fonts/Coolvetica Hv Comp.otf'),
   });
   return fontsLoaded;
 }

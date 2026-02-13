@@ -51,8 +51,6 @@ export default function AppNavigator() {
       initialRouteName="Welcome"
       screenOptions={{
         headerShown: false,
-        statusBarStyle: 'dark',
-        statusBarTranslucent: true,
       }}
     >
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
