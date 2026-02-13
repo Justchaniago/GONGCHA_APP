@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   Easing,
   Image,
   Modal,
@@ -10,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -19,10 +19,6 @@ import { useMemberCard } from '../context/MemberContext';
 import { MockBackend } from '../services/MockBackend';
 import { UserProfile } from '../types/types';
 
-const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.78, 340);
-const CARD_HEIGHT = CARD_WIDTH * 1.58;
-
 const TIER_BADGE_THEME = {
   Silver: { bg: '#CBD5E1', text: '#334155' },
   Gold: { bg: '#D4A853', text: '#2A1F1F' },
@@ -31,9 +27,15 @@ const TIER_BADGE_THEME = {
 
 export default function MemberCardModal() {
   const { isCardVisible, hideCard, anchor } = useMemberCard();
+  const { width, height } = useWindowDimensions();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [mounted, setMounted] = useState(false);
   const gestureDismissRef = useRef(false);
+  const cardWidth = Math.min(Math.max(width * 0.78, 270), 340);
+  const cardHeight = cardWidth * 1.58;
+  const qrSize = Math.round(Math.min(Math.max(cardWidth * 0.45, 132), 156));
+  const brandFontSize = width < 360 ? 20 : 22;
+  const pointsFontSize = width < 360 ? 26 : 30;
 
   const entranceProgress = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
@@ -118,7 +120,7 @@ export default function MemberCardModal() {
 
   const startDx = anchor ? anchor.x - width / 2 : 0;
   const startDy = anchor ? anchor.y - height / 2 : height * 0.3;
-  const startScale = anchor ? Math.max(0.2, Math.min(anchor.size / CARD_WIDTH, 0.48)) : 0.45;
+  const startScale = anchor ? Math.max(0.2, Math.min(anchor.size / cardWidth, 0.48)) : 0.45;
 
   const entryTranslateX = entranceProgress.interpolate({
     inputRange: [0, 1],
@@ -216,7 +218,14 @@ export default function MemberCardModal() {
   }
 
   return (
-    <Modal transparent visible={mounted} animationType="none" onRequestClose={hideCard}>
+    <Modal
+      transparent
+      visible={mounted}
+      animationType="none"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onRequestClose={hideCard}
+    >
       <View style={styles.container}>
         <Animated.View style={[styles.backdrop, { opacity: composedBackdropOpacity }]}>
           <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFillObject} />
@@ -228,6 +237,7 @@ export default function MemberCardModal() {
           style={[
             styles.cardWrapper,
             {
+              width: cardWidth,
               opacity: composedCardOpacity,
               transform: [
                 { translateX: entryTranslateX },
@@ -237,16 +247,82 @@ export default function MemberCardModal() {
             },
           ]}
         >
-          <View style={styles.card}>
-            <View style={styles.glowTop} />
-            <Image source={require('../../assets/images/abstract1.png')} style={styles.abstractTop} />
-            <Image source={require('../../assets/images/abstract2.png')} style={styles.abstractBottom} />
-            <Image source={require('../../assets/images/leaf1.png')} style={styles.leafLeft} />
-            <Image source={require('../../assets/images/leaf2.png')} style={styles.leafRight} />
+          <View
+            style={[
+              styles.card,
+              {
+                width: cardWidth,
+                height: cardHeight,
+                borderRadius: Math.max(20, cardWidth * 0.072),
+                paddingHorizontal: Math.max(16, cardWidth * 0.058),
+                paddingVertical: Math.max(14, cardWidth * 0.052),
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.glowTop,
+                {
+                  top: -Math.round(cardWidth * 0.18),
+                  right: -Math.round(cardWidth * 0.16),
+                  width: Math.round(cardWidth * 0.53),
+                  height: Math.round(cardWidth * 0.53),
+                  borderRadius: Math.round(cardWidth * 0.295),
+                },
+              ]}
+            />
+            <Image
+              source={require('../../assets/images/abstract1.png')}
+              style={[
+                styles.abstractTop,
+                {
+                  top: -Math.round(cardWidth * 0.1),
+                  right: -Math.round(cardWidth * 0.07),
+                  width: Math.round(cardWidth * 0.37),
+                  height: Math.round(cardWidth * 0.37),
+                },
+              ]}
+            />
+            <Image
+              source={require('../../assets/images/abstract2.png')}
+              style={[
+                styles.abstractBottom,
+                {
+                  bottom: -Math.round(cardWidth * 0.12),
+                  left: -Math.round(cardWidth * 0.09),
+                  width: Math.round(cardWidth * 0.39),
+                  height: Math.round(cardWidth * 0.39),
+                },
+              ]}
+            />
+            <Image
+              source={require('../../assets/images/leaf1.png')}
+              style={[
+                styles.leafLeft,
+                {
+                  left: -Math.round(cardWidth * 0.024),
+                  top: cardHeight * 0.38,
+                  width: Math.round(cardWidth * 0.18),
+                  height: Math.round(cardWidth * 0.18),
+                },
+              ]}
+            />
+            <Image
+              source={require('../../assets/images/leaf2.png')}
+              style={[
+                styles.leafRight,
+                {
+                  right: -Math.round(cardWidth * 0.03),
+                  bottom: cardHeight * 0.2,
+                  width: Math.round(cardWidth * 0.2),
+                  height: Math.round(cardWidth * 0.2),
+                },
+              ]}
+            />
 
             <View style={styles.cardHeader}>
               <View>
-                <Text style={styles.brandText}>Gong cha</Text>
+                <Text style={[styles.brandText, { fontSize: brandFontSize }]}>Gong cha</Text>
                 <Text style={styles.subTitle}>Member Pass</Text>
               </View>
               <TouchableOpacity onPress={hideCard} style={styles.closeBtn} activeOpacity={0.85}>
@@ -256,7 +332,7 @@ export default function MemberCardModal() {
 
             <View style={styles.qrContainer}>
               {user ? (
-                <QRCode value={user.id} size={156} color="#2A1F1F" backgroundColor="transparent" />
+                <QRCode value={user.id} size={qrSize} color="#2A1F1F" backgroundColor="transparent" />
               ) : (
                 <Text style={styles.loadingText}>Loading ID...</Text>
               )}
@@ -264,7 +340,7 @@ export default function MemberCardModal() {
 
             <View style={styles.pointsBlock}>
               <Text style={styles.pointsLabel}>WALLET POINTS</Text>
-              <Text style={styles.pointsValue}>{(user?.currentPoints ?? 0).toLocaleString('id-ID')}</Text>
+              <Text style={[styles.pointsValue, { fontSize: pointsFontSize }]}>{(user?.currentPoints ?? 0).toLocaleString('id-ID')}</Text>
             </View>
 
             <View style={styles.footerRow}>
@@ -302,7 +378,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   cardWrapper: {
-    width: CARD_WIDTH,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 16 },
@@ -311,56 +386,30 @@ const styles = StyleSheet.create({
     elevation: 18,
   },
   card: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 24,
     backgroundColor: '#FFF8F0',
     borderColor: '#FFFFFF',
     borderWidth: 1,
     overflow: 'hidden',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
     justifyContent: 'space-between',
   },
   abstractTop: {
     position: 'absolute',
-    top: -34,
-    right: -24,
-    width: 126,
-    height: 126,
     opacity: 0.2,
   },
   abstractBottom: {
     position: 'absolute',
-    bottom: -40,
-    left: -30,
-    width: 132,
-    height: 132,
     opacity: 0.18,
   },
   leafLeft: {
     position: 'absolute',
-    left: -8,
-    top: CARD_HEIGHT * 0.38,
-    width: 62,
-    height: 62,
     opacity: 0.14,
   },
   leafRight: {
     position: 'absolute',
-    right: -10,
-    bottom: CARD_HEIGHT * 0.2,
-    width: 70,
-    height: 70,
     opacity: 0.13,
   },
   glowTop: {
     position: 'absolute',
-    top: -62,
-    right: -54,
-    width: 180,
-    height: 180,
-    borderRadius: 100,
     backgroundColor: '#F2D4D8',
     opacity: 0.55,
   },

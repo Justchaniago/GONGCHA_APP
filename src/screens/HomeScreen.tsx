@@ -5,15 +5,14 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   useWindowDimensions,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { Trophy, Gift, ChevronRight, Bell } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import MockBackend from '../services/MockBackend';
@@ -88,6 +87,11 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [isEarning, setIsEarning] = useState(false);
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isCompact = width < 360;
+  const horizontalPadding = isCompact ? 16 : 20;
+  const avatarSize = isCompact ? 46 : 52;
+  const headerIconSize = isCompact ? 44 : 48;
 
   const loadUserData = async () => {
     setLoading(true);
@@ -194,21 +198,24 @@ export default function HomeScreen() {
   return (
     <ScreenFadeTransition>
       <View style={styles.root}>
-        <StatusBar style="dark" />
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 6 }]}>
         <ScrollView 
           showsVerticalScrollIndicator={false} 
           style={styles.scrollView} 
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
         >
           
           {/* --- 1. HEADER --- */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarWrap}>
-                <Image source={require('../../assets/images/avatar1.jpeg')} style={styles.avatar} />
+                <Image
+                  source={require('../../assets/images/avatar1.jpeg')}
+                  style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+                />
                 <View style={styles.avatarStatusDot} />
               </View>
               <View style={styles.headerTextContainer}>
@@ -218,7 +225,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.headerRight}>
               <TouchableOpacity
-                style={styles.notificationBtn}
+                style={[styles.notificationBtn, { width: headerIconSize, height: headerIconSize }]}
                 accessibilityRole="button"
                 accessibilityLabel="Notifications"
                 onPress={handleDebugEarnPoints}
@@ -346,7 +353,7 @@ export default function HomeScreen() {
           </LinearGradient>
 
         </ScrollView>
-      </SafeAreaView>
+      </View>
       </View>
     </ScreenFadeTransition>
   );
@@ -360,7 +367,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 10 : 30,
     backgroundColor: 'transparent',
     zIndex: 1,
   },

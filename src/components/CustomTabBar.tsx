@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Animated, Easing, LayoutChangeEvent } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Animated, Easing, LayoutChangeEvent, useWindowDimensions } from 'react-native';
 import { Home, Coffee, QrCode, Trophy, User } from 'lucide-react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMemberCard } from '../context/MemberContext';
 
 const BAR_HORIZONTAL_PADDING = 10;
-const ACTIVE_PILL_SIZE = 44;
 
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { showCard } = useMemberCard();
   const memberTriggerRef = useRef<View | null>(null);
+  const { width: screenWidth } = useWindowDimensions();
   const isQrFocused = state.routes[state.index]?.name === 'QR';
   const iconMap: Record<string, React.ComponentType<any>> = {
     Home: Home,
@@ -25,6 +25,15 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const [barWidth, setBarWidth] = useState(0);
   const pressScales = useRef(state.routes.map(() => new Animated.Value(1)));
   const insets = useSafeAreaInsets();
+  const isCompact = screenWidth < 370;
+  const sideInset = screenWidth < 350 ? 14 : 24;
+  const barHeight = isCompact ? 66 : 72;
+  const activePillSize = isCompact ? 40 : 44;
+  const triggerButtonSize = isCompact ? 54 : 60;
+  const triggerLift = isCompact ? -12 : -16;
+  const iconSize = isCompact ? 20 : 22;
+  const navButtonHeight = isCompact ? 44 : 48;
+  const dynamicBarPadding = isCompact ? 8 : BAR_HORIZONTAL_PADDING;
 
   useEffect(() => {
     if (pressScales.current.length !== state.routes.length) {
@@ -55,26 +64,43 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   };
 
   const tabCount = state.routes.length || 1;
-  const innerWidth = Math.max(barWidth - BAR_HORIZONTAL_PADDING * 2, 0);
+  const innerWidth = Math.max(barWidth - dynamicBarPadding * 2, 0);
   const slotWidth = innerWidth > 0 ? innerWidth / tabCount : 0;
-  const bottomOffset = Math.max(insets.bottom + 10, 20);
+  const bottomOffset = Math.max(insets.bottom + (isCompact ? 8 : 10), isCompact ? 14 : 20);
 
   const pillTranslateX = activeIndex.interpolate({
     inputRange: state.routes.map((_, idx) => idx),
     outputRange: state.routes.map(
-      (_, idx) => BAR_HORIZONTAL_PADDING + idx * slotWidth + (slotWidth - ACTIVE_PILL_SIZE) / 2
+      (_, idx) => dynamicBarPadding + idx * slotWidth + (slotWidth - activePillSize) / 2
     ),
     extrapolate: 'clamp',
   });
 
   return (
-    <View style={[styles.bottomNav, { bottom: bottomOffset }]} onLayout={onBarLayout}>
+    <View
+      style={[
+        styles.bottomNav,
+        {
+          left: sideInset,
+          right: sideInset,
+          bottom: bottomOffset,
+          height: barHeight,
+          borderRadius: barHeight / 2,
+          paddingHorizontal: dynamicBarPadding,
+        },
+      ]}
+      onLayout={onBarLayout}
+    >
       {barWidth > 0 && !isQrFocused && (
         <Animated.View
           pointerEvents="none"
           style={[
             styles.activePill,
             {
+              top: (barHeight - activePillSize) / 2,
+              width: activePillSize,
+              height: activePillSize,
+              borderRadius: activePillSize / 2,
               transform: [{ translateX: pillTranslateX }, { scale: activePillScale }],
             },
           ]}
@@ -149,7 +175,11 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
             onPress={onPress}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
-            style={isMemberCardTrigger ? styles.memberTriggerSlot : styles.navButton}
+            style={
+              isMemberCardTrigger
+                ? [styles.memberTriggerSlot, { height: barHeight }]
+                : [styles.navButton, { height: navButtonHeight }]
+            }
             activeOpacity={0.92}
           >
             {isMemberCardTrigger ? (
@@ -158,8 +188,20 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                   transform: [{ scale: pressScales.current[index] }],
                 }}
               >
-                <View ref={memberTriggerRef} collapsable={false} style={styles.memberTriggerButton}>
-                  <IconComponent size={22} color="#FFFFFF" strokeWidth={2.4} />
+                <View
+                  ref={memberTriggerRef}
+                  collapsable={false}
+                  style={[
+                    styles.memberTriggerButton,
+                    {
+                      width: triggerButtonSize,
+                      height: triggerButtonSize,
+                      borderRadius: triggerButtonSize / 2,
+                      transform: [{ translateY: triggerLift }],
+                    },
+                  ]}
+                >
+                  <IconComponent size={iconSize} color="#FFFFFF" strokeWidth={2.4} />
                 </View>
               </Animated.View>
             ) : (
@@ -170,7 +212,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                 }}
               >
                 <IconComponent
-                  size={22}
+                  size={iconSize}
                   color="#FFFFFF"
                   strokeWidth={isFocused ? 2.4 : 2.1}
                 />
@@ -186,15 +228,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 const styles = StyleSheet.create({
   bottomNav: {
     position: 'absolute',
-    left: 24,
-    right: 24,
     backgroundColor: '#2A1F1F',
-    height: 72,
-    borderRadius: 36,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: BAR_HORIZONTAL_PADDING,
     shadowColor: '#2A1F1F',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.16,
@@ -203,10 +240,6 @@ const styles = StyleSheet.create({
   },
   activePill: {
     position: 'absolute',
-    top: 14,
-    width: ACTIVE_PILL_SIZE,
-    height: ACTIVE_PILL_SIZE,
-    borderRadius: 22,
     backgroundColor: '#B91C2F',
     shadowColor: '#B91C2F',
     shadowOffset: { width: 0, height: 3 },
@@ -216,7 +249,7 @@ const styles = StyleSheet.create({
   },
   navButton: {
     flex: 1,
-    height: 48,
+    height: 44,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -230,15 +263,11 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   memberTriggerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#B91C2F',
     borderWidth: 4,
     borderColor: '#2A1F1F',
-    transform: [{ translateY: -16 }],
     shadowColor: '#B91C2F',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,

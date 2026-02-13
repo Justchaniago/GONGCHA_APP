@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, FlatList, Image, TouchableOpacity, SafeAreaView, StyleSheet, Modal, Animated, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, ScrollView, FlatList, Image, TouchableOpacity, StyleSheet, Modal, Animated, TouchableWithoutFeedback, useWindowDimensions } from 'react-native';
 import { Heart, X } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 
@@ -21,6 +22,8 @@ const MOCK_MENU = [
 const CATEGORIES = ['All', 'Milk Tea', 'Fruit Tea', 'Smoothie'];
 
 export default function MenuScreen() {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<typeof MOCK_MENU[0] | null>(null);
@@ -30,6 +33,8 @@ export default function MenuScreen() {
   const filteredMenu = selectedCategory === 'All' 
     ? MOCK_MENU 
     : MOCK_MENU.filter(item => item.category === selectedCategory);
+  const isCompact = width < 360;
+  const horizontalPadding = isCompact ? 16 : 20;
 
   const toggleFavorite = (id: string) => {
     setFavorites(prev => 
@@ -139,13 +144,13 @@ export default function MenuScreen() {
   return (
     <ScreenFadeTransition>
       <View style={styles.root}>
-        <StatusBar style="dark" />
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 4 }]}> 
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}> 
         <Text style={styles.headerTitle}>Menu</Text>
         <Text style={styles.headerSubtitle}>Discover our signature drinks</Text>
       </View>
@@ -155,7 +160,7 @@ export default function MenuScreen() {
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScrollContent}
+          contentContainerStyle={[styles.categoryScrollContent, { paddingHorizontal: horizontalPadding }]}
         >
           {CATEGORIES.map(renderCategoryPill)}
         </ScrollView>
@@ -167,7 +172,7 @@ export default function MenuScreen() {
         renderItem={renderProductCard}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={styles.productGrid}
+        contentContainerStyle={[styles.productGrid, { paddingHorizontal: horizontalPadding }]}
         columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
       />
@@ -177,6 +182,8 @@ export default function MenuScreen() {
         transparent
         visible={!!selectedProduct}
         animationType="none"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
         onRequestClose={onCloseModal}
       >
         <TouchableWithoutFeedback onPress={onCloseModal}>
@@ -231,7 +238,7 @@ export default function MenuScreen() {
           </Animated.View>
         </TouchableWithoutFeedback>
       </Modal>
-      </SafeAreaView>
+      </View>
       </View>
     </ScreenFadeTransition>
   );

@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Image,
-  Dimensions,
   Platform,
   TextInput,
   Animated,
   Keyboard,
   Alert,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -31,11 +31,15 @@ type WelcomeScreenNavigationProp = NativeStackNavigationProp<
   'Welcome'
 >;
 
-const { width, height } = Dimensions.get('window');
 const WELCOME_KEYBOARD_SHIFT_MULTIPLIER = 1.0;
 
 export default function WelcomeScreen() {
+  const { width, height } = useWindowDimensions();
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
+  const isCompact = width < 360;
+  const logoSize = isCompact ? 104 : 120;
+  const sheetPadding = isCompact ? 18 : 24;
+  const sheetHiddenOffset = Math.max(400, height * 0.52);
 
   // State
   const [viewMode, setViewMode] = useState<'initial' | 'selection' | 'login_form' | 'login_otp' | 'signup_form' | 'signup_otp'>('initial');
@@ -52,13 +56,19 @@ export default function WelcomeScreen() {
   // Animasi Values
   const getStartedOpacity = useRef(new Animated.Value(1)).current;
   const getStartedTranslateY = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(400)).current; // Fixed value instead of height
+  const sheetTranslateY = useRef(new Animated.Value(sheetHiddenOffset)).current;
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const keyboardShift = useRef(new Animated.Value(0)).current;
   const loginOtpRefs = useRef<Array<TextInput | null>>([null, null, null, null]);
   const loginTimerRef = useRef<NodeJS.Timeout | null>(null);
   const signupOtpRefs = useRef<Array<TextInput | null>>([null, null, null, null]);
   const signupTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (viewMode === 'initial') {
+      sheetTranslateY.setValue(sheetHiddenOffset);
+    }
+  }, [sheetHiddenOffset, sheetTranslateY, viewMode]);
 
   const clamp = (value: number, min: number, max: number) => {
     return Math.min(Math.max(value, min), max);
@@ -167,7 +177,7 @@ export default function WelcomeScreen() {
       Animated.parallel([
         Animated.timing(getStartedOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
         Animated.timing(getStartedTranslateY, { toValue: 0, duration: 250, useNativeDriver: true }),
-        Animated.timing(sheetTranslateY, { toValue: 400, duration: 250, useNativeDriver: true }),
+        Animated.timing(sheetTranslateY, { toValue: sheetHiddenOffset, duration: 250, useNativeDriver: true }),
       ]).start();
     });
   };
@@ -182,7 +192,7 @@ export default function WelcomeScreen() {
       Animated.parallel([
         Animated.timing(getStartedOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.timing(getStartedTranslateY, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(sheetTranslateY, { toValue: 400, duration: 300, useNativeDriver: true }),
+        Animated.timing(sheetTranslateY, { toValue: sheetHiddenOffset, duration: 300, useNativeDriver: true }),
       ]).start(() => setViewMode('initial'));
     }
   };
@@ -352,7 +362,7 @@ export default function WelcomeScreen() {
       {/* Background Image - STATIC */}
       <Image
         source={require('../../assets/images/welcome1.jpg')}
-        style={styles.heroImage}
+        style={[styles.heroImage, { width, height }]}
         resizeMode="cover"
       />
 
@@ -360,13 +370,13 @@ export default function WelcomeScreen() {
       <View style={styles.logoSection}>
         <Image
           source={require('../../assets/images/logo1.png')}
-          style={styles.logoImage}
+          style={[styles.logoImage, { width: logoSize, height: logoSize }]}
           resizeMode="contain"
         />
       </View>
 
       <TouchableOpacity 
-        style={styles.gradientOverlay} 
+        style={[styles.gradientOverlay, { height: height * 0.5 }]} 
         activeOpacity={1}
         onPress={Keyboard.dismiss}
       >
@@ -408,6 +418,7 @@ export default function WelcomeScreen() {
         <View
           style={[
             styles.bottomSheetContent,
+            { padding: sheetPadding, paddingTop: 12 },
             isOtpMode && styles.bottomSheetContentOtp,
             isKeyboardVisible && styles.bottomSheetContentKeyboard,
           ]}
@@ -579,10 +590,10 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEFDFB' },
-  heroImage: { position: 'absolute', width: width, height: height, top: 0, left: 0 },
+  heroImage: { position: 'absolute', top: 0, left: 0 },
   logoSection: { position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, alignSelf: 'center', zIndex: 10 },
-  logoImage: { width: 120, height: 120 },
-  gradientOverlay: { position: 'absolute', bottom: 0, width: '100%', height: height * 0.5 },
+  logoImage: {},
+  gradientOverlay: { position: 'absolute', bottom: 0, width: '100%' },
   
   getStartedWrapper: { position: 'absolute', bottom: 50, left: 24, right: 24, zIndex: 15 },
   getStartedButton: {
@@ -599,9 +610,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.2, shadowRadius: 20, elevation: 25,
     zIndex: 20,
-    minHeight: height * 0.4, // Minimal tinggi agar tidak gepeng
   },
-  bottomSheetContent: { padding: 24, paddingTop: 12 },
+  bottomSheetContent: {},
   bottomSheetContentOtp: { paddingBottom: 34 },
   bottomSheetContentKeyboard: { paddingBottom: 52 },
   sheetScrollContent: { paddingBottom: 10 },

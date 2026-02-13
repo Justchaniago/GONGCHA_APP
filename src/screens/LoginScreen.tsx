@@ -9,11 +9,11 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
   LayoutAnimation,
   Animated,
   Keyboard,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -26,10 +26,15 @@ type RootStackParamList = {
 
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
 
-const { width, height } = Dimensions.get('window');
 export default function LoginScreen() {
+  const { width, height } = useWindowDimensions();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<LoginScreenRouteProp>();
+  const isCompact = width < 360;
+  const logoSize = isCompact ? 88 : 100;
+  const sheetPadding = isCompact ? 18 : 24;
+  const otpBoxWidth = isCompact ? 44 : 50;
+  const otpBoxHeight = isCompact ? 54 : 60;
 
   // State
   // Cek apakah ada parameter dari halaman sebelumnya (WelcomeScreen)
@@ -128,11 +133,11 @@ export default function LoginScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.container}>
-      <Image source={require('../../assets/images/welcome1.jpg')} style={styles.backgroundImage} resizeMode="cover" />
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={styles.gradientOverlay} pointerEvents="none" />
+      <Image source={require('../../assets/images/welcome1.jpg')} style={[styles.backgroundImage, { width, height }]} resizeMode="cover" />
+      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={[styles.gradientOverlay, { height: height * 0.6 }]} pointerEvents="none" />
       
       <View style={styles.logoSection}>
-        <Image source={require('../../assets/images/logo1.png')} style={styles.logoImage} resizeMode="contain" />
+        <Image source={require('../../assets/images/logo1.png')} style={[styles.logoImage, { width: logoSize, height: logoSize }]} resizeMode="contain" />
       </View>
 
       <KeyboardAvoidingView
@@ -140,7 +145,7 @@ export default function LoginScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 28 : 0}
         style={styles.keyboardView}
       >
-        <View style={styles.bottomSheet}>
+        <View style={[styles.bottomSheet, { padding: sheetPadding, paddingTop: 12, minHeight: height * 0.52 }]}>
           
           {/* Header Sheet (Bisa di-tap untuk turun jika perlu) */}
           <View style={styles.sheetHeader}>
@@ -202,7 +207,7 @@ export default function LoginScreen() {
                       ref={(ref) => {
                         otpRefs.current[index] = ref;
                       }}
-                      style={[styles.otpBox, digit && styles.otpBoxFilled]}
+                      style={[styles.otpBox, { width: otpBoxWidth, height: otpBoxHeight }, digit && styles.otpBoxFilled]}
                       keyboardType="number-pad"
                       maxLength={1}
                       value={digit}
@@ -242,15 +247,14 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEFDFB' },
-  backgroundImage: { position: 'absolute', width: width, height: height, top: 0, left: 0 },
-  gradientOverlay: { position: 'absolute', bottom: 0, width: '100%', height: height * 0.6 },
+  backgroundImage: { position: 'absolute', top: 0, left: 0 },
+  gradientOverlay: { position: 'absolute', bottom: 0, width: '100%' },
   logoSection: { position: 'absolute', top: 60, alignSelf: 'center' },
-  logoImage: { width: 100, height: 100 },
+  logoImage: {},
   keyboardView: { flex: 1, justifyContent: 'flex-end' },
   bottomSheet: {
     backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingTop: 12, paddingBottom: 40,
-    minHeight: height * 0.52,
+    paddingBottom: 40,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 20
   },
   sheetHeader: { alignItems: 'center', paddingVertical: 10, marginBottom: 10 },
@@ -268,7 +272,7 @@ const styles = StyleSheet.create({
   phoneInput: { flex: 1, fontSize: 16, paddingHorizontal: 14 },
 
   otpContainer: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 24 },
-  otpBox: { width: 50, height: 60, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', textAlign: 'center', fontSize: 24, fontWeight: 'bold', backgroundColor: '#F9FAFB' },
+  otpBox: { borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', textAlign: 'center', fontSize: 24, fontWeight: 'bold', backgroundColor: '#F9FAFB' },
   otpBoxFilled: { borderColor: '#B91C2F', backgroundColor: '#FFF5F5' },
 
   primaryButton: { height: 50, backgroundColor: '#B91C2F', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },

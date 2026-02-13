@@ -4,18 +4,19 @@ import {
   Text,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   StyleSheet,
   FlatList,
   Alert,
   ActivityIndicator,
   Modal,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Star, Ticket } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
@@ -25,6 +26,8 @@ import { RewardItem, UserProfile, UserVoucher } from '../types/types';
 type RewardsTab = 'catalog' | 'vouchers';
 
 export default function RewardsScreen() {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [catalog, setCatalog] = useState<RewardItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +37,8 @@ export default function RewardsScreen() {
   const [voucherQrPayload, setVoucherQrPayload] = useState<string>('');
   const [useVoucherLoading, setUseVoucherLoading] = useState(false);
   const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
+  const isCompact = width < 360;
+  const horizontalPadding = isCompact ? 16 : 20;
 
   const fetchData = async () => {
     try {
@@ -252,10 +257,10 @@ export default function RewardsScreen() {
   return (
     <ScreenFadeTransition>
       <View style={styles.root}>
-        <StatusBar style="dark" />
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
-        <SafeAreaView style={styles.container}>
+        <View style={[styles.container, { paddingTop: insets.top + 4 }]}> 
           {loading ? (
             <View style={styles.center}>
               <ActivityIndicator size="large" color="#B91C2F" />
@@ -268,7 +273,7 @@ export default function RewardsScreen() {
               renderItem={renderItem}
               ListHeaderComponent={renderHeader}
               numColumns={2}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom }]}
               columnWrapperStyle={styles.columnWrapper}
               showsVerticalScrollIndicator={false}
             />
@@ -280,16 +285,18 @@ export default function RewardsScreen() {
               renderItem={renderVoucherItem}
               ListHeaderComponent={renderHeader}
               ListEmptyComponent={renderVoucherEmptyState}
-              contentContainerStyle={styles.voucherListContent}
+              contentContainerStyle={[styles.voucherListContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom }]}
               showsVerticalScrollIndicator={false}
             />
           )}
-        </SafeAreaView>
+        </View>
 
         <Modal
           visible={isVoucherModalVisible}
           transparent
           animationType="fade"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
           onRequestClose={() => setIsVoucherModalVisible(false)}
         >
           <View style={styles.modalOverlay}>

@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 
 type OtpVerificationSectionProps = {
@@ -30,6 +31,12 @@ export default function OtpVerificationSection({
   resendTimer,
   onResend,
 }: OtpVerificationSectionProps) {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 360;
+  const otpBoxWidth = isCompact ? 44 : 50;
+  const otpBoxHeight = isCompact ? 54 : 60;
+  const otpFontSize = isCompact ? 22 : 24;
+
   return (
     <View>
       <View style={styles.headerRow}>
@@ -49,7 +56,15 @@ export default function OtpVerificationSection({
             ref={(ref) => {
               otpRefs.current[index] = ref;
             }}
-            style={[styles.otpBox, digit && styles.otpBoxFilled]}
+            style={[
+              styles.otpBox,
+              {
+                width: otpBoxWidth,
+                height: otpBoxHeight,
+                fontSize: otpFontSize,
+              },
+              digit && styles.otpBoxFilled,
+            ]}
             keyboardType="number-pad"
             maxLength={1}
             value={digit}
@@ -88,13 +103,10 @@ const styles = StyleSheet.create({
 
   otpContainer: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 24 },
   otpBox: {
-    width: 50,
-    height: 60,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     textAlign: 'center',
-    fontSize: 24,
     fontWeight: 'bold',
     backgroundColor: '#F9FAFB',
     color: '#1A1A1A',

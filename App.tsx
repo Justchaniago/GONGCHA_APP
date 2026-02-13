@@ -9,7 +9,7 @@ export default function App() {
   return (
     <MemberProvider>
       <NavigationContainer>
-        <StatusBar style="dark" />
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
         <AppNavigator />
       </NavigationContainer>
       <MemberCardModal />
