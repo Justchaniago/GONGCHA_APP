@@ -11,10 +11,12 @@ export interface UserProfile {
   name: string;
   phoneNumber: string;
   currentPoints: number;
+  lifetimePoints: number;
   tierXp: number;
   xpHistory: XpRecord[];
   tier: MemberTier;
   joinedDate: string;
+  vouchers: UserVoucher[];
 }
 
 export interface Transaction {
@@ -23,4 +25,23 @@ export interface Transaction {
   amount: number;
   pointsEarned: number;
   items: string[];
+}
+
+export interface RewardItem {
+  id: string;
+  title: string;
+  description: string;
+  pointsCost: number;
+  image: any;
+  category: 'Drink' | 'Topping' | 'Discount';
+}
+
+export interface UserVoucher {
+  id: string;
+  rewardId: string;
+  title: string;
+  code: string;
+  redeemedAt: string;
+  expiresAt: string;
+  isUsed: boolean;
 }
