@@ -70,12 +70,9 @@ export default function StoreLocatorScreen() {
       // 2. Fetch Firestore Data
       const querySnapshot = await getDocs(collection(firestoreDb, 'stores'));
       const storesData: StoreType[] = [];
-      
-      console.log(`Found ${querySnapshot.size} stores in Firebase.`); // DEBUG LOG
 
       querySnapshot.forEach((doc) => {
         const data = doc.data() as any;
-        console.log("Data Toko Raw:", data); // DEBUG LOG: Cek nama field di sini!
         
         // Prioritaskan field 'name', kalau kosong baru coba yang lain
         const rawName = data.name || data.Name || data.storeName || data.nama || 'Unnamed Store';
