@@ -26,6 +26,7 @@ import {
   LogOut,
   ChevronRight,
   CreditCard,
+  MapPin,
   HelpCircle,
   X,
 } from 'lucide-react-native';
@@ -401,6 +402,13 @@ export default function ProfileScreen() {
                 title="Transaction History"
                 subtitle="Check your earned points"
                 onPress={openHistory}
+              />
+
+              <MenuItem
+                icon={MapPin}
+                title="Find a Store"
+                subtitle="Locate nearest Gong Cha"
+                onPress={() => navigation.navigate('StoreLocator')}
               />
 
               <MenuItem icon={CreditCard} title="Payment Methods" onPress={() => {}} />

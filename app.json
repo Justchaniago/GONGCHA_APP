@@ -14,21 +14,35 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gongcha.id.pilot"
+      "bundleIdentifier": "com.gongcha.id.pilot",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to show the nearest Gong Cha stores.",
+        "LSApplicationQueriesSchemes": [
+          "comgooglemaps",
+          "comgooglemaps-x-callback",
+          "waze",
+          "google.navigation"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-icon.png",
         "backgroundColor": "#FFF8F0"
       },
-      "package": "com.gongcha.id.pilot"
+      "package": "com.gongcha.id.pilot",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/images/logo1.png"
     },
     "plugins": [
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      "expo-location"
     ]
   }
 }
