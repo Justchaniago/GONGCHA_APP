@@ -1,9 +1,14 @@
 export type MemberTier = 'Silver' | 'Gold' | 'Platinum';
+export type HistoryEventType = 'earn' | 'redeem';
 
 export interface XpRecord {
   id: string;
   date: string;
   amount: number;
+  type?: HistoryEventType;
+  context?: string;
+  location?: string;
+  tierEligible?: boolean;
 }
 
 export interface UserProfile {

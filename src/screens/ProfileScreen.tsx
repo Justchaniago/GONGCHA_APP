@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   StyleSheet,
@@ -7,16 +8,20 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Modal,
   FlatList,
+  Easing,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User,
   History,
+  ArrowDownCircle,
+  ArrowUpCircle,
   Settings,
   LogOut,
   ChevronRight,
@@ -24,7 +29,7 @@ import {
   HelpCircle,
   X,
 } from 'lucide-react-native';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import { MockBackend } from '../services/MockBackend';
@@ -74,9 +79,13 @@ const TIER_CARD_THEME: Record<
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const historyTranslateY = useRef(new Animated.Value(380)).current;
+  const historyBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const historyCardOpacity = useRef(new Animated.Value(0)).current;
+  const historyCardScale = useRef(new Animated.Value(0.98)).current;
   const tier: MemberTier = user?.tier || 'Silver';
   const cardTheme = TIER_CARD_THEME[tier];
   const isCompact = screenWidth < 360;
@@ -84,10 +93,25 @@ export default function ProfileScreen() {
   const avatarSize = isCompact ? 88 : 100;
   const logoWrapSize = isCompact ? 54 : 62;
   const logoSize = isCompact ? 40 : 46;
+  const useBlurBackdrop = Platform.OS !== 'ios';
+  const backdropBlurIntensity = Platform.OS === 'ios' ? 52 : 85;
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  useEffect(() => {
+    navigation.setOptions({ tabBarHidden: showHistory });
+    return () => {
+      navigation.setOptions({ tabBarHidden: false });
+    };
+  }, [navigation, showHistory]);
 
   const loadData = async () => {
     const data = await MockBackend.getUser();
@@ -128,43 +152,145 @@ export default function ProfileScreen() {
     });
   };
 
-  const HistoryModal = () => (
-    <Modal
-      visible={showHistory}
-      animationType="fade"
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      onRequestClose={() => setShowHistory(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>History</Text>
-          <TouchableOpacity onPress={() => setShowHistory(false)} style={styles.closeBtn}>
-            <X size={24} color="#2A1F1F" />
-          </TouchableOpacity>
-        </View>
+  const openHistory = () => {
+    setShowHistory(true);
+    historyTranslateY.setValue(380);
+    historyBackdropOpacity.setValue(0);
+    historyCardOpacity.setValue(0);
+    historyCardScale.setValue(0.98);
 
-        <FlatList
-          data={[...(user?.xpHistory || [])].reverse()}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 20 }}
-          ListEmptyComponent={<Text style={styles.emptyText}>No transaction history yet.</Text>}
-          renderItem={({ item }: { item: XpRecord }) => (
-            <View style={styles.historyItem}>
-              <View style={styles.historyIconBg}>
-                <History size={20} color="#B91C2F" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.historyTitle}>Points Earned</Text>
-                <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
-              </View>
-              <Text style={styles.historyAmount}>+{item.amount} XP</Text>
+    requestAnimationFrame(() => {
+      Animated.parallel([
+        Animated.spring(historyTranslateY, {
+          toValue: 0,
+          damping: 20,
+          stiffness: 230,
+          mass: 0.95,
+          useNativeDriver: true,
+        }),
+        Animated.timing(historyBackdropOpacity, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(historyCardOpacity, {
+          toValue: 1,
+          duration: 240,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(historyCardScale, {
+          toValue: 1,
+          damping: 19,
+          stiffness: 220,
+          mass: 0.9,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  const closeHistory = () => {
+    Animated.parallel([
+      Animated.timing(historyTranslateY, {
+        toValue: 380,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(historyBackdropOpacity, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(historyCardOpacity, {
+        toValue: 0,
+        duration: 170,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(historyCardScale, {
+        toValue: 0.985,
+        duration: 170,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setShowHistory(false);
+    });
+  };
+
+  const HistoryModal = () => {
+    if (!showHistory) return null;
+
+    return (
+      <View style={styles.inlineOverlay} pointerEvents="box-none">
+        <View style={styles.modalOverlay}>
+          <Animated.View style={[styles.modalBackdrop, { opacity: historyBackdropOpacity }]}>
+            {useBlurBackdrop ? (
+              <BlurView
+                intensity={backdropBlurIntensity}
+                tint="dark"
+                experimentalBlurMethod="dimezisBlurView"
+                style={StyleSheet.absoluteFillObject}
+              />
+            ) : null}
+            <View style={styles.modalBackdropTint} />
+            <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={closeHistory} />
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.bottomSheetCard,
+              {
+                minHeight: Math.max(320, screenHeight * 0.46),
+                opacity: historyCardOpacity,
+                transform: [{ translateY: historyTranslateY }, { scale: historyCardScale }],
+              },
+            ]}
+          >
+            <View style={styles.modalGrip} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Transaction History</Text>
+              <TouchableOpacity onPress={closeHistory} style={styles.closeBtn}>
+                <X size={20} color="#2A1F1F" />
+              </TouchableOpacity>
             </View>
-          )}
-        />
+
+            <FlatList
+              data={[...(user?.xpHistory || [])].reverse()}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.historyListContent}
+              ListEmptyComponent={<Text style={styles.emptyText}>No transaction history yet.</Text>}
+              renderItem={({ item }: { item: XpRecord }) => {
+                const isRedeem = (item.type || 'earn') === 'redeem';
+
+                return (
+                  <View style={styles.historyItem}>
+                    <View style={[styles.historyIconBg, isRedeem && styles.historyIconBgRedeem]}>
+                      {isRedeem ? <ArrowDownCircle size={18} color="#C2410C" /> : <ArrowUpCircle size={18} color="#15803D" />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.historyTitle}>{isRedeem ? 'Points Redeemed' : 'Points Earned'}</Text>
+                      <Text style={styles.historyContext}>{item.context || (isRedeem ? 'Reward Redeem' : 'Drink Purchase')}</Text>
+                      <Text style={styles.historyMeta}>{item.location || 'Gong Cha App'}</Text>
+                      <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
+                    </View>
+                    <Text style={[styles.historyAmount, isRedeem ? styles.historyAmountRedeem : styles.historyAmountEarn]}>
+                      {isRedeem ? '-' : '+'}
+                      {item.amount} XP
+                    </Text>
+                  </View>
+                );
+              }}
+            />
+          </Animated.View>
+        </View>
       </View>
-    </Modal>
-  );
+    );
+  };
 
   const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false }: any) => (
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
@@ -266,7 +392,7 @@ export default function ProfileScreen() {
                 icon={History}
                 title="Transaction History"
                 subtitle="Check your earned points"
-                onPress={() => setShowHistory(true)}
+                onPress={openHistory}
               />
 
               <MenuItem icon={CreditCard} title="Payment Methods" onPress={() => {}} />
@@ -375,22 +501,61 @@ const styles = StyleSheet.create({
 
   versionText: { textAlign: 'center', color: '#8C7B75', fontSize: 12, opacity: 0.5, marginBottom: 20 },
 
-  modalContainer: { flex: 1, backgroundColor: '#FFF' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'transparent',
+  },
+  inlineOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 60,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalBackdropTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(21,17,17,0.38)',
+  },
+  bottomSheetCard: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '78%',
+    paddingBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 10,
+  },
+  modalGrip: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#E5E7EB',
+    marginTop: 10,
+    marginBottom: 4,
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#2A1F1F' },
   closeBtn: { padding: 8, backgroundColor: '#F5F5F5', borderRadius: 20 },
+  historyListContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10 },
   emptyText: { textAlign: 'center', color: '#8C7B75', marginTop: 40 },
   historyItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
+    alignItems: 'flex-start',
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F9F9F9',
   },
@@ -403,7 +568,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
   },
+  historyIconBgRedeem: {
+    backgroundColor: '#FFF7ED',
+  },
   historyTitle: { fontSize: 16, fontWeight: '600', color: '#2A1F1F' },
+  historyContext: { fontSize: 13, color: '#6B5A55', marginTop: 2 },
+  historyMeta: { fontSize: 12, color: '#9A8A85', marginTop: 1 },
   historyDate: { fontSize: 12, color: '#8C7B75', marginTop: 2 },
-  historyAmount: { fontSize: 16, fontWeight: 'bold', color: '#4CAF50' },
+  historyAmount: { fontSize: 15, fontWeight: '700', marginTop: 2 },
+  historyAmountEarn: { color: '#15803D' },
+  historyAmountRedeem: { color: '#C2410C' },
 });

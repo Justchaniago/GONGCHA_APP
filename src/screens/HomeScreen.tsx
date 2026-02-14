@@ -205,7 +205,7 @@ export default function HomeScreen() {
         <ScrollView 
           showsVerticalScrollIndicator={false} 
           style={styles.scrollView} 
-          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom }]}
         >
           
           {/* --- 1. HEADER --- */}
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 170,
+    paddingBottom: 120,
   },
 
   // --- HEADER ---

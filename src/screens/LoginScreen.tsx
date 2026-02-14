@@ -18,6 +18,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
   Login: { initialStep?: 'phone' | 'otp' };
@@ -28,6 +29,7 @@ type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<LoginScreenRouteProp>();
   const isCompact = width < 360;
@@ -35,6 +37,8 @@ export default function LoginScreen() {
   const sheetPadding = isCompact ? 18 : 24;
   const otpBoxWidth = isCompact ? 44 : 50;
   const otpBoxHeight = isCompact ? 54 : 60;
+  const dynamicLogoTop = insets.top + (Platform.OS === 'ios' ? 12 : 8);
+  const dynamicSheetBottomPadding = Math.max(insets.bottom + 16, 24);
 
   // State
   // Cek apakah ada parameter dari halaman sebelumnya (WelcomeScreen)
@@ -136,16 +140,16 @@ export default function LoginScreen() {
       <Image source={require('../../assets/images/welcome1.jpg')} style={[styles.backgroundImage, { width, height }]} resizeMode="cover" />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={[styles.gradientOverlay, { height: height * 0.6 }]} pointerEvents="none" />
       
-      <View style={styles.logoSection}>
+      <View style={[styles.logoSection, { top: dynamicLogoTop }]}>
         <Image source={require('../../assets/images/logo1.png')} style={[styles.logoImage, { width: logoSize, height: logoSize }]} resizeMode="contain" />
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 28 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 8 : 0}
         style={styles.keyboardView}
       >
-        <View style={[styles.bottomSheet, { padding: sheetPadding, paddingTop: 12, minHeight: height * 0.52 }]}>
+        <View style={[styles.bottomSheet, { padding: sheetPadding, paddingTop: 12, paddingBottom: dynamicSheetBottomPadding, minHeight: height * 0.52 }]}> 
           
           {/* Header Sheet (Bisa di-tap untuk turun jika perlu) */}
           <View style={styles.sheetHeader}>
@@ -249,7 +253,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEFDFB' },
   backgroundImage: { position: 'absolute', top: 0, left: 0 },
   gradientOverlay: { position: 'absolute', bottom: 0, width: '100%' },
-  logoSection: { position: 'absolute', top: 60, alignSelf: 'center' },
+  logoSection: { position: 'absolute', alignSelf: 'center' },
   logoImage: {},
   keyboardView: { flex: 1, justifyContent: 'flex-end' },
   bottomSheet: {

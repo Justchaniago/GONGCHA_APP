@@ -63,7 +63,12 @@ export const MockBackend = {
     cutoffDate.setDate(now.getDate() - RULES.XP_VALIDITY_DAYS);
 
     const activeRecords = xpHistory.filter((record) => new Date(record.date) > cutoffDate);
-    const activeXp = activeRecords.reduce((sum, record) => sum + record.amount, 0);
+    const activeXp = activeRecords.reduce((sum, record) => {
+      const isEarnEvent = (record.type || 'earn') === 'earn';
+      const includeForTier = record.tierEligible !== false;
+      if (!isEarnEvent || !includeForTier) return sum;
+      return sum + Math.max(0, record.amount);
+    }, 0);
 
     let newTier: MemberTier = 'Silver';
     if (activeXp >= RULES.TIER_LIMITS.Platinum) {
@@ -126,6 +131,14 @@ export const MockBackend = {
     if (!data) return null;
 
     let user = JSON.parse(data) as Partial<UserProfile>;
+    const normalizedHistory = (user.xpHistory || []).map((record) => ({
+      ...record,
+      type: record.type || 'earn',
+      context: record.context || ((record.type || 'earn') === 'redeem' ? 'Reward Redeem' : 'Drink Purchase'),
+      location: record.location || 'Gong Cha App',
+      tierEligible: record.tierEligible ?? ((record.type || 'earn') === 'earn'),
+    }));
+
     const normalizedUser: UserProfile = {
       id: user.id || `u_${Date.now()}`,
       name: user.name || 'Ferry Rusly',
@@ -133,12 +146,12 @@ export const MockBackend = {
       currentPoints: user.currentPoints ?? 0,
       lifetimePoints: user.lifetimePoints ?? user.currentPoints ?? 0,
       tierXp: user.tierXp ?? 0,
-      xpHistory: user.xpHistory || [],
+      xpHistory: normalizedHistory,
       tier: user.tier || 'Silver',
       joinedDate: user.joinedDate || new Date().toISOString(),
       vouchers: user.vouchers || [],
     };
-    const { activeXp, newTier, activeRecords } = this._calculateTierStatus(user.xpHistory || []);
+    const { activeXp, newTier, activeRecords } = this._calculateTierStatus(normalizedHistory);
 
     if (
       normalizedUser.tierXp !== activeXp ||
@@ -182,6 +195,10 @@ export const MockBackend = {
       id: `xp_${Date.now()}`,
       date: new Date().toISOString(),
       amount: earnedVal,
+      type: 'earn',
+      context: amount >= 50000 ? 'Drink Purchase' : 'Top Up Purchase',
+      location: 'Gong Cha Central Park',
+      tierEligible: true,
     };
     user.xpHistory.push(newXpRecord);
 
@@ -228,9 +245,20 @@ export const MockBackend = {
       isUsed: false,
     };
 
+    const redeemHistory: XpRecord = {
+      id: `xp_redeem_${Date.now()}`,
+      date: new Date().toISOString(),
+      amount: reward.pointsCost,
+      type: 'redeem',
+      context: reward.title,
+      location: 'Rewards Catalog',
+      tierEligible: false,
+    };
+
     const updatedUser: UserProfile = {
       ...safeUser,
       currentPoints: safeUser.currentPoints - reward.pointsCost,
+      xpHistory: [...(safeUser.xpHistory || []), redeemHistory],
       vouchers: [newVoucher, ...safeUser.vouchers],
     };
 
@@ -315,9 +343,20 @@ export const MockBackend = {
 
     if (user.currentPoints < cost) throw new Error('Poin tidak cukup');
 
+    const redeemHistory: XpRecord = {
+      id: `xp_redeem_${Date.now()}`,
+      date: new Date().toISOString(),
+      amount: cost,
+      type: 'redeem',
+      context: 'Point Redemption',
+      location: 'Gong Cha App',
+      tierEligible: false,
+    };
+
     const updatedUser: UserProfile = {
       ...user,
       currentPoints: user.currentPoints - cost,
+      xpHistory: [...(user.xpHistory || []), redeemHistory],
     };
 
     await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));

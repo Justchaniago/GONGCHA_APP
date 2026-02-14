@@ -34,12 +34,26 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const iconSize = isCompact ? 20 : 22;
   const navButtonHeight = isCompact ? 44 : 48;
   const dynamicBarPadding = isCompact ? 8 : BAR_HORIZONTAL_PADDING;
+  const tabBarHideProgress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (pressScales.current.length !== state.routes.length) {
       pressScales.current = state.routes.map(() => new Animated.Value(1));
     }
   }, [state.routes]);
+
+  const activeRouteKey = state.routes[state.index]?.key;
+  const activeOptions = activeRouteKey ? descriptors[activeRouteKey]?.options : undefined;
+  const shouldHideTabBar = Boolean((activeOptions as any)?.tabBarHidden);
+
+  useEffect(() => {
+    Animated.timing(tabBarHideProgress, {
+      toValue: shouldHideTabBar ? 1 : 0,
+      duration: shouldHideTabBar ? 220 : 260,
+      easing: shouldHideTabBar ? Easing.in(Easing.cubic) : Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [shouldHideTabBar, tabBarHideProgress]);
 
   useEffect(() => {
     activePillScale.setValue(0.985);
@@ -66,7 +80,8 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const tabCount = state.routes.length || 1;
   const innerWidth = Math.max(barWidth - dynamicBarPadding * 2, 0);
   const slotWidth = innerWidth > 0 ? innerWidth / tabCount : 0;
-  const bottomOffset = Math.max(insets.bottom + (isCompact ? 8 : 10), isCompact ? 14 : 20);
+  const bottomOffset = Math.max(insets.bottom + (isCompact ? 2 : 4), isCompact ? 8 : 10);
+  const hideTranslateY = barHeight + bottomOffset + Math.max(insets.bottom, 10) + 12;
 
   const pillTranslateX = activeIndex.interpolate({
     inputRange: state.routes.map((_, idx) => idx),
@@ -77,7 +92,8 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   });
 
   return (
-    <View
+    <Animated.View
+      pointerEvents={shouldHideTabBar ? 'none' : 'auto'}
       style={[
         styles.bottomNav,
         {
@@ -87,6 +103,18 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           height: barHeight,
           borderRadius: barHeight / 2,
           paddingHorizontal: dynamicBarPadding,
+          opacity: tabBarHideProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 0.94],
+          }),
+          transform: [
+            {
+              translateY: tabBarHideProgress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, hideTranslateY],
+              }),
+            },
+          ],
         },
       ]}
       onLayout={onBarLayout}
@@ -221,7 +249,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           </TouchableOpacity>
         );
       })}
-    </View>
+    </Animated.View>
   );
 }
 

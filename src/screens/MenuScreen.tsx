@@ -172,7 +172,7 @@ export default function MenuScreen() {
         renderItem={renderProductCard}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={[styles.productGrid, { paddingHorizontal: horizontalPadding }]}
+        contentContainerStyle={[styles.productGrid, { paddingHorizontal: horizontalPadding, paddingBottom: 100 + insets.bottom }]}
         columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
       />
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   productGrid: {
     paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingBottom: 84,
     paddingTop: 8,
   },
   columnWrapper: {

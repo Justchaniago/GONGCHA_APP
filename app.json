@@ -4,36 +4,31 @@
     "slug": "gongcha-id-pilot",
     "version": "1.0.0",
     "orientation": "portrait",
-
-    "icon": "./assets/images/logo1.png",
+    "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/images/logo1.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFF8F0"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gongcha.id.pilot"
     },
-
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo1.png",
+        "foregroundImage": "./assets/images/app-icon.png",
         "backgroundColor": "#FFF8F0"
       },
       "package": "com.gongcha.id.pilot"
     },
-
     "web": {
       "favicon": "./assets/images/logo1.png"
     },
-
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ]
   }
 }

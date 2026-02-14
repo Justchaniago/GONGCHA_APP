@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import MemberCardModal from './src/components/MemberCardModal';
 import { MemberProvider } from './src/context/MemberContext';
@@ -102,12 +103,14 @@ export default function App() {
   }
 
   return (
-    <MemberProvider>
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
-      <MemberCardModal />
-    </MemberProvider>
+    <SafeAreaProvider>
+      <MemberProvider>
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+        <MemberCardModal />
+      </MemberProvider>
+    </SafeAreaProvider>
   );
 }
 

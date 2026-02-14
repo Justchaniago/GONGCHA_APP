@@ -17,6 +17,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import OtpVerificationSection from '../components/OtpVerificationSection';
 
 // Tipe navigasi
@@ -35,6 +36,7 @@ const WELCOME_KEYBOARD_SHIFT_MULTIPLIER = 1.0;
 
 export default function WelcomeScreen() {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
   const isCompact = width < 360;
   const logoSize = isCompact ? 104 : 120;
@@ -69,6 +71,9 @@ export default function WelcomeScreen() {
   };
 
   const isOtpMode = viewMode === 'login_otp' || viewMode === 'signup_otp';
+  const dynamicLogoTop = insets.top + (Platform.OS === 'ios' ? 12 : 8);
+  const dynamicGetStartedBottom = Math.max(insets.bottom + 20, 32);
+  const dynamicSheetBottomPadding = Math.max(insets.bottom + 16, 20) + (isOtpMode ? 12 : 0) + (isKeyboardVisible ? 18 : 0);
 
   const getDynamicLoginShift = (keyboardHeight: number) => {
     const isSmallScreen = height < 750;
@@ -365,7 +370,7 @@ export default function WelcomeScreen() {
       />
 
       {/* Logo */}
-      <View style={styles.logoSection}>
+      <View style={[styles.logoSection, { top: dynamicLogoTop }]}>
         <Image
           source={require('../../assets/images/logo1.png')}
           style={[styles.logoImage, { width: logoSize, height: logoSize }]}
@@ -391,6 +396,7 @@ export default function WelcomeScreen() {
         style={[
           styles.getStartedWrapper,
           {
+            bottom: dynamicGetStartedBottom,
             opacity: getStartedOpacity,
             transform: [{ translateY: getStartedTranslateY }],
           },
@@ -416,9 +422,7 @@ export default function WelcomeScreen() {
         <View
           style={[
             styles.bottomSheetContent,
-            { padding: sheetPadding, paddingTop: 12 },
-            isOtpMode && styles.bottomSheetContentOtp,
-            isKeyboardVisible && styles.bottomSheetContentKeyboard,
+            { padding: sheetPadding, paddingTop: 12, paddingBottom: dynamicSheetBottomPadding },
           ]}
         >
           
@@ -589,11 +593,11 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEFDFB' },
   heroImage: { position: 'absolute', top: 0, left: 0 },
-  logoSection: { position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, alignSelf: 'center', zIndex: 10 },
+  logoSection: { position: 'absolute', alignSelf: 'center', zIndex: 10 },
   logoImage: {},
   gradientOverlay: { position: 'absolute', bottom: 0, width: '100%' },
   
-  getStartedWrapper: { position: 'absolute', bottom: 50, left: 24, right: 24, zIndex: 15 },
+  getStartedWrapper: { position: 'absolute', left: 24, right: 24, zIndex: 15 },
   getStartedButton: {
     height: 56, backgroundColor: '#B91C2F', borderRadius: 28,
     justifyContent: 'center', alignItems: 'center',
@@ -610,8 +614,6 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   bottomSheetContent: {},
-  bottomSheetContentOtp: { paddingBottom: 34 },
-  bottomSheetContentKeyboard: { paddingBottom: 52 },
   sheetScrollContent: { paddingBottom: 10 },
   
   sheetHeader: { alignItems: 'center', paddingVertical: 10, marginBottom: 10, width: '100%' },
