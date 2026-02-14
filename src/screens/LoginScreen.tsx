@@ -180,7 +180,7 @@ export default function LoginScreen() {
                     style={styles.phoneInput}
                     placeholder="812 3456 7890"
                     placeholderTextColor="#9CA3AF"
-                    keyboardType="phone-pad"
+                    keyboardType="default"
                     value={phoneNumber}
                     onChangeText={setPhoneNumber}
                   />

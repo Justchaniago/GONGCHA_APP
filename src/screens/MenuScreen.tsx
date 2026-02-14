@@ -7,32 +7,93 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 
-// Mock Menu Data
-const MOCK_MENU = [
-  { id: '1', name: 'Pearl Milk Tea', price: 45000, category: 'Milk Tea', rating: 4.8, image: 'https://via.placeholder.com/200/B91C2F/FFFFFF?text=Pearl+Milk+Tea' },
-  { id: '2', name: 'Taro Milk Tea', price: 48000, category: 'Milk Tea', rating: 4.7, image: 'https://via.placeholder.com/200/8B7355/FFFFFF?text=Taro+Milk+Tea' },
-  { id: '3', name: 'Brown Sugar Pearl', price: 52000, category: 'Milk Tea', rating: 4.9, image: 'https://via.placeholder.com/200/8B4513/FFFFFF?text=Brown+Sugar' },
-  { id: '4', name: 'Passion Fruit Tea', price: 42000, category: 'Fruit Tea', rating: 4.6, image: 'https://via.placeholder.com/200/FFA500/FFFFFF?text=Passion+Fruit' },
-  { id: '5', name: 'Lychee Fruit Tea', price: 44000, category: 'Fruit Tea', rating: 4.7, image: 'https://via.placeholder.com/200/FFB6C1/FFFFFF?text=Lychee+Tea' },
-  { id: '6', name: 'Green Apple Tea', price: 43000, category: 'Fruit Tea', rating: 4.5, image: 'https://via.placeholder.com/200/90EE90/FFFFFF?text=Green+Apple' },
-  { id: '7', name: 'Mango Smoothie', price: 50000, category: 'Smoothie', rating: 4.8, image: 'https://via.placeholder.com/200/FFD700/FFFFFF?text=Mango+Smoothie' },
-  { id: '8', name: 'Strawberry Smoothie', price: 50000, category: 'Smoothie', rating: 4.9, image: 'https://via.placeholder.com/200/FF69B4/FFFFFF?text=Strawberry' },
+// Real Gong Cha Menu Data
+interface MenuItem {
+  id: string;
+  name: string;
+  category: 'Signature' | 'MilkTea' | 'Coffee' | 'Matcha' | 'Mint' | 'BrownSugar' | 'CreativeMix' | 'BrewedTea';
+  mediumPrice: number;  // M price (smallest / base)
+  availableLarge: boolean;  // L available? (L = M + 2k)
+  availableHot?: boolean;  // Hot version available?
+  image?: string;
+  rating?: number;
+}
+
+const GONGCHA_MENU: MenuItem[] = [
+  // SIGNATURE SERIES
+  { id: 's1', name: 'Gong Cha Tea', category: 'Signature', mediumPrice: 29, availableLarge: true, availableHot: false },
+  { id: 's2', name: 'Gong Cha Wintermelon', category: 'Signature', mediumPrice: 29, availableLarge: true, availableHot: false },
+  { id: 's3', name: 'Gong Cha Milk Coffee', category: 'Signature', mediumPrice: 35, availableLarge: false, availableHot: false },
+  { id: 's4', name: 'Gong Cha Milo', category: 'Signature', mediumPrice: 35, availableLarge: false, availableHot: false },
+
+  // MILK TEA SERIES
+  { id: 'm1', name: 'Milk Tea', category: 'MilkTea', mediumPrice: 28, availableLarge: true, availableHot: true },
+  { id: 'm2', name: 'Pearl Milk Tea', category: 'MilkTea', mediumPrice: 32, availableLarge: true, availableHot: true },
+  { id: 'm3', name: 'Milk Tea w Herbal Jelly', category: 'MilkTea', mediumPrice: 32, availableLarge: true, availableHot: false },
+  { id: 'm4', name: 'Earl Grey Milk Tea', category: 'MilkTea', mediumPrice: 37, availableLarge: true, availableHot: false },
+  { id: 'm5', name: 'Taro Milk', category: 'MilkTea', mediumPrice: 35, availableLarge: true, availableHot: true },
+  { id: 'm6', name: 'Chocolate Milk', category: 'MilkTea', mediumPrice: 35, availableLarge: true, availableHot: true },
+  { id: 'm7', name: 'Strawberry Milk Tea', category: 'MilkTea', mediumPrice: 39, availableLarge: true, availableHot: false },
+
+  // COFFEE SERIES
+  { id: 'c1', name: 'Black Coffee', category: 'Coffee', mediumPrice: 28, availableLarge: false, availableHot: false },
+  { id: 'c2', name: 'Dolce Milk Coffee', category: 'Coffee', mediumPrice: 26, availableLarge: false, availableHot: false },
+
+  // MATCHA SERIES
+  { id: 'mt1', name: 'Matcha Latte', category: 'Matcha', mediumPrice: 35, availableLarge: true, availableHot: false },
+  { id: 'mt2', name: 'Matcha Milk Tea w Foam', category: 'Matcha', mediumPrice: 41, availableLarge: false, availableHot: false },
+
+  // MINT SERIES
+  { id: 'min1', name: 'Mint Choco Smoothie', category: 'Mint', mediumPrice: 52, availableLarge: false, availableHot: false },
+  { id: 'min2', name: 'Mint Choco Milk Tea w Pearl', category: 'Mint', mediumPrice: 45, availableLarge: false, availableHot: false },
+
+  // BROWN SUGAR SERIES
+  { id: 'bs1', name: 'Brown Sugar Milk Tea w Pearl', category: 'BrownSugar', mediumPrice: 39, availableLarge: true, availableHot: true },
+  { id: 'bs2', name: 'Brown Sugar Milk Coffee', category: 'BrownSugar', mediumPrice: 35, availableLarge: false, availableHot: false },
+  { id: 'bs3', name: 'Brown Sugar Fresh Milk w Pearl', category: 'BrownSugar', mediumPrice: 39, availableLarge: true, availableHot: true },
+
+  // CREATIVE MIX SERIES
+  { id: 'cm1', name: 'OO Passion Fruit Green Tea', category: 'CreativeMix', mediumPrice: 42, availableLarge: true, availableHot: false },
+  { id: 'cm2', name: 'Lemon Juice w White Pearl & Aiyu', category: 'CreativeMix', mediumPrice: 42, availableLarge: true, availableHot: false },
+  { id: 'cm3', name: 'Passion Fruit Peach Green Tea', category: 'CreativeMix', mediumPrice: 34, availableLarge: true, availableHot: false },
+  { id: 'cm4', name: 'Peach Green Tea', category: 'CreativeMix', mediumPrice: 32, availableLarge: true, availableHot: false },
+  { id: 'cm5', name: 'Lemon Wintermelon', category: 'CreativeMix', mediumPrice: 32, availableLarge: true, availableHot: false },
+  { id: 'cm6', name: 'Green Tea Yakult', category: 'CreativeMix', mediumPrice: 31, availableLarge: true, availableHot: false },
+  { id: 'cm7', name: 'Mango Yakult', category: 'CreativeMix', mediumPrice: 33, availableLarge: true, availableHot: true },
+
+  // BREWED TEA SERIES
+  { id: 'bt1', name: 'Black Tea', category: 'BrewedTea', mediumPrice: 24, availableLarge: true, availableHot: false },
+  { id: 'bt2', name: 'Oolong Tea', category: 'BrewedTea', mediumPrice: 25, availableLarge: true, availableHot: false },
+  { id: 'bt3', name: 'Green Tea', category: 'BrewedTea', mediumPrice: 24, availableLarge: true, availableHot: false },
+  { id: 'bt4', name: 'Alisan Tea', category: 'BrewedTea', mediumPrice: 25, availableLarge: true, availableHot: false },
+  { id: 'bt5', name: 'Wintermelon Tea', category: 'BrewedTea', mediumPrice: 24, availableLarge: true, availableHot: false },
 ];
 
-const CATEGORIES = ['All', 'Milk Tea', 'Fruit Tea', 'Smoothie'];
+const CATEGORY_LABELS: Record<string, string> = {
+  Signature: 'Signature',
+  MilkTea: 'Milk Tea',
+  Coffee: 'Coffee',
+  Matcha: 'Matcha',
+  Mint: 'Mint',
+  BrownSugar: 'Brown Sugar',
+  CreativeMix: 'Creative Mix',
+  BrewedTea: 'Brewed Tea',
+};
+
+const CATEGORIES = ['All', 'Signature', 'MilkTea', 'Coffee', 'Matcha', 'Mint', 'BrownSugar', 'CreativeMix', 'BrewedTea'];
 
 export default function MenuScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<typeof MOCK_MENU[0] | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
   const scaleValue = useRef(new Animated.Value(0)).current;
   const opacityValue = useRef(new Animated.Value(0)).current;
 
   const filteredMenu = selectedCategory === 'All' 
-    ? MOCK_MENU 
-    : MOCK_MENU.filter(item => item.category === selectedCategory);
+    ? GONGCHA_MENU
+    : GONGCHA_MENU.filter(item => item.category === selectedCategory);
   const isCompact = width < 360;
   const horizontalPadding = isCompact ? 16 : 20;
 
@@ -46,7 +107,7 @@ export default function MenuScreen() {
     return `Rp ${price.toLocaleString('id-ID')}`;
   };
 
-  const onOpenModal = (item: typeof MOCK_MENU[0]) => {
+  const onOpenModal = (item: MenuItem) => {
     setSelectedProduct(item);
     Animated.parallel([
       Animated.spring(scaleValue, {
@@ -83,6 +144,7 @@ export default function MenuScreen() {
 
   const renderCategoryPill = (category: string) => {
     const isActive = selectedCategory === category;
+    const displayLabel = CATEGORY_LABELS[category] || category;
     return (
       <TouchableOpacity
         key={category}
@@ -93,14 +155,15 @@ export default function MenuScreen() {
           style={[styles.categoryText, isActive && styles.categoryTextActive]}
           numberOfLines={1}
         >
-          {category}
+          {displayLabel}
         </Text>
       </TouchableOpacity>
     );
   };
 
-  const renderProductCard = ({ item }: { item: typeof MOCK_MENU[0] }) => {
+  const renderProductCard = ({ item }: { item: MenuItem }) => {
     const isFavorite = favorites.includes(item.id);
+    const largeNote = item.availableLarge ? `Upsize + ${formatPrice(2000)}` : '';
     
     return (
       <TouchableOpacity 
@@ -109,11 +172,9 @@ export default function MenuScreen() {
         onPress={() => onOpenModal(item)}
       >
         <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: item.image }} 
-            style={styles.productImage}
-            resizeMode="cover"
-          />
+          <View style={styles.placeholderImage}>
+            <Text style={styles.placeholderText}>🥤</Text>
+          </View>
           <TouchableOpacity 
             style={styles.favoriteButton}
             onPress={() => toggleFavorite(item.id)}
@@ -130,12 +191,20 @@ export default function MenuScreen() {
           <Text style={styles.productName} numberOfLines={2}>
             {item.name}
           </Text>
-          <Text style={styles.productPrice}>
-            {formatPrice(item.price)}
-          </Text>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.ratingText}>⭐ {item.rating}</Text>
+          <View style={styles.priceContainer}>
+            <Text style={styles.productPrice}>{formatPrice(item.mediumPrice * 1000)}</Text>
           </View>
+          <View style={styles.pillRow}>
+            <View style={[styles.pill, styles.icePill]}>
+              <Text style={styles.pillText}>🧊 ICE</Text>
+            </View>
+            {item.availableHot && (
+              <View style={[styles.pill, styles.hotPill]}>
+                <Text style={styles.pillText}>🔥 HOT</Text>
+              </View>
+            )}
+          </View>
+          {largeNote && <Text style={styles.upsizeCaption}>↑ {largeNote}</Text>}
         </View>
       </TouchableOpacity>
     );
@@ -207,22 +276,32 @@ export default function MenuScreen() {
                       <X size={24} color="#2A1F1F" />
                     </TouchableOpacity>
 
-                    {/* Product Image */}
-                    <Image 
-                      source={{ uri: selectedProduct.image }}
-                      style={styles.modalImage}
-                      resizeMode="cover"
-                    />
+                    {/* Product Emoji Icon */}
+                    <View style={styles.modalImage}>
+                      <Text style={styles.modalEmoji}>🥤</Text>
+                    </View>
 
                     {/* Product Details */}
                     <View style={styles.modalDetails}>
                       <Text style={styles.modalTitle}>{selectedProduct.name}</Text>
-                      <Text style={styles.modalPrice}>{formatPrice(selectedProduct.price)}</Text>
-                      
-                      <View style={styles.modalRatingRow}>
-                        <Text style={styles.modalRating}>⭐ {selectedProduct.rating}</Text>
-                        <Text style={styles.modalCategory}>{selectedProduct.category}</Text>
+                      <View style={styles.modalPriceRow}>
+                        <Text style={styles.modalPrice}>{formatPrice(selectedProduct.mediumPrice * 1000)}</Text>
+                        {selectedProduct.availableLarge && (
+                          <Text style={styles.modalLargeNote}> Upsize + {formatPrice(2000)}</Text>
+                        )}
                       </View>
+                      <View style={styles.modalPillRow}>
+                        <View style={[styles.pill, styles.icePill]}>
+                          <Text style={styles.pillText}>🧊 ICE</Text>
+                        </View>
+                        {selectedProduct.availableHot && (
+                          <View style={[styles.pill, styles.hotPill]}>
+                            <Text style={styles.pillText}>🔥 HOT</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <Text style={styles.modalCategory}>{CATEGORY_LABELS[selectedProduct.category]}</Text>
 
                       <Text style={styles.modalDescription}>
                         Enjoy our signature drink made with premium ingredients. 
@@ -330,11 +409,17 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
   },
-  productImage: {
+  placeholderImage: {
     width: '100%',
     height: '100%',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+    backgroundColor: '#F5F1ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 48,
   },
   favoriteButton: {
     position: 'absolute',
@@ -345,29 +430,57 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   productInfo: {
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
   productName: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#2A1F1F',
-    marginBottom: 6,
+    marginBottom: 10,
     lineHeight: 20,
+    minHeight: 40,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   productPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#B91C2F',
-    marginBottom: 4,
   },
-  ratingContainer: {
+  pillRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 10,
   },
-  ratingText: {
-    fontSize: 12,
-    color: '#8C7B75',
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginRight: 8,
+  },
+  icePill: {
+    backgroundColor: '#D9F1FF',
+  },
+  hotPill: {
+    backgroundColor: '#FFE3DD',
+  },
+  upsizeCaption: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#6F5E57',
     fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  pillText: {
+    fontSize: 11,
+    color: '#2A1F1F',
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   // Modal Styles
   modalOverlay: {
@@ -403,7 +516,12 @@ const styles = StyleSheet.create({
   modalImage: {
     width: '100%',
     height: 200,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F5F1ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalEmoji: {
+    fontSize: 80,
   },
   modalDetails: {
     padding: 20,
@@ -412,24 +530,30 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2A1F1F',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  modalPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 12,
   },
   modalPrice: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#B91C2F',
-    marginBottom: 12,
   },
-  modalRatingRow: {
+  modalLargeNote: {
+    fontSize: 13,
+    color: '#6F5E57',
+    fontWeight: '600',
+    marginLeft: 8,
+    letterSpacing: 0.2,
+  },
+  modalPillRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalRating: {
-    fontSize: 14,
-    color: '#2A1F1F',
-    fontWeight: '600',
-    marginRight: 12,
+    marginBottom: 12,
   },
   modalCategory: {
     fontSize: 14,
@@ -438,6 +562,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
   modalDescription: {
     fontSize: 14,

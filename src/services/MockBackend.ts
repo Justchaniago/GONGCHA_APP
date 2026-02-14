@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { firebaseAuth, firestoreDb } from '../config/firebase';
 import { UserProfile, MemberTier, XpRecord, RewardItem, UserVoucher } from '../types/types';
-
-const DB_KEY_USER = '@gongcha_user_v2';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -80,57 +79,7 @@ export const MockBackend = {
     return { activeXp, newTier, activeRecords };
   },
 
-  async initUser(phoneNumber: string): Promise<UserProfile> {
-    await delay(500);
-    const existing = await AsyncStorage.getItem(DB_KEY_USER);
-    if (existing) {
-      const parsed = JSON.parse(existing) as Partial<UserProfile>;
-      const hydrated: UserProfile = {
-        id: parsed.id || `u_${Date.now()}`,
-        name: parsed.name || 'Ferry Rusly',
-        phoneNumber: parsed.phoneNumber || phoneNumber || '8123456789',
-        currentPoints: parsed.currentPoints ?? 0,
-        lifetimePoints: parsed.lifetimePoints ?? parsed.currentPoints ?? 0,
-        tierXp: parsed.tierXp ?? 0,
-        xpHistory: parsed.xpHistory || [],
-        tier: parsed.tier || 'Silver',
-        joinedDate: parsed.joinedDate || new Date().toISOString(),
-        vouchers: parsed.vouchers || [],
-      };
-
-      if (
-        hydrated.lifetimePoints !== parsed.lifetimePoints ||
-        !Array.isArray(parsed.vouchers)
-      ) {
-        await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(hydrated));
-      }
-
-      return hydrated;
-    }
-
-    const newUser: UserProfile = {
-      id: `u_${Date.now()}`,
-      name: 'Ferry Rusly',
-      phoneNumber: phoneNumber || '8123456789',
-      currentPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      xpHistory: [],
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      vouchers: [],
-    };
-
-    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(newUser));
-    return newUser;
-  },
-
-  async getUser(): Promise<UserProfile | null> {
-    await delay(300);
-    const data = await AsyncStorage.getItem(DB_KEY_USER);
-    if (!data) return null;
-
-    let user = JSON.parse(data) as Partial<UserProfile>;
+  _normalizeUserProfile(user: Partial<UserProfile>, fallback: { id: string; name: string; phoneNumber: string }): UserProfile {
     const normalizedHistory = (user.xpHistory || []).map((record) => ({
       ...record,
       type: record.type || 'earn',
@@ -139,10 +88,10 @@ export const MockBackend = {
       tierEligible: record.tierEligible ?? ((record.type || 'earn') === 'earn'),
     }));
 
-    const normalizedUser: UserProfile = {
-      id: user.id || `u_${Date.now()}`,
-      name: user.name || 'Ferry Rusly',
-      phoneNumber: user.phoneNumber || '8123456789',
+    const base: UserProfile = {
+      id: user.id || fallback.id,
+      name: user.name || fallback.name,
+      phoneNumber: user.phoneNumber || fallback.phoneNumber,
       currentPoints: user.currentPoints ?? 0,
       lifetimePoints: user.lifetimePoints ?? user.currentPoints ?? 0,
       tierXp: user.tierXp ?? 0,
@@ -150,27 +99,111 @@ export const MockBackend = {
       tier: user.tier || 'Silver',
       joinedDate: user.joinedDate || new Date().toISOString(),
       vouchers: user.vouchers || [],
+      role: user.role || 'trial',
+      photoURL: user.photoURL,
     };
-    const { activeXp, newTier, activeRecords } = this._calculateTierStatus(normalizedHistory);
 
-    if (
-      normalizedUser.tierXp !== activeXp ||
-      normalizedUser.tier !== newTier ||
-      activeRecords.length !== (normalizedUser.xpHistory || []).length ||
-      normalizedUser.lifetimePoints !== (user.lifetimePoints ?? user.currentPoints ?? 0) ||
-      !Array.isArray(user.vouchers)
-    ) {
-      const updatedUser: UserProfile = {
-        ...normalizedUser,
-        tierXp: activeXp,
-        tier: newTier,
-        xpHistory: activeRecords,
-      };
-      await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));
-      return updatedUser;
+    const { activeXp, newTier, activeRecords } = this._calculateTierStatus(base.xpHistory);
+
+    return {
+      ...base,
+      tierXp: activeXp,
+      tier: newTier,
+      xpHistory: activeRecords,
+    };
+  },
+
+  _getAuthIdentity(phoneNumber?: string): { uid: string; name: string; phoneNumber: string } {
+    const user = firebaseAuth.currentUser;
+    if (!user) {
+      throw new Error('Not authenticated. Please login first.');
     }
 
-    return normalizedUser;
+    // Extract phone dari parameter, user.email, atau fallback
+    // Jangan strip non-digits agar support alphanumeric testing (e.g., "0812MASTER")
+    const normalizedPhone =
+      phoneNumber ||
+      user.email?.split('@')[0] ||
+      '8123456789';
+
+    return {
+      uid: user.uid,
+      name: user.displayName || 'Gong Cha Member',
+      phoneNumber: normalizedPhone,
+    };
+  },
+
+  async initUser(phoneNumber: string): Promise<UserProfile> {
+    await delay(120);
+    const identity = this._getAuthIdentity(phoneNumber);
+    const userRef = doc(firestoreDb, 'users', identity.uid);
+    const snapshot = await getDoc(userRef);
+
+    if (snapshot.exists()) {
+      const normalized = this._normalizeUserProfile(snapshot.data() as Partial<UserProfile>, {
+        id: identity.uid,
+        name: identity.name,
+        phoneNumber: identity.phoneNumber,
+      });
+      await setDoc(userRef, normalized, { merge: true });
+      return normalized;
+    }
+
+    const newUser: UserProfile = {
+      id: identity.uid,
+      name: identity.name,
+      phoneNumber: identity.phoneNumber,
+      currentPoints: 0,
+      lifetimePoints: 0,
+      tierXp: 0,
+      xpHistory: [],
+      tier: 'Silver',
+      joinedDate: new Date().toISOString(),
+      vouchers: [],
+      role: 'trial',
+    };
+
+    await setDoc(userRef, newUser);
+    return newUser;
+  },
+
+  async getUser(): Promise<UserProfile | null> {
+    await delay(120);
+
+    const currentUser = firebaseAuth.currentUser;
+    if (!currentUser) return null;
+
+    const userRef = doc(firestoreDb, 'users', currentUser.uid);
+    const snapshot = await getDoc(userRef);
+
+    if (!snapshot.exists()) {
+      // Document tidak ada - return fallback WITHOUT saving
+      // AuthService.login() sudah handle create document saat login
+      const phoneFromEmail = currentUser.email?.split('@')[0] || '8123456789';
+      return {
+        id: currentUser.uid,
+        name: currentUser.displayName || phoneFromEmail || 'Member',
+        phoneNumber: phoneFromEmail,
+        currentPoints: 0,
+        lifetimePoints: 0,
+        tierXp: 0,
+        xpHistory: [],
+        tier: 'Silver',
+        joinedDate: new Date().toISOString(),
+        vouchers: [],
+        role: 'trial',
+      };
+    }
+
+    const data = snapshot.data() as UserProfile;
+    
+    // Pastikan UID consistency
+    if (data.id !== currentUser.uid) {
+      data.id = currentUser.uid;
+      await setDoc(userRef, data, { merge: true });
+    }
+    
+    return data;
   },
 
   async getCatalog(): Promise<RewardItem[]> {
@@ -179,11 +212,9 @@ export const MockBackend = {
   },
 
   async addTransaction(amount: number): Promise<UserProfile> {
-    await delay(800);
-    const userStr = await AsyncStorage.getItem(DB_KEY_USER);
-    if (!userStr) throw new Error('User not found');
-
-    let user = JSON.parse(userStr) as UserProfile;
+    await delay(180);
+    const user = await this.getUser();
+    if (!user) throw new Error('User not found');
     const earnedVal = Math.floor(amount / RULES.CONVERSION_RATE);
     const safeLifetimePoints = user.lifetimePoints ?? user.currentPoints ?? 0;
 
@@ -210,16 +241,14 @@ export const MockBackend = {
       xpHistory: activeRecords,
     };
 
-    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));
+    await setDoc(doc(firestoreDb, 'users', user.id), updatedUser, { merge: true });
     return updatedUser;
   },
 
   async redeemReward(rewardId: string): Promise<UserProfile> {
-    await delay(800);
-    const userStr = await AsyncStorage.getItem(DB_KEY_USER);
-    if (!userStr) throw new Error('User not found');
-
-    const user = JSON.parse(userStr) as UserProfile;
+    await delay(180);
+    const user = await this.getUser();
+    if (!user) throw new Error('User not found');
     const safeUser: UserProfile = {
       ...user,
       lifetimePoints: user.lifetimePoints ?? user.currentPoints ?? 0,
@@ -262,7 +291,7 @@ export const MockBackend = {
       vouchers: [newVoucher, ...safeUser.vouchers],
     };
 
-    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));
+    await setDoc(doc(firestoreDb, 'users', safeUser.id), updatedUser, { merge: true });
     return updatedUser;
   },
 
@@ -298,13 +327,9 @@ export const MockBackend = {
   },
 
   async markVoucherUsed(voucherId: string): Promise<UserProfile> {
-    await delay(500);
-    const userStr = await AsyncStorage.getItem(DB_KEY_USER);
-    if (!userStr) {
-      throw new Error('User not found');
-    }
-
-    const user = JSON.parse(userStr) as UserProfile;
+    await delay(140);
+    const user = await this.getUser();
+    if (!user) throw new Error('User not found');
     const vouchers = user.vouchers || [];
     const targetIndex = vouchers.findIndex((item) => item.id === voucherId);
 
@@ -332,14 +357,13 @@ export const MockBackend = {
       vouchers: updatedVouchers,
     };
 
-    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));
+    await setDoc(doc(firestoreDb, 'users', user.id), updatedUser, { merge: true });
     return updatedUser;
   },
 
   async redeemPoints(cost: number): Promise<UserProfile> {
-    const userStr = await AsyncStorage.getItem(DB_KEY_USER);
-    if (!userStr) throw new Error('User not found');
-    const user = JSON.parse(userStr) as UserProfile;
+    const user = await this.getUser();
+    if (!user) throw new Error('User not found');
 
     if (user.currentPoints < cost) throw new Error('Poin tidak cukup');
 
@@ -359,13 +383,15 @@ export const MockBackend = {
       xpHistory: [...(user.xpHistory || []), redeemHistory],
     };
 
-    await AsyncStorage.setItem(DB_KEY_USER, JSON.stringify(updatedUser));
+    await setDoc(doc(firestoreDb, 'users', user.id), updatedUser, { merge: true });
     return updatedUser;
   },
 
   async resetData(): Promise<void> {
-    await delay(500);
-    await AsyncStorage.removeItem(DB_KEY_USER);
+    await delay(120);
+    const currentUser = firebaseAuth.currentUser;
+    if (!currentUser) return;
+    await deleteDoc(doc(firestoreDb, 'users', currentUser.uid));
   },
 };
 

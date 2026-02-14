@@ -22,6 +22,8 @@ export interface UserProfile {
   tier: MemberTier;
   joinedDate: string;
   vouchers: UserVoucher[];
+  role?: 'master' | 'trial';
+  photoURL?: string;
 }
 
 export interface Transaction {

@@ -32,7 +32,9 @@ import {
 import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
+import UserAvatar from '../components/UserAvatar';
 import { MockBackend } from '../services/MockBackend';
+import { AuthService } from '../services/AuthService';
 import { MemberTier, UserProfile, XpRecord } from '../types/types';
 
 const TIER_CARD_THEME: Record<
@@ -121,15 +123,20 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(
       'Log Out',
-      'Are you sure you want to log out? This will reset your local data for testing purposes.',
+      'Are you sure you want to log out?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Log Out',
           style: 'destructive',
           onPress: async () => {
-            await MockBackend.resetData();
-            navigation.dispatch(
+            try {
+              await AuthService.logout();
+            } catch {
+            }
+
+            const rootNavigation = navigation.getParent?.() || navigation;
+            rootNavigation.dispatch(
               CommonActions.reset({
                 index: 0,
                 routes: [{ name: 'Welcome' }],
@@ -318,9 +325,10 @@ export default function ProfileScreen() {
           >
             <View style={styles.header}>
               <View style={styles.avatarContainer}>
-                <Image
-                  source={require('../../assets/images/avatar1.jpeg')}
-                  style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+                <UserAvatar
+                  name={user?.name || 'Guest'}
+                  photoURL={user?.photoURL}
+                  size={avatarSize}
                 />
                 <View style={styles.editBadge}>
                   <Settings size={12} color="#FFF" />

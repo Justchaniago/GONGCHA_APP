@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,16 @@ import {
 import { Trophy, Gift, ChevronRight, Bell } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
+import UserAvatar from '../components/UserAvatar';
 import MockBackend from '../services/MockBackend';
+import type { RootTabParamList } from '../navigation/AppNavigator';
 import { MemberTier, UserProfile } from '../types/types';
+import { getGreeting } from '../utils/greetingHelper';
 
 const resolveTier = (tierXp: number): MemberTier => {
   if (tierXp >= MockBackend.TIER_MILESTONES.Platinum) return 'Platinum';
@@ -82,6 +86,8 @@ const TIER_THEME: Record<
 };
 
 export default function HomeScreen() {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +102,7 @@ export default function HomeScreen() {
   const loadUserData = async () => {
     setLoading(true);
     try {
-      const user = await MockBackend.initUser('8123456789');
+      const user = await MockBackend.getUser();
       setUserData(user);
     } finally {
       setLoading(false);
@@ -109,7 +115,7 @@ export default function HomeScreen() {
     const loadUser = async () => {
       setLoading(true);
       try {
-        const user = await MockBackend.initUser('8123456789');
+        const user = await MockBackend.getUser();
         if (mounted) setUserData(user);
       } finally {
         if (mounted) setLoading(false);
@@ -195,6 +201,20 @@ export default function HomeScreen() {
     []
   );
 
+  useEffect(() => {
+    if (!promos.length) return;
+
+    const interval = setInterval(() => {
+      setActivePromo((prev) => {
+        const next = (prev + 1) % promos.length;
+        promoScrollRef.current?.scrollTo({ x: next * promoCardWidth, animated: true });
+        return next;
+      });
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [promoCardWidth, promos.length]);
+
   return (
     <ScreenFadeTransition>
       <View style={styles.root}>
@@ -212,14 +232,15 @@ export default function HomeScreen() {
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarWrap}>
-                <Image
-                  source={require('../../assets/images/avatar1.jpeg')}
-                  style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+                <UserAvatar
+                  name={userData?.name ?? 'Member'}
+                  photoURL={userData?.photoURL}
+                  size={avatarSize}
                 />
                 <View style={styles.avatarStatusDot} />
               </View>
               <View style={styles.headerTextContainer}>
-                <Text style={styles.greeting}>Good Morning,</Text>
+                <Text style={styles.greeting}>{getGreeting()},</Text>
                 <Text style={styles.name}>{userData?.name ?? 'Member'}</Text>
               </View>
             </View>
@@ -281,6 +302,7 @@ export default function HomeScreen() {
           </View>
 
           <ScrollView
+            ref={promoScrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -307,7 +329,7 @@ export default function HomeScreen() {
 
           {/* Pagination Dots */}
           <View style={styles.paginationDots}>
-            {[0, 1, 2].map((i) => (
+            {promos.map((_, i) => (
               <View key={i} style={[styles.dot, activePromo === i && styles.dotActive]} />
             ))}
           </View>
@@ -345,7 +367,12 @@ export default function HomeScreen() {
                 <Text style={styles.walletBenefitTitle}>Tier Benefits</Text>
                 <Text style={styles.walletBenefitDesc}>Free delivery & 10% Birthday Discount</Text>
               </View>
-              <TouchableOpacity style={styles.redeemButton} accessibilityRole="button" accessibilityLabel="Redeem Catalog">
+              <TouchableOpacity
+                style={styles.redeemButton}
+                accessibilityRole="button"
+                accessibilityLabel="Redeem Catalog"
+                onPress={() => navigation.navigate('Rewards')}
+              >
                 <Text style={[styles.redeemButtonText, { color: tierTheme.redeemAccent }]}>Redeem Catalog</Text>
                 <ChevronRight size={11} color={tierTheme.redeemAccent} />
               </TouchableOpacity>

@@ -16,8 +16,10 @@ type OtpVerificationSectionProps = {
   onBack: () => void;
   onVerify: () => void;
   verifyLabel: string;
+  progressMessage?: string;
   resendTimer: number;
   onResend: () => void;
+  isSubmitting?: boolean;
 };
 
 export default function OtpVerificationSection({
@@ -28,8 +30,10 @@ export default function OtpVerificationSection({
   onBack,
   onVerify,
   verifyLabel,
+  progressMessage,
   resendTimer,
   onResend,
+  isSubmitting = false,
 }: OtpVerificationSectionProps) {
   const { width } = useWindowDimensions();
   const isCompact = width < 360;
@@ -69,24 +73,29 @@ export default function OtpVerificationSection({
             maxLength={1}
             value={digit}
             onChangeText={(text) => onChange(text, index)}
+            editable={!isSubmitting} // Disable input saat loading
           />
         ))}
       </View>
 
       <TouchableOpacity
-        style={[styles.primaryButton, otp.join('').length < 4 && styles.primaryButtonDisabled]}
+        style={[styles.primaryButton, (otp.join('').length < 4 || isSubmitting) && styles.primaryButtonDisabled]}
         onPress={onVerify}
-        disabled={otp.join('').length < 4}
+        disabled={otp.join('').length < 4 || isSubmitting}
       >
         <Text style={styles.primaryButtonText}>{verifyLabel}</Text>
       </TouchableOpacity>
+
+      {isSubmitting && !!progressMessage && (
+        <Text style={styles.progressText}>{progressMessage}</Text>
+      )}
 
       <View style={styles.resendWrap}>
         {resendTimer > 0 ? (
           <Text style={styles.resendText}>Resend in 00:{resendTimer.toString().padStart(2, '0')}</Text>
         ) : (
-          <TouchableOpacity onPress={onResend}>
-            <Text style={styles.resendAction}>Resend Code</Text>
+          <TouchableOpacity onPress={onResend} disabled={isSubmitting}>
+            <Text style={[styles.resendAction, isSubmitting && { color: '#999' }]}>Resend Code</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -116,6 +125,7 @@ const styles = StyleSheet.create({
   primaryButton: { height: 50, backgroundColor: '#B91C2F', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
   primaryButtonDisabled: { backgroundColor: '#E5E7EB' },
   primaryButtonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
+  progressText: { textAlign: 'center', marginTop: 10, color: '#8C7B75', fontSize: 12 },
 
   resendWrap: { alignItems: 'center', marginTop: 16 },
   resendText: { color: '#9CA3AF' },

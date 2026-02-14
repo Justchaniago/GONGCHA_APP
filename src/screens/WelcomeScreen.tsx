@@ -17,8 +17,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import OtpVerificationSection from '../components/OtpVerificationSection';
+import { AuthService } from '../services/AuthService';
+import { firebaseAuth } from '../config/firebase';
+import { getGreeting } from '../utils/greetingHelper';
 
 // Tipe navigasi
 type RootStackParamList = {
@@ -33,6 +37,7 @@ type WelcomeScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 const WELCOME_KEYBOARD_SHIFT_MULTIPLIER = 1.0;
+const OTP_AUTH_PASSWORD = 'GongCha@123';
 
 export default function WelcomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -54,6 +59,8 @@ export default function WelcomeScreen() {
   const [signupOtp, setSignupOtp] = useState(['', '', '', '']);
   const [signupResendTimer, setSignupResendTimer] = useState(30);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [authProgressMessage, setAuthProgressMessage] = useState('');
   
   // Animasi Values
   const getStartedOpacity = useRef(new Animated.Value(1)).current;
@@ -89,6 +96,19 @@ export default function WelcomeScreen() {
       : Math.min(height * (isOtp ? 0.34 : 0.3), isOtp ? 210 : 180);
     return -clamp(rawShift * WELCOME_KEYBOARD_SHIFT_MULTIPLIER, minShift, maxShift);
   };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      if (user) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainApp' }],
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -211,6 +231,18 @@ export default function WelcomeScreen() {
 
   const generateDemoOtp = () => `${Math.floor(1000 + Math.random() * 9000)}`;
 
+  // Support alphanumeric untuk testing (e.g., "0812MASTER")
+  const normalizePhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\s/g, ''); // Hapus spasi saja
+    // Jika pure numeric, remove leading zeros
+    if (/^\d+$/.test(cleaned)) {
+      return cleaned.replace(/^0+/, '') || '8123456789';
+    }
+    // Jika ada huruf, keep as-is (untuk master account testing)
+    return cleaned || '8123456789';
+  };
+  const mapPhoneToEmail = (phone: string) => `${normalizePhoneNumber(phone)}@gongcha-id.app`;
+
   // Handler: Submit Nomor HP -> Pindah ke LoginScreen (OTP)
   const handleGetOtp = () => {
     if (!phoneNumber.trim()) {
@@ -243,12 +275,39 @@ export default function WelcomeScreen() {
     animateTransition(() => setViewMode('login_form'));
   };
 
-  const handleLoginOtpVerify = () => {
+  const handleLoginOtpVerify = async () => {
     if (loginOtp.join('').length < 4) {
       Alert.alert('OTP belum lengkap', 'Masukkan 4 digit OTP untuk lanjut.');
       return;
     }
-    navigation.navigate('MainApp');
+
+    const email = mapPhoneToEmail(phoneNumber);
+
+    try {
+      setIsAuthSubmitting(true);
+      setAuthProgressMessage('Signing in securely...');
+      await AuthService.login(email, OTP_AUTH_PASSWORD);
+      setAuthProgressMessage('Loading your account...');
+      navigation.navigate('MainApp');
+    } catch (error: any) {
+      const message = String(error?.message || 'Login gagal.');
+      if (message.includes('timed out')) {
+        Alert.alert('Koneksi bermasalah', 'Request ke Firebase terlalu lama. Cek internet, provider Auth, dan Firestore rules.');
+        return;
+      }
+      if (message.includes('User profile not found') || message.includes('auth/invalid-credential')) {
+        Alert.alert('Akun tidak ditemukan', 'Nomor ini belum terdaftar. Silakan Sign Up terlebih dahulu.');
+        return;
+      }
+      if (message.includes('auth/network-request-failed')) {
+        Alert.alert('Login gagal', 'Tidak bisa terhubung ke Firebase. Cek koneksi internet kamu.');
+        return;
+      }
+      Alert.alert('Login gagal', message);
+    } finally {
+      setIsAuthSubmitting(false);
+      setAuthProgressMessage('');
+    }
   };
 
   const handleOpenSignUp = () => {
@@ -292,12 +351,53 @@ export default function WelcomeScreen() {
     animateTransition(() => setViewMode('signup_form'));
   };
 
-  const handleSignupOtpVerify = () => {
+  const handleSignupOtpVerify = async () => {
     if (signupOtp.join('').length < 4) {
       Alert.alert('OTP belum lengkap', 'Masukkan 4 digit OTP untuk lanjut.');
       return;
     }
-    navigation.navigate('MainApp');
+
+    const normalizedPhone = normalizePhoneNumber(signupPhone);
+    const email = mapPhoneToEmail(normalizedPhone);
+    const profileName = signupName.trim() || 'User Trial';
+
+    try {
+      setIsAuthSubmitting(true);
+      setAuthProgressMessage('Creating account...');
+      await AuthService.register(email, OTP_AUTH_PASSWORD, profileName, normalizedPhone);
+      setAuthProgressMessage('Syncing your profile...');
+      navigation.navigate('MainApp');
+    } catch (error: any) {
+      const message = String(error?.message || 'Registrasi gagal.');
+      if (message.includes('timed out')) {
+        Alert.alert('Koneksi bermasalah', 'Request ke Firebase terlalu lama. Cek internet, provider Auth, dan Firestore rules.');
+        return;
+      }
+      if (message.includes('auth/email-already-in-use')) {
+        try {
+          setAuthProgressMessage('Account exists, signing in...');
+          await AuthService.login(email, OTP_AUTH_PASSWORD);
+          setAuthProgressMessage('Loading your account...');
+          navigation.navigate('MainApp');
+          return;
+        } catch {
+          Alert.alert('Registrasi gagal', 'Akun sudah ada tapi tidak bisa login. Coba lagi nanti.');
+          return;
+        }
+      }
+      if (message.includes('auth/operation-not-allowed')) {
+        Alert.alert('Registrasi gagal', 'Email/Password belum diaktifkan di Firebase Authentication > Sign-in method.');
+        return;
+      }
+      if (message.includes('auth/network-request-failed')) {
+        Alert.alert('Registrasi gagal', 'Tidak bisa terhubung ke Firebase. Cek koneksi internet kamu.');
+        return;
+      }
+      Alert.alert('Registrasi gagal', message);
+    } finally {
+      setIsAuthSubmitting(false);
+      setAuthProgressMessage('');
+    }
   };
 
   const handleLoginResend = () => {
@@ -454,7 +554,7 @@ export default function WelcomeScreen() {
                      <Text style={{ fontSize: 20, color: '#1A1A1A' }}>←</Text>
                   </TouchableOpacity>
                   <View>
-                    <Text style={styles.formTitle}>Welcome Back</Text>
+                    <Text style={styles.formTitle}>{getGreeting()}</Text>
                     <Text style={styles.formSubtext}>Enter mobile number to continue</Text>
                   </View>
                 </View>
@@ -469,7 +569,7 @@ export default function WelcomeScreen() {
                     style={styles.phoneInput}
                     placeholder="812 3456 7890"
                     placeholderTextColor="#9CA3AF"
-                    keyboardType="phone-pad"
+                    keyboardType="default"
                     value={phoneNumber}
                     onChangeText={setPhoneNumber}
                     
@@ -538,7 +638,7 @@ export default function WelcomeScreen() {
                     style={styles.phoneInput}
                     placeholder="812 3456 7890"
                     placeholderTextColor="#9CA3AF"
-                    keyboardType="phone-pad"
+                    keyboardType="default"
                     value={signupPhone}
                     onChangeText={setSignupPhone}
                   />
@@ -563,9 +663,11 @@ export default function WelcomeScreen() {
                 onChange={handleLoginOtpChange}
                 onBack={handleLoginOtpBack}
                 onVerify={handleLoginOtpVerify}
-                verifyLabel="Verify & Login"
+                verifyLabel={isAuthSubmitting ? 'Processing...' : 'Verify & Login'}
+                progressMessage={authProgressMessage}
                 resendTimer={loginResendTimer}
                 onResend={handleLoginResend}
+                isSubmitting={isAuthSubmitting}
               />}
 
             {viewMode === 'signup_otp' &&
@@ -576,9 +678,11 @@ export default function WelcomeScreen() {
                 onChange={handleSignupOtpChange}
                 onBack={handleSignupOtpBack}
                 onVerify={handleSignupOtpVerify}
-                verifyLabel="Verify & Create Account"
+                verifyLabel={isAuthSubmitting ? 'Processing...' : 'Verify & Create Account'}
+                progressMessage={authProgressMessage}
                 resendTimer={signupResendTimer}
                 onResend={handleSignupResend}
+                isSubmitting={isAuthSubmitting}
               />}
 
           </Animated.View>
