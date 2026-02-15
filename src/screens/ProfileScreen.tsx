@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -147,6 +148,41 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow notifications to see the preview.');
+        return;
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'GongCha Indonesia',
+          body: 'Selamat ulang tahun! Voucher Birthday kamu sudah aktif. Redeem sekarang di kasir atau aplikasi ya.',
+        },
+        trigger: { type: 'time', seconds: 1 },
+      });
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'GongCha Indonesia',
+          body: 'Hadiah ulang tahun untukmu sudah siap. Klaim voucher Birthday dan nikmati Gong Cha favoritmu!',
+        },
+        trigger: { type: 'time', seconds: 2 },
+      });
+    } catch (error: any) {
+      Alert.alert('Notification error', String(error?.message || error));
+    }
   };
 
   const formatDate = (isoString: string) => {
@@ -361,7 +397,7 @@ export default function ProfileScreen() {
                   ]}
                 >
                   <Image
-                    source={require('../../assets/images/logo1.png')}
+                    source={require('../../assets/images/logo1.webp')}
                     style={[styles.cardLogo, { width: logoSize, height: logoSize }]}
                   />
                 </View>
@@ -416,6 +452,12 @@ export default function ProfileScreen() {
 
             <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
               <Text style={styles.sectionHeader}>Support</Text>
+              <MenuItem
+                icon={ArrowDownCircle}
+                title="Test Notification"
+                subtitle="Preview notification style"
+                onPress={handleTestNotification}
+              />
               <MenuItem icon={HelpCircle} title="Help Center" onPress={() => {}} />
               <MenuItem icon={LogOut} title="Log Out" isDestructive onPress={handleLogout} />
             </View>

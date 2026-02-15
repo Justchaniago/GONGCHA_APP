@@ -12,14 +12,14 @@ export default function DecorativeBackground() {
   return (
     <View pointerEvents="none" style={styles.backgroundLayer}>
       <Image
-        source={require('../../assets/images/abstract1.png')}
+        source={require('../../assets/images/abstract1.webp')}
         style={[
           styles.blobTopRight,
           { width: blobTopSize, height: blobTopSize, top: -Math.round(blobTopSize * 0.18), right: -Math.round(blobTopSize * 0.27) },
         ]}
       />
       <Image
-        source={require('../../assets/images/abstract2.png')}
+        source={require('../../assets/images/abstract2.webp')}
         style={[
           styles.blobBottomLeft,
           { width: blobBottomSize, height: blobBottomSize, left: -Math.round(blobBottomSize * 0.34), bottom: Math.round(height * 0.04) },
@@ -27,19 +27,19 @@ export default function DecorativeBackground() {
       />
 
       <Image
-        source={require('../../assets/images/fewleaf.png')}
+        source={require('../../assets/images/fewleaf.webp')}
         style={[styles.doodleFewLeaf, { top: verticalAnchor1, width: Math.max(30, width * 0.095), height: Math.max(54, width * 0.17) }]}
       />
       <Image
-        source={require('../../assets/images/leaf2.png')}
+        source={require('../../assets/images/leaf2.webp')}
         style={[styles.doodleLeaf2, { top: verticalAnchor2, width: Math.max(44, width * 0.13), height: Math.max(27, width * 0.082) }]}
       />
       <Image
-        source={require('../../assets/images/boba.png')}
+        source={require('../../assets/images/boba.webp')}
         style={[styles.doodleBoba, { top: verticalAnchor3, width: Math.max(28, width * 0.085), height: Math.max(28, width * 0.085) }]}
       />
       <Image
-        source={require('../../assets/images/leaf1.png')}
+        source={require('../../assets/images/leaf1.webp')}
         style={[
           styles.doodleLeaf1,
           {

@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   View,
   Text,
   Image,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   StyleSheet,
   FlatList,
   Alert,
@@ -14,7 +17,8 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Star, Ticket } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { Star, Ticket, X } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
@@ -37,6 +41,9 @@ export default function RewardsScreen() {
   const [voucherQrPayload, setVoucherQrPayload] = useState<string>('');
   const [useVoucherLoading, setUseVoucherLoading] = useState(false);
   const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
+  const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null);
+  const rewardModalScale = useRef(new Animated.Value(0)).current;
+  const rewardModalOpacity = useRef(new Animated.Value(0)).current;
   const isCompact = width < 360;
   const horizontalPadding = isCompact ? 16 : 20;
 
@@ -146,6 +153,41 @@ export default function RewardsScreen() {
     }
   };
 
+  const openRewardDetail = (reward: RewardItem) => {
+    setSelectedReward(reward);
+    Animated.parallel([
+      Animated.spring(rewardModalScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 52,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rewardModalOpacity, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeRewardDetail = () => {
+    Animated.parallel([
+      Animated.spring(rewardModalScale, {
+        toValue: 0,
+        friction: 8,
+        tension: 90,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rewardModalOpacity, {
+        toValue: 0,
+        duration: 160,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(() => setSelectedReward(null));
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>{activeTab === 'catalog' ? 'Rewards Catalog' : 'My Vouchers'}</Text>
@@ -180,33 +222,35 @@ export default function RewardsScreen() {
 
     return (
       <View style={styles.card}>
-        <View style={styles.imageWrap}>
-          <Image source={item.image} style={styles.image} resizeMode="contain" />
-          <View style={styles.costBadge}>
-            <Text style={styles.costText}>{item.pointsCost} Pts</Text>
+        <TouchableOpacity style={styles.cardTapArea} activeOpacity={0.8} onPress={() => openRewardDetail(item)}>
+          <View style={styles.imageWrap}>
+            <Image source={item.image} style={styles.image} resizeMode="contain" />
+            <View style={styles.costBadge}>
+              <Text style={styles.costText}>{item.pointsCost} Pts</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.content}>
-          <Text style={styles.title} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={styles.desc} numberOfLines={2}>
-            {item.description}
-          </Text>
+          <View style={styles.content}>
+            <Text style={styles.title} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.desc} numberOfLines={2}>
+              {item.description}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, !isAffordable && styles.buttonDisabled, isProcessing && styles.buttonProcessing]}
-            disabled={!isAffordable || isProcessing}
-            onPress={() => handleRedeem(item)}
-          >
-            {isProcessing ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Text style={styles.buttonText}>{isAffordable ? 'Redeem' : 'Not Enough Pts'}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.button, styles.cardRedeemButton, !isAffordable && styles.buttonDisabled, isProcessing && styles.buttonProcessing]}
+          disabled={!isAffordable || isProcessing}
+          onPress={() => handleRedeem(item)}
+        >
+          {isProcessing ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Text style={styles.buttonText}>{isAffordable ? 'Redeem' : 'Not Enough Pts'}</Text>
+          )}
+        </TouchableOpacity>
       </View>
     );
   };
@@ -290,6 +334,63 @@ export default function RewardsScreen() {
             />
           )}
         </View>
+
+        <Modal
+          visible={!!selectedReward}
+          transparent
+          animationType="none"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
+          onRequestClose={closeRewardDetail}
+        >
+          <TouchableWithoutFeedback onPress={closeRewardDetail}>
+            <Animated.View style={[styles.rewardModalOverlay, { opacity: rewardModalOpacity }]}> 
+              <BlurView intensity={20} style={StyleSheet.absoluteFillObject}> 
+                <View style={styles.rewardModalOverlayContent}> 
+                  <TouchableWithoutFeedback>
+                    <Animated.View style={[styles.rewardModalContent, { transform: [{ scale: rewardModalScale }] }]}> 
+                      {selectedReward && (
+                        <>
+                          <TouchableOpacity style={styles.rewardModalClose} onPress={closeRewardDetail}>
+                            <X size={22} color="#2A1F1F" />
+                          </TouchableOpacity>
+
+                          <View style={styles.rewardModalImageWrap}>
+                            <Image source={selectedReward.image} style={styles.rewardModalImage} resizeMode="contain" />
+                            <View style={styles.rewardModalCostBadge}>
+                              <Text style={styles.rewardModalCostText}>{selectedReward.pointsCost} Pts</Text>
+                            </View>
+                          </View>
+
+                          <Text style={styles.rewardModalTitle}>{selectedReward.title}</Text>
+                          <Text style={styles.rewardModalCategory}>{selectedReward.category}</Text>
+                          <Text style={styles.rewardModalDesc}>{selectedReward.description}</Text>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.rewardModalRedeem,
+                              ((user?.currentPoints || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id) && styles.buttonDisabled,
+                            ]}
+                            disabled={(user?.currentPoints || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id}
+                            onPress={() => handleRedeem(selectedReward)}
+                          >
+                            {redeemingId === selectedReward.id ? (
+                              <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                              <Text style={styles.rewardModalRedeemText}>
+                                {(user?.currentPoints || 0) >= selectedReward.pointsCost ? 'Redeem Now' : 'Not Enough Pts'}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </Animated.View>
+                  </TouchableWithoutFeedback>
+                </View>
+              </BlurView>
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </Modal>
 
         <Modal
           visible={isVoucherModalVisible}
@@ -385,6 +486,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  cardTapArea: {
+    width: '100%',
+  },
   imageWrap: {
     height: 140,
     backgroundColor: '#FFF5E1',
@@ -416,6 +520,102 @@ const styles = StyleSheet.create({
   buttonDisabled: { backgroundColor: '#E5E7EB' },
   buttonProcessing: { backgroundColor: '#8E1624' },
   buttonText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
+  cardRedeemButton: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+  },
+  rewardModalOverlay: {
+    flex: 1,
+  },
+  rewardModalOverlayContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  rewardModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFF8F0',
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#F3E9DC',
+    alignItems: 'center',
+  },
+  rewardModalClose: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 2,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 999,
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rewardModalImageWrap: {
+    width: '100%',
+    height: 190,
+    borderRadius: 18,
+    backgroundColor: '#FFF5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  rewardModalImage: {
+    width: '76%',
+    height: '76%',
+  },
+  rewardModalCostBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  rewardModalCostText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#B91C2F',
+  },
+  rewardModalTitle: {
+    marginTop: 14,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2A1F1F',
+    textAlign: 'center',
+  },
+  rewardModalCategory: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#8C7B75',
+    fontWeight: '600',
+  },
+  rewardModalDesc: {
+    marginTop: 10,
+    fontSize: 13,
+    color: '#6B5B54',
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  rewardModalRedeem: {
+    marginTop: 16,
+    width: '100%',
+    backgroundColor: '#B91C2F',
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rewardModalRedeemText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   voucherCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,

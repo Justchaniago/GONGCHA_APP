@@ -137,11 +137,11 @@ export default function LoginScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.container}>
-      <Image source={require('../../assets/images/welcome1.jpg')} style={[styles.backgroundImage, { width, height }]} resizeMode="cover" />
+      <Image source={require('../../assets/images/welcome1.webp')} style={[styles.backgroundImage, { width, height }]} resizeMode="cover" />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={[styles.gradientOverlay, { height: height * 0.6 }]} pointerEvents="none" />
       
       <View style={[styles.logoSection, { top: dynamicLogoTop }]}>
-        <Image source={require('../../assets/images/logo1.png')} style={[styles.logoImage, { width: logoSize, height: logoSize }]} resizeMode="contain" />
+        <Image source={require('../../assets/images/logo1.webp')} style={[styles.logoImage, { width: logoSize, height: logoSize }]} resizeMode="contain" />
       </View>
 
       <KeyboardAvoidingView

@@ -194,7 +194,7 @@ export default function HomeScreen() {
 
   const promos = useMemo(
     () => [
-      { color: '#FFD1DC', image: require('../../assets/images/promo1.png') },
+      { color: '#FFD1DC', image: require('../../assets/images/promo1.webp') },
       { color: '#FFF5E1', image: null },
       { color: '#E0F7FA', image: null },
     ],
@@ -255,7 +255,7 @@ export default function HomeScreen() {
                 <Bell size={22} color="#B91C2F" />
                 <View style={styles.notificationBadge} />
               </TouchableOpacity>
-              <Image source={require('../../assets/images/logo1.png')} style={styles.logoTopRight} resizeMode="contain" accessibilityLabel="Gong Cha logo" />
+              <Image source={require('../../assets/images/logo1.webp')} style={styles.logoTopRight} resizeMode="contain" accessibilityLabel="Gong Cha logo" />
             </View>
           </View>
 
@@ -298,7 +298,7 @@ export default function HomeScreen() {
             <View style={styles.redPill} />
             <Text style={styles.sectionTitle}>Special Offers</Text>
             {/* Hiasan boba kecil di judul */}
-            <Image source={require('../../assets/images/boba.png')} style={styles.titleIcon} />
+            <Image source={require('../../assets/images/boba.webp')} style={styles.titleIcon} />
           </View>
 
           <ScrollView
@@ -348,7 +348,7 @@ export default function HomeScreen() {
             style={styles.walletCard}
           >
             {/* Dekorasi Liquid di dalam Wallet */}
-            <Image source={require('../../assets/images/liquid.png')} style={styles.walletLiquid} />
+            <Image source={require('../../assets/images/liquid.webp')} style={styles.walletLiquid} />
 
             <View style={styles.walletTopRow}>
               <View>

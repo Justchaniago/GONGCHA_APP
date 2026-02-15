@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { X } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useMemberCard } from '../context/MemberContext';
@@ -20,9 +21,9 @@ import { MockBackend } from '../services/MockBackend';
 import { UserProfile } from '../types/types';
 
 const TIER_BADGE_THEME = {
-  Silver: { bg: '#CBD5E1', text: '#334155' },
-  Gold: { bg: '#D4A853', text: '#2A1F1F' },
-  Platinum: { bg: '#C4B5FD', text: '#4C1D95' },
+  Silver: { gradient: ['#E8E8E8', '#B8B8B8'], text: '#1A1A1A', glow: '#E8E8E8' },
+  Gold: { gradient: ['#FFD700', '#FFA500'], text: '#1A1A1A', glow: '#FFD700' },
+  Platinum: { gradient: ['#E0E7FF', '#C7D2FE'], text: '#312E81', glow: '#C7D2FE' },
 } as const;
 
 export default function MemberCardModal() {
@@ -253,114 +254,94 @@ export default function MemberCardModal() {
               {
                 width: cardWidth,
                 height: cardHeight,
-                borderRadius: Math.max(20, cardWidth * 0.072),
-                paddingHorizontal: Math.max(16, cardWidth * 0.058),
-                paddingVertical: Math.max(14, cardWidth * 0.052),
+                borderRadius: Math.max(24, cardWidth * 0.078),
               },
             ]}
           >
-            <View
-              style={[
-                styles.glowTop,
-                {
-                  top: -Math.round(cardWidth * 0.18),
-                  right: -Math.round(cardWidth * 0.16),
-                  width: Math.round(cardWidth * 0.53),
-                  height: Math.round(cardWidth * 0.53),
-                  borderRadius: Math.round(cardWidth * 0.295),
-                },
-              ]}
-            />
+            {/* Background Image */}
             <Image
-              source={require('../../assets/images/abstract1.png')}
-              style={[
-                styles.abstractTop,
-                {
-                  top: -Math.round(cardWidth * 0.1),
-                  right: -Math.round(cardWidth * 0.07),
-                  width: Math.round(cardWidth * 0.37),
-                  height: Math.round(cardWidth * 0.37),
-                },
-              ]}
-            />
-            <Image
-              source={require('../../assets/images/abstract2.png')}
-              style={[
-                styles.abstractBottom,
-                {
-                  bottom: -Math.round(cardWidth * 0.12),
-                  left: -Math.round(cardWidth * 0.09),
-                  width: Math.round(cardWidth * 0.39),
-                  height: Math.round(cardWidth * 0.39),
-                },
-              ]}
-            />
-            <Image
-              source={require('../../assets/images/leaf1.png')}
-              style={[
-                styles.leafLeft,
-                {
-                  left: -Math.round(cardWidth * 0.024),
-                  top: cardHeight * 0.38,
-                  width: Math.round(cardWidth * 0.18),
-                  height: Math.round(cardWidth * 0.18),
-                },
-              ]}
-            />
-            <Image
-              source={require('../../assets/images/leaf2.png')}
-              style={[
-                styles.leafRight,
-                {
-                  right: -Math.round(cardWidth * 0.03),
-                  bottom: cardHeight * 0.2,
-                  width: Math.round(cardWidth * 0.2),
-                  height: Math.round(cardWidth * 0.2),
-                },
-              ]}
+              source={require('../../assets/images/card1.webp')}
+              style={{
+                position: 'absolute',
+                width: cardWidth,
+                height: cardHeight,
+                borderRadius: Math.max(24, cardWidth * 0.078),
+              }}
+              resizeMode="cover"
             />
 
-            <View style={styles.cardHeader}>
-              <View>
-                <Text style={[styles.brandText, { fontSize: brandFontSize }]}>Gong cha</Text>
-                <Text style={styles.subTitle}>Member Pass</Text>
+            {/* Dark overlay for better contrast */}
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: Math.max(24, cardWidth * 0.078) }]} />
+
+            {/* Card Content */}
+            <View style={[styles.cardContent, {
+              paddingHorizontal: Math.max(22, cardWidth * 0.068),
+              paddingTop: Math.max(20, cardWidth * 0.062),
+              paddingBottom: Math.max(38, cardWidth * 0.115),
+            }]}>
+              {/* Header with logo */}
+              <View style={[styles.cardHeader, {
+                marginBottom: Math.max(12, cardWidth * 0.038),
+              }]}>
+                <View style={{ flex: 1 }} />
+                <Image
+                  source={require('../../assets/images/logowhite.webp')}
+                  style={[styles.logoImage, { width: Math.round(cardWidth * 0.28), height: Math.round(cardWidth * 0.28) }]}
+                  resizeMode="contain"
+                />
+                <View style={{ flex: 1 }} />
               </View>
-              <TouchableOpacity onPress={hideCard} style={styles.closeBtn} activeOpacity={0.85}>
-                <X size={18} color="#2A1F1F" />
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.qrContainer}>
-              {user ? (
-                <QRCode value={user.id} size={qrSize} color="#2A1F1F" backgroundColor="transparent" />
-              ) : (
-                <Text style={styles.loadingText}>Loading ID...</Text>
-              )}
-            </View>
-
-            <View style={styles.pointsBlock}>
-              <Text style={styles.pointsLabel}>WALLET POINTS</Text>
-              <Text style={[styles.pointsValue, { fontSize: pointsFontSize }]}>{(user?.currentPoints ?? 0).toLocaleString('id-ID')}</Text>
-            </View>
-
-            <View style={styles.footerRow}>
-              <View>
-                <Text style={styles.memberName}>{user?.name ?? 'Guest'}</Text>
-                <Text style={styles.memberId}>{user?.id ?? '---'}</Text>
+              {/* QR Code Container with glassmorphism */}
+              <View style={[styles.qrSection, {
+                marginTop: Math.max(18, cardWidth * 0.055),
+                marginBottom: Math.max(18, cardWidth * 0.055),
+              }]}>
+                <BlurView intensity={20} tint="light" style={styles.qrBlurContainer}>
+                  <View style={styles.qrInnerContainer}>
+                    {user ? (
+                      <QRCode value={user.id} size={qrSize} color="#1A1A1A" backgroundColor="transparent" />
+                    ) : (
+                      <Text style={styles.loadingText}>Loading...</Text>
+                    )}
+                  </View>
+                </BlurView>
               </View>
-              <View
-                style={[
-                  styles.tierBadge,
-                  { backgroundColor: TIER_BADGE_THEME[user?.tier ?? 'Silver'].bg },
-                ]}
-              >
-                <Text style={[styles.tierText, { color: TIER_BADGE_THEME[user?.tier ?? 'Silver'].text }]}>
-                  {(user?.tier ?? 'Silver').toUpperCase()}
+
+              {/* Points section */}
+              <View style={[styles.pointsBlock, {
+                marginTop: Math.max(14, cardWidth * 0.042),
+                marginBottom: Math.max(22, cardWidth * 0.065),
+              }]}>
+                <Text style={styles.pointsLabel}>WALLET POINTS</Text>
+                <Text style={[styles.pointsValue, { fontSize: pointsFontSize }]}>
+                  {(user?.currentPoints ?? 0).toLocaleString('id-ID')}
                 </Text>
+              </View>
+
+              {/* Footer with user info and tier */}
+              <View style={[styles.footerRow, {
+                marginTop: Math.max(12, cardWidth * 0.036),
+              }]}>
+                <View style={styles.userInfoBlock}>
+                  <Text style={styles.memberName}>{user?.name ?? 'Guest'}</Text>
+                  <Text style={styles.memberId}>Joined Dec 2025</Text>
+                </View>
+                <LinearGradient
+                  colors={TIER_BADGE_THEME[user?.tier ?? 'Silver'].gradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.tierBadge}
+                >
+                  <Text style={[styles.tierText, { color: TIER_BADGE_THEME[user?.tier ?? 'Silver'].text }]}>
+                    {(user?.tier ?? 'Silver').toUpperCase()}
+                  </Text>
+                </LinearGradient>
               </View>
             </View>
           </View>
 
+          {/* Swipe indicator */}
           <View style={styles.swipeIndicator} />
         </Animated.View>
       </View>
@@ -380,129 +361,120 @@ const styles = StyleSheet.create({
   cardWrapper: {
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.35,
-    shadowRadius: 28,
-    elevation: 18,
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.58,
+    shadowRadius: 40,
+    elevation: 24,
   },
   card: {
-    backgroundColor: '#FFF8F0',
-    borderColor: '#FFFFFF',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     overflow: 'hidden',
+  },
+  cardContent: {
+    flex: 1,
     justifyContent: 'space-between',
-  },
-  abstractTop: {
-    position: 'absolute',
-    opacity: 0.2,
-  },
-  abstractBottom: {
-    position: 'absolute',
-    opacity: 0.18,
-  },
-  leafLeft: {
-    position: 'absolute',
-    opacity: 0.14,
-  },
-  leafRight: {
-    position: 'absolute',
-    opacity: 0.13,
-  },
-  glowTop: {
-    position: 'absolute',
-    backgroundColor: '#F2D4D8',
-    opacity: 0.55,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  brandText: {
-    color: '#B91C2F',
-    fontWeight: '700',
-    fontSize: 22,
-  },
-  subTitle: {
-    marginTop: 3,
-    color: '#8C7B75',
-    fontSize: 12,
-    fontWeight: '600',
+  logoImage: {
+    // Logo keeps its original colors
   },
   closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(42,31,31,0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
-  qrContainer: {
+  qrSection: {
     alignSelf: 'center',
+  },
+  qrBlurContainer: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  qrInnerContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 16,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#EFE8E1',
-    shadowColor: '#2A1F1F',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2,
   },
   pointsBlock: {
     alignItems: 'center',
-    marginTop: 8,
   },
   pointsLabel: {
-    color: '#8C7B75',
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     fontWeight: '700',
   },
   pointsValue: {
-    color: '#2A1F1F',
-    fontSize: 30,
+    color: '#FFFFFF',
+    fontSize: 34,
     fontWeight: '800',
-    marginTop: 2,
+    marginTop: 4,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   loadingText: {
-    fontSize: 13,
-    color: '#8C7B75',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '500',
   },
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
+  },
+  userInfoBlock: {
+    flex: 1,
   },
   memberName: {
-    color: '#2A1F1F',
+    color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 17,
+    fontSize: 18,
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   memberId: {
-    color: '#8C7B75',
+    color: 'rgba(255, 255, 255, 0.7)',
     marginTop: 4,
-    letterSpacing: 0.8,
-    fontSize: 11,
+    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: '500',
   },
   tierBadge: {
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   tierText: {
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 11,
+    letterSpacing: 1,
   },
   swipeIndicator: {
-    width: 42,
+    width: 46,
     height: 5,
     borderRadius: 999,
-    marginTop: 16,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    marginTop: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
 });

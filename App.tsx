@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, Platform, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import AppNavigator from './src/navigation/AppNavigator';
 import MemberCardModal from './src/components/MemberCardModal';
 import { MemberProvider } from './src/context/MemberContext';
@@ -10,11 +12,74 @@ import { preloadAppAssets } from './src/utils/preloadAppAssets';
 const MIN_SPLASH_MS = 500;
 const MAX_PRELOAD_WAIT_MS = 700;
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+const registerForPushNotificationsAsync = async () => {
+  if (!Device.isDevice) {
+    return null;
+  }
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    return null;
+  }
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#B91C2F',
+    });
+  }
+
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  return token;
+};
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const splashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      const token = await registerForPushNotificationsAsync();
+      if (active && token) {
+        console.log('Expo push token:', token);
+      }
+
+      if (active) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Gong cha',
+            body: 'Ini contoh tampilan push notifikasi.',
+          },
+          trigger: { seconds: 2 },
+        });
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -96,7 +161,7 @@ export default function App() {
             transform: [{ translateY: floatAnim }, { scale: pulseAnim }],
           }}
         >
-          <Image source={require('./assets/images/logo1.png')} style={styles.splashLogo} resizeMode="contain" />
+          <Image source={require('./assets/images/logo1.webp')} style={styles.splashLogo} resizeMode="contain" />
         </Animated.View>
       </View>
     );

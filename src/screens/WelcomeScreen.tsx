@@ -78,7 +78,8 @@ export default function WelcomeScreen() {
   };
 
   const isOtpMode = viewMode === 'login_otp' || viewMode === 'signup_otp';
-  const dynamicLogoTop = insets.top + (Platform.OS === 'ios' ? 12 : 8);
+  // Turunkan posisi logo secara universal agar lebih aman di semua device
+  const dynamicLogoTop = insets.top + (Platform.OS === 'ios' ? 60 : 40);
   const dynamicGetStartedBottom = Math.max(insets.bottom + 20, 32);
   const dynamicSheetBottomPadding = Math.max(insets.bottom + 16, 20) + (isOtpMode ? 12 : 0) + (isKeyboardVisible ? 18 : 0);
 
@@ -462,17 +463,19 @@ export default function WelcomeScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.container}>
-      {/* Background Image - STATIC */}
-      <Image
-        source={require('../../assets/images/welcome1.jpg')}
-        style={[styles.heroImage, { width, height }]}
-        resizeMode="cover"
-      />
+        {/* Background Image - DYNAMIC FILL */}
+        <View style={{ flex: 1, position: 'absolute', width: '100%', height: '100%' }}>
+          <Image
+            source={require('../../assets/images/welcome1.webp')}
+            style={{ flex: 1, width: undefined, height: undefined }}
+            resizeMode="cover"
+          />
+        </View>
 
       {/* Logo */}
       <View style={[styles.logoSection, { top: dynamicLogoTop }]}>
         <Image
-          source={require('../../assets/images/logo1.png')}
+          source={require('../../assets/images/logo1.webp')}
           style={[styles.logoImage, { width: logoSize, height: logoSize }]}
           resizeMode="contain"
         />
@@ -696,7 +699,7 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEFDFB' },
-  heroImage: { position: 'absolute', top: 0, left: 0 },
+  // heroImage: { position: 'absolute', top: 0, left: 0 },
   logoSection: { position: 'absolute', alignSelf: 'center', zIndex: 10 },
   logoImage: {},
   gradientOverlay: { position: 'absolute', bottom: 0, width: '100%' },

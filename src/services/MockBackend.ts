@@ -17,18 +17,18 @@ const RULES = {
 const REWARD_CATALOG: RewardItem[] = [
   {
     id: 'r1',
-    title: 'Free Pearl Milk Tea',
+    title: 'Free Milk Tea',
     description: 'Medium size. Classic favorite.',
     pointsCost: 500,
-    image: require('../../assets/images/drink1.png'),
+    image: require('../../assets/images/voucherdrink1.png'),
     category: 'Drink',
   },
   {
     id: 'r2',
-    title: 'Free Topping: Pudding',
-    description: 'Add silky pudding to any drink.',
+    title: 'Free Pearl',
+    description: 'Add chewy pearl topping to any drink.',
     pointsCost: 200,
-    image: require('../../assets/images/boba.png'),
+    image: require('../../assets/images/boba.webp'),
     category: 'Topping',
   },
   {
@@ -36,15 +36,15 @@ const REWARD_CATALOG: RewardItem[] = [
     title: 'Rp 20.000 Discount',
     description: 'Min. spend Rp 50.000.',
     pointsCost: 800,
-    image: require('../../assets/images/promo1.png'),
+    image: require('../../assets/images/voucher20k.png'),
     category: 'Discount',
   },
   {
     id: 'r4',
-    title: 'Signature Brown Sugar',
+    title: 'Free Gongcha Tea',
     description: 'Large size with fresh milk.',
     pointsCost: 1200,
-    image: require('../../assets/images/drink3.png'),
+    image: require('../../assets/images/voucherdrink2.png'),
     category: 'Drink',
   },
 ];
