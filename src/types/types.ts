@@ -15,6 +15,11 @@ export interface UserProfile {
   id: string;
   name: string;
   phoneNumber: string;
+  
+  // --- UPDATED FIELDS ---
+  email?: string; // Menambahkan email (Optional)
+  photoURL?: string; 
+  
   currentPoints: number;
   lifetimePoints: number;
   tierXp: number;
@@ -22,8 +27,10 @@ export interface UserProfile {
   tier: MemberTier;
   joinedDate: string;
   vouchers: UserVoucher[];
-  role?: 'master' | 'trial';
-  photoURL?: string;
+  
+  // --- UPDATED ROLE ---
+  // Menambahkan 'admin' dan 'member' agar logika "God Mode" jalan
+  role?: 'master' | 'trial' | 'admin' | 'member'; 
 }
 
 export interface Transaction {
