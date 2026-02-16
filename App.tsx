@@ -4,51 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Device from 'expo-device';
 // import * as Notifications from 'expo-notifications';
+
 import AppNavigator from './src/navigation/AppNavigator';
 import MemberCardModal from './src/components/MemberCardModal';
 import { MemberProvider } from './src/context/MemberContext';
+import { ThemeProvider } from './src/context/ThemeContext'; // <--- IMPORT BARU
 import { preloadAppAssets } from './src/utils/preloadAppAssets';
 
 const MIN_SPLASH_MS = 500;
 const MAX_PRELOAD_WAIT_MS = 700;
-
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowAlert: true,
-//     shouldPlaySound: true,
-//     shouldSetBadge: false,
-//   }),
-// });
-
-// const registerForPushNotificationsAsync = async () => {
-//   if (!Device.isDevice) {
-//     return null;
-//   }
-//
-//   const { status: existingStatus } = await Notifications.getPermissionsAsync();
-//   let finalStatus = existingStatus;
-//
-//   if (existingStatus !== 'granted') {
-//     const { status } = await Notifications.requestPermissionsAsync();
-//     finalStatus = status;
-//   }
-//
-//   if (finalStatus !== 'granted') {
-//     return null;
-//   }
-//
-//   if (Platform.OS === 'android') {
-//     await Notifications.setNotificationChannelAsync('default', {
-//       name: 'default',
-//       importance: Notifications.AndroidImportance.DEFAULT,
-//       vibrationPattern: [0, 250, 250, 250],
-//       lightColor: '#B91C2F',
-//     });
-//   }
-//
-//   const token = (await Notifications.getExpoPushTokenAsync()).data;
-//   return token;
-// };
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -58,24 +22,7 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-
-    (async () => {
-      // const token = await registerForPushNotificationsAsync();
-      // if (active && token) {
-      //   console.log('Expo push token:', token);
-      // }
-      //
-      // if (active) {
-      //   await Notifications.scheduleNotificationAsync({
-      //     content: {
-      //       title: 'Gong cha',
-      //       body: 'Ini contoh tampilan push notifikasi.',
-      //     },
-      //     trigger: { seconds: 2 },
-      //   });
-      // }
-    })();
-
+    // Placeholder for notification setup
     return () => {
       active = false;
     };
@@ -169,12 +116,15 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <MemberProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-        <MemberCardModal />
-      </MemberProvider>
+      {/* WRAP APLIKASI DENGAN THEME PROVIDER DI SINI */}
+      <ThemeProvider>
+        <MemberProvider>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+          <MemberCardModal />
+        </MemberProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -184,7 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF8F0',
+    backgroundColor: '#FFF8F0', // Splash screen tetap warna brand cream dulu
   },
   splashLogo: {
     width: 148,
