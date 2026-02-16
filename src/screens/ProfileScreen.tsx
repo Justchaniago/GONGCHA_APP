@@ -430,7 +430,7 @@ export default function ProfileScreen() {
                 icon={User}
                 title="Edit Profile"
                 subtitle="Name, Phone, Email"
-                onPress={() => Alert.alert('Coming Soon', 'Edit profile feature is under development.')}
+                onPress={() => navigation.navigate('EditProfile')}
               />
 
               <MenuItem

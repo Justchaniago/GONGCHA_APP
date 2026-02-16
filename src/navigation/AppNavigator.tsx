@@ -10,6 +10,7 @@ import MenuScreen from '../screens/MenuScreen';
 import QrPlaceholderScreen from '../screens/QrPlaceholderScreen';
 import RewardsScreen from '../screens/RewardsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import StoreLocatorScreen from '../screens/StoreLocatorScreen';
 
 export type RootStackParamList = {
@@ -17,6 +18,7 @@ export type RootStackParamList = {
   Login: undefined;
   MainApp: undefined;
   StoreLocator: undefined;
+  EditProfile: undefined;
 };
 
 export type RootTabParamList = {
@@ -61,6 +63,11 @@ export default function AppNavigator() {
       <Stack.Screen
         name="StoreLocator"
         component={StoreLocatorScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>

@@ -21,8 +21,13 @@
           "comgooglemaps",
           "comgooglemaps-x-callback",
           "waze",
+          "google.navigation",
+          "comgooglemaps",
+          "comgooglemaps-x-callback",
+          "waze",
           "google.navigation"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -44,8 +49,7 @@
     "plugins": [
       "expo-font",
       "expo-asset",
-      "expo-location",
-      "expo-notifications"
+      "expo-location"
     ],
     "extra": {
       "eas": {

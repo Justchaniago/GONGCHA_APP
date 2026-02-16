@@ -48,9 +48,18 @@ export default function StoreLocatorScreen() {
   const [stores, setStores] = useState<StoreType[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus>(Location.PermissionStatus.UNDETERMINED);
+  const [nowTick, setNowTick] = useState(Date.now());
 
   useEffect(() => {
     fetchStoresAndLocation();
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 60 * 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   const fetchStoresAndLocation = async () => {
@@ -164,7 +173,7 @@ export default function StoreLocatorScreen() {
     const range = parseHoursRange(store.openHours);
     if (!range) return { label: 'Open', color: '#166534', bg: '#DCFCE7' }; 
 
-    const now = new Date();
+    const now = new Date(nowTick);
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const isOvernight = range.close < range.open;
     
