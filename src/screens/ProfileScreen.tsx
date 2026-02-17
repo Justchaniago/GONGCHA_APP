@@ -33,56 +33,15 @@ import {
 } from 'lucide-react-native';
 import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'; // PENTING: Untuk fix error tabBarHidden
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
 import { MockBackend } from '../services/MockBackend';
 import { AuthService } from '../services/AuthService';
-import { MemberTier, UserProfile, XpRecord } from '../types/types';
+import { UserProfile, XpRecord } from '../types/types'; // Hapus MemberTier jika tidak dipakai lagi di sini
 import { RootStackParamList } from '../navigation/AppNavigator';
-
-const TIER_CARD_THEME: Record<
-  MemberTier,
-  {
-    gradient: [string, string];
-    tierText: string;
-    tierBg: string;
-    border: string;
-    shadow: string;
-    accent: string;
-    label: string;
-  }
-> = {
-  Silver: {
-    gradient: ['#3C4552', '#697485'],
-    tierText: '#EEF2FF',
-    tierBg: 'rgba(238,242,255,0.2)',
-    border: 'rgba(203,213,225,0.36)',
-    shadow: '#334155',
-    accent: '#E2E8F0',
-    label: 'rgba(226,232,240,0.72)',
-  },
-  Gold: {
-    gradient: ['#2A1F1F', '#5E4B45'],
-    tierText: '#FFD77A',
-    tierBg: 'rgba(255,215,122,0.2)',
-    border: 'rgba(243,198,119,0.34)',
-    shadow: '#3A2E2A',
-    accent: '#F3C677',
-    label: 'rgba(243,198,119,0.72)',
-  },
-  Platinum: {
-    gradient: ['#2E1F52', '#4A2E8F'],
-    tierText: '#E9D5FF',
-    tierBg: 'rgba(233,213,255,0.2)',
-    border: 'rgba(196,181,253,0.34)',
-    shadow: '#4C1D95',
-    accent: '#DDD6FE',
-    label: 'rgba(221,214,254,0.75)',
-  },
-};
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -101,14 +60,9 @@ export default function ProfileScreen() {
   const useBlurBackdrop = true; 
   const backdropBlurIntensity = Platform.OS === 'ios' ? 20 : 80; 
 
-  const tier: MemberTier = user?.tier || 'Silver';
-  const cardTheme = TIER_CARD_THEME[tier];
-  
   const isCompact = screenWidth < 360;
   const horizontalPadding = isCompact ? 14 : 20;
   const avatarSize = isCompact ? 88 : 100;
-  const logoWrapSize = isCompact ? 54 : 62;
-  const logoSize = isCompact ? 40 : 46;
 
   useEffect(() => {
     loadData();
@@ -120,18 +74,14 @@ export default function ProfileScreen() {
     }, [])
   );
 
-  // FIX PENTING: Logic menyembunyikan TabBar yang support v6/v7
+  // Animate tab bar with Apple-style bounce when history modal opens
   useEffect(() => {
-    // Kita ambil parent navigator (Tab Navigator)
     const parent = navigation.getParent<BottomTabNavigationProp<any>>();
-    
     if (parent) {
       parent.setOptions({
-        // Gunakan tabBarStyle: { display: 'none' } alih-alih tabBarHidden
         tabBarStyle: { display: showHistory ? 'none' : 'flex' }
       });
     }
-    
     return () => {
       parent?.setOptions({
         tabBarStyle: { display: 'flex' }
@@ -194,8 +144,7 @@ export default function ProfileScreen() {
           title: 'GongCha Admin',
           body: '🔔 Test notification triggered successfully!',
         },
-        // FIX: Hapus "type: 'time'", cukup "seconds" saja agar tidak error
-        trigger: { seconds: 1 },
+        trigger: { type: 'time', seconds: 1 },
       });
     } catch (error: any) {
       Alert.alert('Notification error', String(error?.message || error));
@@ -359,54 +308,7 @@ export default function ProfileScreen() {
               )}
             </View>
 
-            {/* --- MEMBERSHIP CARD --- */}
-            <LinearGradient
-              colors={cardTheme.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[
-                styles.memberCard,
-                {
-                  marginHorizontal: horizontalPadding,
-                  borderColor: cardTheme.border,
-                  shadowColor: cardTheme.shadow,
-                  padding: isCompact ? 20 : 24,
-                },
-              ]}
-            >
-              <View style={styles.cardRow}>
-                <View
-                  style={[
-                    styles.cardLogoWrap,
-                    { width: logoWrapSize, height: logoWrapSize, borderRadius: logoWrapSize / 2 },
-                  ]}
-                >
-                  <Image
-                    source={require('../../assets/images/logo1.webp')}
-                    style={[styles.cardLogo, { width: logoSize, height: logoSize }]}
-                  />
-                </View>
-                <View style={[styles.tierTag, { backgroundColor: cardTheme.tierBg }]}> 
-                  <Text style={[styles.tierTagText, { color: cardTheme.tierText }]}>{user?.tier || 'MEMBER'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardLabel, { color: cardTheme.label }]}>Member ID</Text>
-                <Text style={styles.cardValue}>{user?.id || '.... .... ....'}</Text>
-              </View>
-
-              <View style={styles.cardFooter}>
-                <View>
-                  <Text style={[styles.cardLabel, { color: cardTheme.label }]}>Lifetime XP</Text>
-                  <Text style={[styles.xpValue, { color: cardTheme.accent }]}>{user?.tierXp || 0} XP</Text>
-                </View>
-                <View>
-                  <Text style={[styles.cardLabel, { color: cardTheme.label }]}>Joined</Text>
-                  <Text style={[styles.xpValue, { color: cardTheme.accent }]}>{user ? new Date(user.joinedDate).getFullYear() : '...'}</Text>
-                </View>
-              </View>
-            </LinearGradient>
+            {/* --- MEMBERSHIP CARD REMOVED --- */}
 
             {/* --- MENU SECTIONS --- */}
             <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
@@ -540,25 +442,7 @@ const styles = StyleSheet.create({
   },
   adminBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
 
-  memberCard: {
-    marginHorizontal: 20, borderRadius: 24, padding: 24, marginBottom: 30,
-    borderWidth: 1.5, elevation: 8,
-    shadowColor: '#2A1F1F', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 8 },
-  },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  cardLogoWrap: {
-    width: 62, height: 62, borderRadius: 31,
-    backgroundColor: 'rgba(255,255,255,0.14)', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
-  },
-  cardLogo: { width: 46, height: 46, resizeMode: 'contain', opacity: 0.98 },
-  tierTag: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
-  tierTagText: { color: '#D4A853', fontWeight: 'bold', fontSize: 12, letterSpacing: 1.2 },
-  cardContent: { marginBottom: 24 },
-  cardLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  cardValue: { color: '#FFF', fontSize: 18, fontFamily: 'monospace', letterSpacing: 2 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between' },
-  xpValue: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  // --- MEMBER CARD STYLES REMOVED ---
 
   menuSection: { paddingHorizontal: 20, marginBottom: 24 },
   sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#2A1F1F', marginBottom: 12, marginLeft: 4 },

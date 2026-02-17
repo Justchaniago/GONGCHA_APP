@@ -1,14 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import { View, TouchableOpacity, StyleSheet, Animated, Easing, LayoutChangeEvent, useWindowDimensions } from 'react-native';
 import { Home, Coffee, QrCode, Trophy, User } from 'lucide-react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMemberCard } from '../context/MemberContext';
+import { useTheme } from '../context/ThemeContext';
 
 const BAR_HORIZONTAL_PADDING = 10;
 
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  // Listen for custom bounce event
+  const [externalHide, setExternalHide] = useState(false);
+  const nav = useNavigation();
+  useEffect(() => {
+    const sub = nav.addListener('tabBarBounce', (e: any) => {
+      setExternalHide(!!e?.data?.hide);
+    });
+    return () => sub && sub();
+  }, [nav]);
   const { showCard } = useMemberCard();
+  const { colors, activeMode } = useTheme();
+  const isDark = activeMode === 'dark';
+
   const memberTriggerRef = useRef<View | null>(null);
   const { width: screenWidth } = useWindowDimensions();
   const isQrFocused = state.routes[state.index]?.name === 'QR';
@@ -44,30 +58,41 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 
   const activeRouteKey = state.routes[state.index]?.key;
   const activeOptions = activeRouteKey ? descriptors[activeRouteKey]?.options : undefined;
-  const shouldHideTabBar = Boolean((activeOptions as any)?.tabBarHidden);
+  
+  // @ts-ignore
+  const tabBarStyleDisplay = activeOptions?.tabBarStyle?.display;
+  const shouldHideTabBar = tabBarStyleDisplay === 'none' || externalHide;
 
   useEffect(() => {
-    Animated.timing(tabBarHideProgress, {
+    Animated.spring(tabBarHideProgress, {
       toValue: shouldHideTabBar ? 1 : 0,
-      duration: shouldHideTabBar ? 220 : 260,
-      easing: shouldHideTabBar ? Easing.in(Easing.cubic) : Easing.out(Easing.cubic),
+      stiffness: 180,
+      damping: 18,
+      mass: 0.7,
+      velocity: 2,
       useNativeDriver: true,
     }).start();
   }, [shouldHideTabBar, tabBarHideProgress]);
 
   useEffect(() => {
-    activePillScale.setValue(0.985);
+    // Initial squash for anticipation
+    activePillScale.setValue(0.92);
+    
     Animated.parallel([
+      // Bouncy slide animation dengan overshoot
       Animated.spring(activeIndex, {
         toValue: state.index,
-        tension: 190,
-        friction: 22,
+        tension: 160,        // Lower = more bounce
+        friction: 18,        // Lower = more oscillation
+        velocity: 2,         // Initial velocity
         useNativeDriver: true,
       }),
+      // Playful scale bounce
       Animated.spring(activePillScale, {
         toValue: 1,
-        tension: 185,
-        friction: 19,
+        tension: 140,        // Bouncy scale
+        friction: 16,        // More bounce on scale
+        velocity: 1,
         useNativeDriver: true,
       }),
     ]).start();
@@ -83,11 +108,20 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const bottomOffset = Math.max(insets.bottom + (isCompact ? 2 : 4), isCompact ? 8 : 10);
   const hideTranslateY = barHeight + bottomOffset + Math.max(insets.bottom, 10) + 12;
 
+  // PRECISE CENTER CALCULATION - menghitung exact center per icon
   const pillTranslateX = activeIndex.interpolate({
     inputRange: state.routes.map((_, idx) => idx),
-    outputRange: state.routes.map(
-      (_, idx) => dynamicBarPadding + idx * slotWidth + (slotWidth - activePillSize) / 2
-    ),
+    outputRange: state.routes.map((_, idx) => {
+      // Calculate exact center of each slot
+      const slotCenter = dynamicBarPadding + (idx * slotWidth) + (slotWidth / 2);
+      // Position pill at exact center
+      const pillCenter = slotCenter - (activePillSize / 2);
+      
+      // Debug log to verify positioning
+      // console.log(`Tab ${idx}: slotCenter=${slotCenter.toFixed(2)}, pillCenter=${pillCenter.toFixed(2)}`);
+      
+      return pillCenter;
+    }),
     extrapolate: 'clamp',
   });
 
@@ -103,6 +137,24 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           height: barHeight,
           borderRadius: barHeight / 2,
           paddingHorizontal: dynamicBarPadding,
+          
+          // --- REFINED THEME SYSTEM ---
+          backgroundColor: colors.bottomNav.background,
+          
+          // Light Mode: Subtle border + strong shadow untuk depth & elegance
+          // Dark Mode: Stronger border karena shadow kurang terlihat di dark
+          borderWidth: isDark ? 1.5 : 0.5,
+          borderColor: isDark 
+            ? colors.border.default 
+            : 'rgba(185, 28, 47, 0.12)', // Very subtle red tint
+          
+          // Enhanced shadow system
+          shadowColor: isDark ? colors.shadow.color : colors.brand.primary,
+          shadowOffset: { width: 0, height: isDark ? -4 : 8 },
+          shadowOpacity: isDark ? 0.16 : 0.12,
+          shadowRadius: isDark ? 20 : 28,
+          elevation: isDark ? 10 : 12,
+          
           opacity: tabBarHideProgress.interpolate({
             inputRange: [0, 1],
             outputRange: [1, 0.94],
@@ -129,6 +181,16 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
               width: activePillSize,
               height: activePillSize,
               borderRadius: activePillSize / 2,
+              
+              backgroundColor: colors.bottomNav.active,
+              
+              // Active pill shadow - more prominent in light mode
+              shadowColor: colors.brand.primary,
+              shadowOffset: { width: 0, height: isDark ? 3 : 4 },
+              shadowOpacity: isDark ? 0.24 : 0.28,
+              shadowRadius: isDark ? 10 : 12,
+              elevation: 6,
+              
               transform: [{ translateX: pillTranslateX }, { scale: activePillScale }],
             },
           ]}
@@ -140,23 +202,57 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
         const isMemberCardTrigger = route.name === 'QR';
         const IconComponent = iconMap[route.name] || Home;
 
+        // ENHANCED ICON ANIMATIONS - Simplified & Safe!
+        const prevIndex = index > 0 ? index - 1 : 0;
+        const nextIndex = index < state.routes.length - 1 ? index + 1 : state.routes.length - 1;
+        
+        // Build safe inputRange (always increasing)
+        const scaleInputRange = [];
+        const scaleOutputRange = [];
+        
+        if (index > 0) {
+          scaleInputRange.push(prevIndex);
+          scaleOutputRange.push(1);
+        }
+        
+        scaleInputRange.push(index);
+        scaleOutputRange.push(1.12); // Active scale with overshoot
+        
+        if (index < state.routes.length - 1) {
+          scaleInputRange.push(nextIndex);
+          scaleOutputRange.push(1);
+        }
+        
         const iconScale = activeIndex.interpolate({
-          inputRange: [index - 1, index, index + 1],
-          outputRange: [1, 1.05, 1],
+          inputRange: scaleInputRange,
+          outputRange: scaleOutputRange,
           extrapolate: 'clamp',
         });
 
         const iconOpacity = activeIndex.interpolate({
-          inputRange: [index - 1, index, index + 1],
-          outputRange: [0.58, 1, 0.58],
+          inputRange: scaleInputRange,
+          outputRange: index === 0 || index === state.routes.length - 1
+            ? [1, 0.48]
+            : [0.48, 1, 0.48],
+          extrapolate: 'clamp',
+        });
+        
+        // Icon rotation untuk extra flair (subtle)
+        const iconRotate = activeIndex.interpolate({
+          inputRange: scaleInputRange,
+          outputRange: index === 0 
+            ? ['0deg', '2deg']
+            : index === state.routes.length - 1
+            ? ['-2deg', '0deg']
+            : ['-2deg', '0deg', '2deg'],
           extrapolate: 'clamp',
         });
 
         const handlePressIn = () => {
-          Animated.timing(pressScales.current[index], {
-            toValue: 0.97,
-            duration: 60,
-            easing: Easing.out(Easing.cubic),
+          Animated.spring(pressScales.current[index], {
+            toValue: 0.92,      // More squash
+            tension: 200,       // Snappier
+            friction: 20,
             useNativeDriver: true,
           }).start();
         };
@@ -164,8 +260,9 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
         const handlePressOut = () => {
           Animated.spring(pressScales.current[index], {
             toValue: 1,
-            tension: 240,
-            friction: 22,
+            tension: 180,       // Bouncier release
+            friction: 16,       // More bounce
+            velocity: 2,        // Pop out faster
             useNativeDriver: true,
           }).start();
         };
@@ -197,6 +294,20 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           }
         };
 
+        // Icon color logic - consistent for all icons
+        // IMPORTANT: All icons should be outline/stroke version, not filled!
+        const iconColor = isFocused 
+          ? '#FFFFFF'  // Always white when active (on red pill)
+          : colors.bottomNav.inactive;  // Theme color when inactive
+        
+        // Special handling for QR button
+        const finalIconColor = isMemberCardTrigger 
+          ? '#FFFFFF'  // QR button always white (on red bg)
+          : iconColor;  // Other icons follow active/inactive logic
+        
+        // Ensure proper stroke width for visibility
+        const iconStrokeWidth = isFocused ? 2.6 : 2.1;
+
         return (
           <TouchableOpacity
             key={route.key}
@@ -226,23 +337,45 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                       height: triggerButtonSize,
                       borderRadius: triggerButtonSize / 2,
                       transform: [{ translateY: triggerLift }],
+                      
+                      backgroundColor: colors.brand.primary,
+                      
+                      // QR Button Border - menyatu dengan tab bar
+                      borderWidth: isDark ? 4 : 3,
+                      borderColor: colors.bottomNav.background,
+                      
+                      // Enhanced shadow for QR button
+                      shadowColor: colors.brand.primary,
+                      shadowOffset: { width: 0, height: isDark ? 6 : 8 },
+                      shadowOpacity: isDark ? 0.35 : 0.3,
+                      shadowRadius: isDark ? 10 : 14,
+                      elevation: 8,
                     },
                   ]}
                 >
-                  <IconComponent size={iconSize} color="#FFFFFF" strokeWidth={2.4} />
+                  <IconComponent 
+                    size={iconSize} 
+                    color="#FFFFFF" 
+                    strokeWidth={2.4}
+                    fill="none"  // Force outline version
+                  />
                 </View>
               </Animated.View>
             ) : (
               <Animated.View
                 style={{
-                  transform: [{ scale: Animated.multiply(iconScale, pressScales.current[index]) }],
+                  transform: [
+                    { scale: Animated.multiply(iconScale, pressScales.current[index]) },
+                    { rotate: iconRotate }, // Subtle rotation for flair
+                  ],
                   opacity: iconOpacity,
                 }}
               >
                 <IconComponent
                   size={iconSize}
-                  color="#FFFFFF"
-                  strokeWidth={isFocused ? 2.4 : 2.1}
+                  color={finalIconColor}
+                  strokeWidth={iconStrokeWidth}
+                  fill="none"  // CRITICAL: Force outline/stroke version
                 />
               </Animated.View>
             )}
@@ -256,24 +389,12 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 const styles = StyleSheet.create({
   bottomNav: {
     position: 'absolute',
-    backgroundColor: '#2A1F1F',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#2A1F1F',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
-    elevation: 10,
   },
   activePill: {
     position: 'absolute',
-    backgroundColor: '#B91C2F',
-    shadowColor: '#B91C2F',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.24,
-    shadowRadius: 10,
-    elevation: 6,
   },
   navButton: {
     flex: 1,
@@ -293,13 +414,5 @@ const styles = StyleSheet.create({
   memberTriggerButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#B91C2F',
-    borderWidth: 4,
-    borderColor: '#2A1F1F',
-    shadowColor: '#B91C2F',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
   },
 });

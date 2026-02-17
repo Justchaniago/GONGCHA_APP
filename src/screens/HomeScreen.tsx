@@ -28,6 +28,7 @@ import MockBackend from '../services/MockBackend';
 import type { RootTabParamList } from '../navigation/AppNavigator';
 import { MemberTier, UserProfile } from '../types/types';
 import { getGreeting } from '../utils/greetingHelper';
+import { useTheme } from '../context/ThemeContext';
 
 const NOTIFICATIONS = [
   { id: '1', title: 'Selamat Ulang Tahun!', body: 'Voucher Birthday diskon 10% sudah aktif. Traktir dirimu sekarang!', time: 'Baru saja', read: false, type: 'gift' },
@@ -61,6 +62,9 @@ const TIER_THEME: Record<MemberTier, any> = {
 };
 
 export default function HomeScreen() {
+  const { colors, activeMode } = useTheme();
+  const isDark = activeMode === 'dark';
+  
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
@@ -69,6 +73,8 @@ export default function HomeScreen() {
   
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
+  const bellRef = useRef<View>(null);
+  const [bellLayout, setBellLayout] = useState({ x: 0, y: 0, width: 0, height: 0, pageY: 0 });
   
   // Animation Values
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -84,31 +90,81 @@ export default function HomeScreen() {
   const avatarSize = isCompact ? 46 : 52;
   const headerIconSize = isCompact ? 44 : 48;
 
-  // --- BELL POSITIONING ---
-  // Kita hitung posisi absolut bell agar bisa di-render di atas modal
-  const bellTop = insets.top + 6 + 10; // marginTop + padding header
-  const bellRight = 20 + 42 + 10; // paddingRight + logo width + gap
-
-  // --- ANIMATIONS ---
+  // --- ANIMASI NOTIFIKASI ---
   const openNotifications = () => {
-    setShowNotifications(true);
-    Animated.parallel([
-      Animated.timing(backdropAnim, { toValue: 1, duration: 300, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 10, tension: 80 }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 350, delay: 100, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-      Animated.spring(iconRotate, { toValue: 1, useNativeDriver: true, friction: 8, tension: 100 }),
-      Animated.timing(buttonBg, { toValue: 1, duration: 300, useNativeDriver: false }),
-    ]).start();
+    // Karena header sekarang fixed, posisi Y lonceng relatif stabil
+    // Tapi kita tetap pakai measure untuk akurasi pixel perfect di berbagai device
+    bellRef.current?.measure((x, y, width, height, pageX, pageY) => {
+      setBellLayout({ x, y, width, height, pageY });
+      setShowNotifications(true);
+      
+      Animated.parallel([
+        Animated.timing(backdropAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 10,
+          tension: 80,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 350,
+          delay: 100,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(iconRotate, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 100,
+        }),
+        Animated.timing(buttonBg, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    });
   };
 
   const closeNotifications = () => {
     Animated.parallel([
-      Animated.timing(backdropAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 0, duration: 280, useNativeDriver: true, easing: Easing.in(Easing.back(1.2)) }),
-      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.spring(iconRotate, { toValue: 0, useNativeDriver: true, friction: 8, tension: 100 }),
-      Animated.timing(buttonBg, { toValue: 0, duration: 250, useNativeDriver: false }),
-    ]).start(() => setShowNotifications(false));
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.back(1.2)),
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconRotate, {
+        toValue: 0,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 100,
+      }),
+      Animated.timing(buttonBg, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: false, 
+      }),
+    ]).start(() => {
+      setShowNotifications(false);
+    });
   };
 
   const loadUserData = async () => {
@@ -121,7 +177,11 @@ export default function HomeScreen() {
     }
   };
 
-  useFocusEffect(React.useCallback(() => { loadUserData(); }, []));
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserData();
+    }, [])
+  );
 
   const tierXp = userData?.tierXp ?? 0;
   const currentPoints = userData?.currentPoints ?? 0;
@@ -152,21 +212,13 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [promoCardWidth, promos.length]);
 
-  // --- INTERPOLATIONS ---
-  const iconRotation = iconRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
-  const iconScale = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.8, 1] });
-  const bellOpacity = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0, 0] });
-  const xOpacity = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
-  const buttonBackgroundColor = buttonBg.interpolate({ inputRange: [0, 1], outputRange: ['#FFFFFF', '#B91C2F'] });
-
-  // Modal origin calculation (Relative to screen center)
-  // We want modal to scale from the bell position
-  const bellCenterX = width - horizontalPadding - 42 - 10 - (headerIconSize / 2);
-  const bellCenterY = bellTop + (headerIconSize / 2);
+  // Modal Transform Logic
+  // Menggunakan posisi Y dari measure (bellLayout.pageY) yang sekarang stabil karena header fixed
+  const bellCenterX = (width - horizontalPadding - 42 - 10 - (headerIconSize / 2)); 
   
   const modalTransform = [
     { translateX: bellCenterX - width / 2 },
-    { translateY: bellCenterY - height / 2 },
+    { translateY: -(height / 2) + 100 },
     { 
       scale: scaleAnim.interpolate({
         inputRange: [0, 1],
@@ -174,47 +226,112 @@ export default function HomeScreen() {
       }) 
     },
     { translateX: -(bellCenterX - width / 2) },
-    { translateY: -(bellCenterY - height / 2) },
+    { translateY: (height / 2) - 100 },
   ];
+
+  const iconRotation = iconRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
+  const iconScale = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.8, 1] });
+  const bellOpacity = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0, 0] });
+  const xOpacity = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
+  const buttonBackgroundColor = buttonBg.interpolate({ 
+    inputRange: [0, 1], 
+    outputRange: [colors.surface.card, colors.brand.primary]
+  });
 
   return (
     <ScreenFadeTransition>
-      <View style={styles.root}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <View style={[styles.root, { backgroundColor: colors.background.primary }]}>
+        <StatusBar style={isDark ? 'light' : 'dark'} translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
-        {/* --- MAIN CONTENT --- */}
-        <View style={[styles.container, { paddingTop: insets.top + 6 }]}>
-          <ScrollView 
-            showsVerticalScrollIndicator={false} 
-            style={styles.scrollView} 
-            contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom }]}
-          >
-            {/* HEADER (Text & Logo Only - Bell is rendered separately) */}
-            <View style={styles.header}> 
+        <View style={styles.mainLayout}>
+          {/* ============================================================ */}
+          {/* KONTAINER 1: FIXED HEADER (Tidak ikut scroll) */}
+          {/* ============================================================ */}
+          <View style={[
+            styles.fixedHeaderContainer, 
+            { 
+              paddingTop: insets.top + 6,
+              paddingHorizontal: horizontalPadding,
+              backgroundColor: colors.background.primary, // Agar konten scroll tidak terlihat di belakang header
+              borderBottomColor: isDark ? colors.border.light : 'transparent',
+              borderBottomWidth: isDark ? 1 : 0, // Garis tipis halus di dark mode
+              zIndex: 20
+            }
+          ]}>
+            <View style={styles.headerContent}> 
               <View style={styles.headerLeft}>
                 <View style={styles.avatarWrap}>
-                  <UserAvatar name={userData?.name ?? 'Member'} photoURL={userData?.photoURL} size={avatarSize} />
+                  <UserAvatar
+                    name={userData?.name ?? 'Member'}
+                    photoURL={userData?.photoURL}
+                    size={avatarSize}
+                  />
                   <View style={styles.avatarStatusDot} />
                 </View>
                 <View style={styles.headerTextContainer}>
-                  <Text style={styles.greeting}>{getGreeting()},</Text>
-                  <Text style={styles.name}>{userData?.name ?? 'Member'}</Text>
+                  <Text style={[styles.greeting, { color: colors.text.secondary }]}>{getGreeting()},</Text>
+                  <Text style={[styles.name, { color: colors.text.primary }]}>{userData?.name ?? 'Member'}</Text>
                 </View>
               </View>
-              {/* Placeholder untuk menjaga layout tetap rapi */}
               <View style={styles.headerRight}>
-                <View style={{ width: headerIconSize, height: headerIconSize }} /> 
+                
+                {/* TOMBOL LONCENG (Sekarang Fixed) */}
+                <View ref={bellRef} style={{ opacity: showNotifications ? 0 : 1 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.notificationBtn, 
+                      { 
+                        width: headerIconSize, 
+                        height: headerIconSize,
+                        backgroundColor: colors.surface.card,
+                        shadowColor: colors.shadow.color,
+                      }
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={openNotifications}
+                    disabled={loading}
+                  >
+                     <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
+                     <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}>
+                        <Text style={styles.notificationBadgeText}>2</Text>
+                     </View>
+                  </TouchableOpacity>
+                </View>
+
                 <Image source={require('../../assets/images/logo1.webp')} style={styles.logoTopRight} resizeMode="contain" />
               </View>
             </View>
+          </View>
 
-            {/* CARDS & CONTENT (Sama seperti sebelumnya) */}
-            <View style={[styles.rewardsCard, { borderColor: tierTheme.rewardsBorder, shadowColor: tierTheme.rewardsShadow }]}>
+          {/* ============================================================ */}
+          {/* KONTAINER 2: SCROLLABLE CONTENT (Sisa layar) */}
+          {/* ============================================================ */}
+          <ScrollView 
+            showsVerticalScrollIndicator={false} 
+            style={styles.scrollView} 
+            contentContainerStyle={[
+              styles.scrollContent, 
+              { 
+                paddingHorizontal: horizontalPadding, 
+                paddingBottom: 120 + insets.bottom,
+                paddingTop: 10 // Jarak sedikit dari header
+              }
+            ]}
+          >
+            {/* --- 2. MEMBERSHIP STATUS CARD --- */}
+            <View style={[
+              styles.rewardsCard, 
+              { 
+                backgroundColor: colors.surface.card,
+                borderColor: tierTheme.rewardsBorder, 
+                shadowColor: tierTheme.rewardsShadow 
+              }
+            ]}>
               <View style={styles.rewardsHeader}>
                 <View>
-                  <Text style={styles.rewardsLabel}>MEMBERSHIP STATUS</Text>
-                  <Text style={styles.rewardsPoints}>{loading ? 'Loading...' : `${tierXp} / ${target} XP`}</Text>
+                  <Text style={[styles.rewardsLabel, { color: colors.text.secondary }]}>MEMBERSHIP STATUS</Text>
+                  <Text style={[styles.rewardsPoints, { color: colors.text.primary }]}>{loading ? 'Loading...' : `${tierXp} / ${target} XP`}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <View style={[styles.tierBadge, { backgroundColor: tierTheme.tierBadgeBg }]}>
@@ -226,35 +343,56 @@ export default function HomeScreen() {
                 </View>
               </View>
               <View style={[styles.progressBarBg, { backgroundColor: tierTheme.progressTrackBg }]}>
-                <LinearGradient colors={tierTheme.progressGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.progressBarFill, { width: `${progress}%` }]} />
+                <LinearGradient
+                  colors={tierTheme.progressGradient}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[styles.progressBarFill, { width: `${progress}%` }]} 
+                />
               </View>
               <View style={styles.rewardsFooter}>
                 <Gift size={14} color={tierTheme.footerIcon} />
-                <Text style={styles.rewardsFooterText}>{loading ? 'Syncing rewards...' : footerMessage}</Text>
+                <Text style={[styles.rewardsFooterText, { color: colors.text.secondary }]}>{loading ? 'Syncing rewards...' : footerMessage}</Text>
               </View>
             </View>
 
+            {/* --- 3. SPECIAL OFFERS --- */}
             <View style={styles.sectionHeader}>
-              <View style={styles.redPill} />
-              <Text style={styles.sectionTitle}>Special Offers</Text>
+              <View style={[styles.redPill, { backgroundColor: colors.brand.primary }]} />
+              <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Special Offers</Text>
               <Image source={require('../../assets/images/boba.webp')} style={styles.titleIcon} />
             </View>
 
-            <ScrollView ref={promoScrollRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.promoScroll} contentContainerStyle={{ paddingRight: 20 }} onMomentumScrollEnd={(e) => setActivePromo(Math.round(e.nativeEvent.contentOffset.x / promoCardWidth))}>
+            <ScrollView
+              ref={promoScrollRef}
+              horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+              style={styles.promoScroll} contentContainerStyle={{ paddingRight: 20 }}
+              onMomentumScrollEnd={(e) => setActivePromo(Math.round(e.nativeEvent.contentOffset.x / promoCardWidth))}
+            >
               {promos.map((promo, idx) => (
-                <View key={idx} style={[styles.promoCard, { width: promoCardWidth }]}> 
-                  {promo.image ? <Image source={promo.image} style={styles.promoImage} resizeMode="cover" /> : <View style={[styles.promoPlaceholder, { backgroundColor: promo.color }]}><Text style={{color: '#8C7B75', fontWeight: 'bold'}}>Promo {idx+1}</Text></View>}
+                <View key={idx} style={[styles.promoCard, { width: promoCardWidth, backgroundColor: colors.surface.card }]}> 
+                  {promo.image ? (
+                    <Image source={promo.image} style={styles.promoImage} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.promoPlaceholder, { backgroundColor: promo.color }]}>
+                       <Text style={{color: '#8C7B75', fontWeight: 'bold'}}>Promo {idx+1}</Text>
+                    </View>
+                  )}
                 </View>
               ))}
             </ScrollView>
-            <View style={styles.paginationDots}>{promos.map((_, i) => <View key={i} style={[styles.dot, activePromo === i && styles.dotActive]} />)}</View>
-
-            <View style={styles.sectionHeader}>
-              <View style={styles.redPill} />
-              <Text style={styles.walletTitle}>Gong Cha Wallet</Text>
+            <View style={styles.paginationDots}>
+              {promos.map((_, i) => <View key={i} style={[styles.dot, activePromo === i && { backgroundColor: colors.brand.primary, width: 24 }]} />)}
             </View>
 
-            <LinearGradient colors={tierTheme.walletGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletCard}>
+            {/* --- 4. GONG CHA WALLET --- */}
+            <View style={styles.sectionHeader}>
+              <View style={[styles.redPill, { backgroundColor: colors.brand.primary }]} />
+              <Text style={[styles.walletTitle, { color: colors.text.primary }]}>Gong Cha Wallet</Text>
+            </View>
+
+            <LinearGradient 
+              colors={tierTheme.walletGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletCard}
+            >
               <Image source={require('../../assets/images/liquid.webp')} style={styles.walletLiquid} />
               <View style={styles.walletTopRow}>
                 <View>
@@ -271,21 +409,20 @@ export default function HomeScreen() {
                   <Text style={styles.walletBenefitTitle}>Tier Benefits</Text>
                   <Text style={styles.walletBenefitDesc}>Free delivery & 10% Birthday Discount</Text>
                 </View>
-                <TouchableOpacity style={styles.redeemButton} onPress={() => navigation.navigate('Rewards')}>
+                <TouchableOpacity
+                  style={[styles.redeemButton, { backgroundColor: colors.surface.card }]}
+                  onPress={() => navigation.navigate('Rewards')}
+                >
                   <Text style={[styles.redeemButtonText, { color: tierTheme.redeemAccent }]}>Redeem Catalog</Text>
                   <ChevronRight size={11} color={tierTheme.redeemAccent} />
                 </TouchableOpacity>
               </View>
             </LinearGradient>
+
           </ScrollView>
         </View>
 
-        {/* --- MODAL LAYER --- */}
-        {/* Modal dirender DULUAN agar ada di bawah tombol lonceng (secara z-index) */}
-        {/* TAPI, kita pakai Modal component native agar menutupi tab bar */}
-        {/* TRICK: Karena Modal native selalu paling atas, kita tidak bisa menaruh tombol di atasnya secara langsung jika tombol itu bukan child dari Modal. */}
-        {/* SOLUSI: Kita render tombol lonceng DI DALAM Modal juga saat modal aktif! */}
-        
+        {/* --- MODAL (OVERLAY) --- */}
         <Modal
           visible={showNotifications}
           transparent
@@ -294,132 +431,97 @@ export default function HomeScreen() {
           onRequestClose={closeNotifications}
         >
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropAnim }]}>
-            {Platform.OS === 'ios' ? <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />}
-            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeNotifications} activeOpacity={1} />
+             {Platform.OS === 'ios' ? (
+                <BlurView intensity={30} style={StyleSheet.absoluteFill} tint={isDark ? 'light' : 'dark'} />
+             ) : (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />
+             )}
+             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeNotifications} activeOpacity={1} />
           </Animated.View>
 
           <Animated.View 
             style={[
               styles.modalContainer,
               {
+                backgroundColor: colors.surface.card,
                 top: insets.top + 6 + headerIconSize + 20, 
                 opacity: opacityAnim,
-                transform: modalTransform,
+                transform: modalTransform
               }
             ]}
           >
-            <View style={styles.modalHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>Notifications</Text>
-                <Text style={styles.modalSubtitle}>You have 2 unread messages</Text>
-              </View>
-            </View>
-            <View style={styles.notifListContainer}>
-              <FlatList
-                data={NOTIFICATIONS}
-                keyExtractor={item => item.id}
-                contentContainerStyle={{ padding: 20, paddingTop: 16 }}
-                ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-                renderItem={({ item }) => (
-                  <TouchableOpacity style={[styles.notifItem, !item.read && styles.notifItemUnread]} activeOpacity={0.7}>
-                    <View style={[styles.notifIconCircle, { backgroundColor: !item.read ? '#B91C2F' : '#E5E7EB' }]}>
-                      {item.type === 'gift' ? <Gift size={18} color={!item.read ? '#FFF' : '#6B7280'} /> : item.type === 'points' ? <Trophy size={18} color={!item.read ? '#FFF' : '#6B7280'} /> : <Bell size={18} color={!item.read ? '#FFF' : '#6B7280'} />}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.notifItemHeader}>
-                        <Text style={[styles.notifItemTitle, !item.read && { color: '#2A1F1F', fontWeight: '700' }]}>{item.title}</Text>
-                        <Text style={styles.notifTime}>{item.time}</Text>
-                      </View>
-                      <Text style={styles.notifBody}>{item.body}</Text>
-                    </View>
-                    {!item.read && <View style={styles.unreadDot} />}
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.markReadBtn} onPress={() => {}} activeOpacity={0.7}>
-                <Text style={styles.markReadText}>Mark all as read</Text>
-              </TouchableOpacity>
-            </View>
+             <View style={[styles.modalHeader, { borderBottomColor: colors.border.light }]}>
+                 <View style={{ flex: 1 }}>
+                    <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Notifications</Text>
+                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have 2 unread messages</Text>
+                 </View>
+             </View>
+
+             <View style={[styles.notifListContainer, { backgroundColor: colors.background.tertiary }]}>
+                <FlatList
+                  data={NOTIFICATIONS}
+                  keyExtractor={item => item.id}
+                  contentContainerStyle={{ padding: 20 }}
+                  ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity style={[
+                        styles.notifItem, 
+                        { backgroundColor: colors.surface.card, shadowColor: colors.shadow.color },
+                        !item.read && { borderColor: colors.status.errorBg, borderWidth: 1 }
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                       <View style={[
+                         styles.notifIconCircle, 
+                         !item.read ? { backgroundColor: colors.brand.primary } : { backgroundColor: colors.background.elevated }
+                        ]}>
+                          {item.type === 'gift' ? <Gift size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> : 
+                           item.type === 'points' ? <Trophy size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> :
+                           <Bell size={18} color={!item.read ? '#FFF' : colors.text.secondary} />}
+                       </View>
+                       <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                             <Text style={[styles.notifItemTitle, { color: !item.read ? colors.text.primary : colors.text.secondary }]}>{item.title}</Text>
+                             <Text style={[styles.notifTime, { color: colors.text.tertiary }]}>{item.time}</Text>
+                          </View>
+                          <Text style={[styles.notifBody, { color: colors.text.secondary }]}>{item.body}</Text>
+                       </View>
+                       {!item.read && <View style={[styles.unreadDot, { backgroundColor: colors.brand.primary }]} />}
+                    </TouchableOpacity>
+                  )}
+                />
+             </View>
+
+             <TouchableOpacity style={[styles.markReadBtn, { backgroundColor: colors.surface.card, borderTopColor: colors.border.light }]} onPress={() => {}}>
+                <Text style={[styles.markReadText, { color: colors.brand.primary }]}>Mark all as read</Text>
+             </TouchableOpacity>
           </Animated.View>
 
-          {/* DUPLICATE BELL INSIDE MODAL (Agar tidak kena blur) */}
+          {/* DUPLICATE FLOATING BELL (Fixed Position sesuai Header) */}
           <Animated.View
             style={[
               styles.notificationBtn,
               { 
                 position: 'absolute',
-                top: bellTop,
-                right: bellRight,
+                // Gunakan koordinat hasil measure, atau fallback ke posisi estimasi header
+                top: bellLayout.pageY > 0 ? bellLayout.pageY : (insets.top + 6 + 10), 
+                right: 20 + 42 + 10,
                 width: headerIconSize, 
                 height: headerIconSize,
                 backgroundColor: buttonBackgroundColor,
-                zIndex: 9999, // Pastikan paling atas
+                zIndex: 9999,
                 elevation: 10,
               }
             ]}
           >
              <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={0.8} onPress={closeNotifications}>
                 <Animated.View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', transform: [{ rotate: iconRotation }, { scale: iconScale }] }]}>
-                   <Animated.View style={{ opacity: bellOpacity, position: 'absolute' }}><Bell size={22} color="#B91C2F" strokeWidth={2.5} /></Animated.View>
+                   <Animated.View style={{ opacity: bellOpacity, position: 'absolute' }}><Bell size={22} color={colors.brand.primary} strokeWidth={2.5} /></Animated.View>
                    <Animated.View style={{ opacity: xOpacity, position: 'absolute' }}><X size={22} color="#FFF" strokeWidth={2.5} /></Animated.View>
                 </Animated.View>
              </TouchableOpacity>
           </Animated.View>
         </Modal>
-
-        {/* --- FLOATING BELL (VISIBLE WHEN MODAL CLOSED) --- */}
-        {/* Render di luar ScrollView agar posisi absolute terhadap screen */}
-        {!showNotifications && (
-          <Animated.View
-            style={[
-              styles.notificationBtn,
-              { 
-                position: 'absolute',
-                top: bellTop,
-                right: bellRight,
-                width: headerIconSize, 
-                height: headerIconSize,
-                backgroundColor: buttonBackgroundColor,
-                zIndex: 100,
-                elevation: 10,
-              }
-            ]}
-          >
-            <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              activeOpacity={0.8}
-              onPress={openNotifications}
-              disabled={loading}
-            >
-              <Animated.View
-                style={[
-                  StyleSheet.absoluteFill,
-                  {
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    transform: [
-                      { rotate: iconRotation },
-                      { scale: iconScale },
-                    ],
-                  }
-                ]}
-              >
-                <Animated.View style={{ opacity: bellOpacity, position: 'absolute' }}>
-                  <Bell size={22} color="#B91C2F" strokeWidth={2.5} />
-                </Animated.View>
-                <Animated.View style={{ opacity: xOpacity, position: 'absolute' }}>
-                  <X size={22} color="#FFF" strokeWidth={2.5} />
-                </Animated.View>
-              </Animated.View>
-            </TouchableOpacity>
-            
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>2</Text>
-            </View>
-          </Animated.View>
-        )}
 
       </View>
     </ScreenFadeTransition>
@@ -427,76 +529,73 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFF8F0', position: 'relative' },
-  container: { flex: 1, backgroundColor: 'transparent', zIndex: 1 },
-  scrollView: { flex: 1, zIndex: 1 },
+  root: { flex: 1, position: 'relative' },
+  // Flex container untuk membagi layar jadi 2: Header (fixed) dan Scroll (fluid)
+  mainLayout: { flex: 1 }, 
+  
+  // FIXED HEADER STYLES
+  fixedHeaderContainer: {
+    paddingBottom: 20, // Spacing bawah header
+    // Shadow halus agar header terlihat "mengambang" di atas konten
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  headerContent: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    marginTop: 10, // Margin internal
+  },
+  
+  // SCROLL CONTENT
+  scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
 
-  // HEADER (Layout placeholder)
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, marginTop: 10 },
+  // HEADER ELEMENTS
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarWrap: { position: 'relative', marginRight: 12 },
   avatarStatusDot: { position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, backgroundColor: '#4CAF50', borderRadius: 7, borderWidth: 2, borderColor: '#FFF' },
-  greeting: { fontSize: 13, color: '#8C7B75', fontWeight: '500' },
+  greeting: { fontSize: 13, fontWeight: '500' },
   headerTextContainer: { justifyContent: 'center' },
-  name: { fontSize: 19, fontWeight: 'bold', color: '#2A1F1F' },
+  name: { fontSize: 19, fontWeight: 'bold' },
   
-  // FLOATING BELL
-  notificationBtn: { 
-    borderRadius: 16, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    shadowColor: '#B91C2F', 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.12, 
-    shadowRadius: 12, 
-    elevation: 6,
-  },
-  notificationBadge: { 
-    position: 'absolute', 
-    top: 8, 
-    right: 10, 
-    minWidth: 18, 
-    height: 18, 
-    backgroundColor: '#B91C2F', 
-    borderRadius: 9, 
-    borderWidth: 2, 
-    borderColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  notificationBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  notificationBtn: { borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
+  notificationBadge: { position: 'absolute', top: 12, right: 14, width: 8, height: 8, borderRadius: 4, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  notificationBadgeText: { fontSize: 8, color: '#FFF', fontWeight: 'bold', display: 'none' },
   logoTopRight: { width: 42, height: 42 },
 
-  // MODAL
+  // MODAL STYLES (Sama seperti sebelumnya)
   modalContainer: {
     position: 'absolute', left: 10, right: 10, bottom: 20,
-    backgroundColor: '#FFF', borderRadius: 32, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 30, elevation: 20, maxHeight: '75%',
+    borderRadius: 32, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 20,
+    maxHeight: '75%',
   },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  modalTitle: { fontSize: 24, fontWeight: 'bold', color: '#2A1F1F', marginBottom: 2 },
-  modalSubtitle: { fontSize: 14, color: '#8C7B75' },
-  notifListContainer: { flex: 1, backgroundColor: '#F9FAFB' },
-  notifItem: { flexDirection: 'row', padding: 16, borderRadius: 20, backgroundColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2, alignItems: 'flex-start' },
-  notifItemUnread: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#FEE2E2', shadowColor: '#B91C2F', shadowOpacity: 0.1 },
-  notifIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 14, flexShrink: 0 },
-  notifItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
-  notifItemTitle: { fontSize: 15, fontWeight: '600', color: '#4B5563', flex: 1, marginRight: 8 },
-  notifTime: { fontSize: 11, color: '#9CA3AF', flexShrink: 0 },
-  notifBody: { fontSize: 13, color: '#6B7280', lineHeight: 18, paddingRight: 8 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#B91C2F', marginLeft: 8, marginTop: 6, flexShrink: 0 },
-  modalFooter: { borderTopWidth: 1, borderTopColor: '#F3F4F6', backgroundColor: '#FFF' },
-  markReadBtn: { padding: 18, alignItems: 'center' },
-  markReadText: { color: '#B91C2F', fontWeight: 'bold', fontSize: 15 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderBottomWidth: 1 },
+  modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 2 },
+  modalSubtitle: { fontSize: 14 },
+  notifListContainer: { flex: 1 },
+  notifItem: {
+    flexDirection: 'row', padding: 16, borderRadius: 20,
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2,
+  },
+  notifIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+  notifItemTitle: { fontSize: 15, fontWeight: 'bold', flex: 1 },
+  notifTime: { fontSize: 11, marginLeft: 8 },
+  notifBody: { fontSize: 13, marginTop: 4, lineHeight: 18 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8, marginTop: 6 },
+  markReadBtn: { padding: 16, alignItems: 'center', borderTopWidth: 1 },
+  markReadText: { fontWeight: 'bold', fontSize: 14 },
 
-  // OTHER CARDS (unchanged)
-  rewardsCard: { backgroundColor: '#FFFFFF', borderRadius: 22, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#F3E9DC', elevation: 3 },
+  // CARD STYLES
+  rewardsCard: { borderRadius: 22, padding: 12, marginBottom: 12, borderWidth: 1, elevation: 3 },
   rewardsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 7 },
-  rewardsLabel: { fontSize: 10, color: '#8C7B75', fontWeight: 'bold', letterSpacing: 0.8, marginBottom: 2 },
-  rewardsPoints: { fontSize: 16, fontWeight: 'bold', color: '#2A1F1F' },
+  rewardsLabel: { fontSize: 10, fontWeight: 'bold', letterSpacing: 0.8, marginBottom: 2 },
+  rewardsPoints: { fontSize: 16, fontWeight: 'bold' },
   tierBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 10, marginBottom: 3 },
   tierText: { fontSize: 9, fontWeight: 'bold' },
   percentBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-end' },
@@ -504,19 +603,18 @@ const styles = StyleSheet.create({
   progressBarBg: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
   progressBarFill: { height: '100%', borderRadius: 3 },
   rewardsFooter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rewardsFooterText: { fontSize: 9, color: '#8C7B75', fontWeight: '500' },
+  rewardsFooterText: { fontSize: 9, fontWeight: '500' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  redPill: { width: 4, height: 24, backgroundColor: '#B91C2F', borderRadius: 2, marginRight: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#2A1F1F' },
+  redPill: { width: 4, height: 24, borderRadius: 2, marginRight: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold' },
   titleIcon: { width: 24, height: 24, marginLeft: 8, opacity: 0.8 },
   promoScroll: { marginBottom: 10 },
-  promoCard: { height: 180, borderRadius: 24, overflow: 'hidden', backgroundColor: '#FFF', elevation: 5 },
+  promoCard: { height: 180, borderRadius: 24, overflow: 'hidden', elevation: 5 },
   promoImage: { width: '100%', height: '100%' },
   promoPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   paginationDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: 20, gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E0D6CC' },
-  dotActive: { backgroundColor: '#B91C2F', width: 24 },
-  walletTitle: { fontSize: 18, fontWeight: 'bold', color: '#2A1F1F' },
+  walletTitle: { fontSize: 18, fontWeight: 'bold' },
   walletCard: { borderRadius: 22, paddingHorizontal: 16, paddingVertical: 13, position: 'relative', overflow: 'hidden', elevation: 5 },
   walletLiquid: { position: 'absolute', right: -18, bottom: -28, width: 98, height: 146, opacity: 0.28, transform: [{ rotate: '-10deg' }] },
   walletTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
@@ -527,6 +625,6 @@ const styles = StyleSheet.create({
   walletBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   walletBenefitTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
   walletBenefitDesc: { color: 'rgba(255,255,255,0.6)', fontSize: 9, marginTop: 2, maxWidth: 170 },
-  redeemButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, gap: 4, elevation: 2 },
+  redeemButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, gap: 4, elevation: 2 },
   redeemButtonText: { fontWeight: 'bold', fontSize: 10 },
 });
