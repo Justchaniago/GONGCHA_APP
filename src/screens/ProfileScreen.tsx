@@ -127,7 +127,7 @@ export default function ProfileScreen() {
           title: 'GongCha Admin',
           body: '🔔 Test notification triggered successfully!',
         },
-        trigger: { seconds: 1 },
+        trigger: { type: 'time', seconds: 1 },
       });
     } catch (error: any) {
       Alert.alert('Notification error', String(error?.message || error));

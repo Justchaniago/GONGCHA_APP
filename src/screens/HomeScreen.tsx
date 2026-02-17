@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
   notificationBtn: { borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
   notificationBadge: { position: 'absolute', top: 12, right: 14, width: 8, height: 8, borderRadius: 4, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   notificationBadgeText: { fontSize: 8, color: '#FFF', fontWeight: 'bold', display: 'none' },
-  logoTopRight: { width: 42, height: 42 },
+  logoTopRight: { width: 48, height: 48 },
 
   // MODAL STYLES (Sama seperti sebelumnya)
   modalContainer: {
