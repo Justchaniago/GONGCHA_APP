@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -12,10 +11,10 @@ import {
   Easing,
   Platform,
   useWindowDimensions,
+  DeviceEventEmitter, // PENTING: Untuk komunikasi dengan TabBar
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -29,7 +28,7 @@ import {
   MapPin,
   HelpCircle,
   X,
-  ShieldCheck, // Icon Admin
+  ShieldCheck,
 } from 'lucide-react-native';
 import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -40,7 +39,7 @@ import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
 import { MockBackend } from '../services/MockBackend';
 import { AuthService } from '../services/AuthService';
-import { UserProfile, XpRecord } from '../types/types'; // Hapus MemberTier jika tidak dipakai lagi di sini
+import { UserProfile, XpRecord } from '../types/types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 export default function ProfileScreen() {
@@ -56,10 +55,9 @@ export default function ProfileScreen() {
   const historyCardOpacity = useRef(new Animated.Value(0)).current;
   const historyCardScale = useRef(new Animated.Value(0.98)).current;
 
-  // Blur Logic
   const useBlurBackdrop = true; 
   const backdropBlurIntensity = Platform.OS === 'ios' ? 20 : 80; 
-
+  
   const isCompact = screenWidth < 360;
   const horizontalPadding = isCompact ? 14 : 20;
   const avatarSize = isCompact ? 88 : 100;
@@ -73,21 +71,6 @@ export default function ProfileScreen() {
       loadData();
     }, [])
   );
-
-  // Animate tab bar with Apple-style bounce when history modal opens
-  useEffect(() => {
-    const parent = navigation.getParent<BottomTabNavigationProp<any>>();
-    if (parent) {
-      parent.setOptions({
-        tabBarStyle: { display: showHistory ? 'none' : 'flex' }
-      });
-    }
-    return () => {
-      parent?.setOptions({
-        tabBarStyle: { display: 'flex' }
-      });
-    };
-  }, [navigation, showHistory]);
 
   const loadData = async () => {
     try {
@@ -144,7 +127,7 @@ export default function ProfileScreen() {
           title: 'GongCha Admin',
           body: '🔔 Test notification triggered successfully!',
         },
-        trigger: { type: 'time', seconds: 1 },
+        trigger: { seconds: 1 },
       });
     } catch (error: any) {
       Alert.alert('Notification error', String(error?.message || error));
@@ -159,8 +142,12 @@ export default function ProfileScreen() {
     });
   };
 
+  // --- OPEN HISTORY (Trigger Hide TabBar) ---
   const openHistory = () => {
     setShowHistory(true);
+    // Kirim sinyal ke CustomTabBar untuk sembunyi
+    DeviceEventEmitter.emit('TOGGLE_TAB_BAR', true);
+
     historyTranslateY.setValue(screenHeight);
     historyBackdropOpacity.setValue(0);
     historyCardOpacity.setValue(0);
@@ -184,7 +171,11 @@ export default function ProfileScreen() {
     });
   };
 
+  // --- CLOSE HISTORY (Trigger Show TabBar) ---
   const closeHistory = () => {
+    // Kirim sinyal ke CustomTabBar untuk muncul lagi
+    DeviceEventEmitter.emit('TOGGLE_TAB_BAR', false);
+
     Animated.parallel([
       Animated.timing(historyTranslateY, {
         toValue: screenHeight, duration: 250, easing: Easing.in(Easing.cubic), useNativeDriver: true,
@@ -199,6 +190,29 @@ export default function ProfileScreen() {
       if (finished) setShowHistory(false);
     });
   };
+
+  const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false }: any) => (
+    <TouchableOpacity 
+      style={styles.menuItem} 
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[
+        styles.menuIcon, 
+        { backgroundColor: isDestructive ? '#B91C2F' : '#FFF0E0' } // Hardcoded color
+      ]}>
+        <Icon size={20} color={isDestructive ? '#FFF' : '#B91C2F'} />
+      </View>
+      <View style={styles.menuTextContainer}>
+        <Text style={[
+          styles.menuTitle, 
+          { color: isDestructive ? '#B91C2F' : '#2A1F1F' }
+        ]}>{title}</Text>
+        {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+      </View>
+      {!isDestructive && <ChevronRight size={16} color="#B09A80" />}
+    </TouchableOpacity>
+  );
 
   const HistoryModal = () => {
     if (!showHistory) return null;
@@ -236,9 +250,12 @@ export default function ProfileScreen() {
               ListEmptyComponent={<View style={{ padding: 40, alignItems: 'center' }}><Text style={styles.emptyText}>No transaction history yet.</Text></View>}
               renderItem={({ item }: { item: XpRecord }) => {
                 const isRedeem = (item.type || 'earn') === 'redeem';
+                const itemAmountColor = isRedeem ? '#C2410C' : '#15803D'; // Orange / Green
+                const itemIconBg = isRedeem ? '#FFF7ED' : '#DCFCE7';
+                
                 return (
                   <View style={styles.historyItem}>
-                    <View style={[styles.historyIconBg, isRedeem && styles.historyIconBgRedeem]}>
+                    <View style={[styles.historyIconBg, { backgroundColor: itemIconBg }]}>
                       {isRedeem ? <ArrowDownCircle size={18} color="#C2410C" /> : <ArrowUpCircle size={18} color="#15803D" />}
                     </View>
                     <View style={{ flex: 1 }}>
@@ -247,7 +264,7 @@ export default function ProfileScreen() {
                       <Text style={styles.historyMeta}>{item.location || 'Gong Cha App'}</Text>
                       <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
                     </View>
-                    <Text style={[styles.historyAmount, isRedeem ? styles.historyAmountRedeem : styles.historyAmountEarn]}>{isRedeem ? '-' : '+'}{item.amount} XP</Text>
+                    <Text style={[styles.historyAmount, { color: itemAmountColor }]}>{isRedeem ? '-' : '+'}{item.amount} XP</Text>
                   </View>
                 );
               }}
@@ -257,19 +274,6 @@ export default function ProfileScreen() {
       </View>
     );
   };
-
-  const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false }: any) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <View style={[styles.menuIcon, isDestructive && styles.menuIconDestructive]}>
-        <Icon size={20} color={isDestructive ? '#FFF' : '#B91C2F'} />
-      </View>
-      <View style={styles.menuTextContainer}>
-        <Text style={[styles.menuTitle, isDestructive && styles.textDestructive]}>{title}</Text>
-        {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
-      </View>
-      {!isDestructive && <ChevronRight size={16} color="#CDC" />}
-    </TouchableOpacity>
-  );
 
   return (
     <ScreenFadeTransition>
@@ -308,8 +312,6 @@ export default function ProfileScreen() {
               )}
             </View>
 
-            {/* --- MEMBERSHIP CARD REMOVED --- */}
-
             {/* --- MENU SECTIONS --- */}
             <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
               <Text style={styles.sectionHeader}>Account</Text>
@@ -346,7 +348,6 @@ export default function ProfileScreen() {
                    </Text>
                 </View>
 
-                {/* Boost XP */}
                 <MenuItem
                   icon={ArrowUpCircle}
                   title="Inject 5.000 XP"
@@ -363,7 +364,6 @@ export default function ProfileScreen() {
                   }}
                 />
 
-                {/* Reset Account */}
                 <MenuItem
                   icon={LogOut}
                   title="Reset Account Data"
@@ -396,7 +396,6 @@ export default function ProfileScreen() {
                   }}
                 />
 
-                {/* Test Notif */}
                 <MenuItem
                   icon={ArrowDownCircle}
                   title="Test Notification"
@@ -412,7 +411,7 @@ export default function ProfileScreen() {
               <MenuItem icon={LogOut} title="Log Out" isDestructive onPress={handleLogout} />
             </View>
 
-            <Text style={styles.versionText}>App Version 1.0.2 (Pilot)</Text>
+            <Text style={styles.versionText}>App Version 1.0.3</Text>
           </ScrollView>
         </View>
 
@@ -442,24 +441,20 @@ const styles = StyleSheet.create({
   },
   adminBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
 
-  // --- MEMBER CARD STYLES REMOVED ---
-
   menuSection: { paddingHorizontal: 20, marginBottom: 24 },
   sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#2A1F1F', marginBottom: 12, marginLeft: 4 },
   menuItem: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFF', padding: 16, borderRadius: 16, marginBottom: 10,
+    backgroundColor: '#FFFFFF', padding: 16, borderRadius: 16, marginBottom: 10,
     elevation: 1, shadowColor: '#3A2E2A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4,
   },
   menuIcon: {
-    width: 40, height: 40, backgroundColor: '#FFF5E1', borderRadius: 12,
+    width: 40, height: 40, borderRadius: 12,
     justifyContent: 'center', alignItems: 'center', marginRight: 16,
   },
-  menuIconDestructive: { backgroundColor: '#B91C2F' },
   menuTextContainer: { flex: 1 },
-  menuTitle: { fontSize: 16, fontWeight: '600', color: '#2A1F1F' },
+  menuTitle: { fontSize: 16, fontWeight: '600' },
   menuSubtitle: { fontSize: 12, color: '#8C7B75', marginTop: 2 },
-  textDestructive: { color: '#B91C2F' },
 
   versionText: { textAlign: 'center', color: '#8C7B75', fontSize: 12, opacity: 0.5, marginBottom: 20 },
 
@@ -469,7 +464,7 @@ const styles = StyleSheet.create({
   modalBackdrop: { ...StyleSheet.absoluteFillObject },
   modalBackdropTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(21,17,17,0.3)' },
   bottomSheetCard: {
-    backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     maxHeight: '85%', paddingBottom: 20,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 20,
   },
@@ -480,13 +475,10 @@ const styles = StyleSheet.create({
   historyListContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 },
   emptyText: { textAlign: 'center', color: '#8C7B75', fontSize: 14 },
   historyItem: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F9F9F9' },
-  historyIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF0F0', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-  historyIconBgRedeem: { backgroundColor: '#FFF7ED' },
+  historyIconBg: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   historyTitle: { fontSize: 16, fontWeight: '600', color: '#2A1F1F' },
   historyContext: { fontSize: 13, color: '#6B5A55', marginTop: 2 },
   historyMeta: { fontSize: 12, color: '#9A8A85', marginTop: 1 },
   historyDate: { fontSize: 12, color: '#8C7B75', marginTop: 2 },
   historyAmount: { fontSize: 15, fontWeight: '700', marginTop: 2 },
-  historyAmountEarn: { color: '#15803D' },
-  historyAmountRedeem: { color: '#C2410C' },
 });
