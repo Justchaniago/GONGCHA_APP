@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
@@ -11,7 +11,6 @@ interface MemberData {
   points: number;
   tier: 'Silver' | 'Gold' | 'Platinum';
   photoURL?: string;
-  createdAt?: any;
 }
 
 interface MemberContextType {
@@ -27,13 +26,10 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Monitor status login Firebase
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // 2. Jika login, dengarkan perubahan data di Firestore secara REALTIME
-        // Ini memastikan poin di App langsung berubah saat Kasir melakukan transaksi
+        // Realtime listener ke Firestore (Sesuai birokrasi Admin Panel)
         const memberRef = doc(db, "users", user.uid);
-        
         const unsubscribeDoc = onSnapshot(memberRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
@@ -48,11 +44,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             });
           }
           setLoading(false);
-        }, (error) => {
-          console.error("Error fetching member data:", error);
-          setLoading(false);
         });
-
         return () => unsubscribeDoc();
       } else {
         setMember(null);
@@ -72,8 +64,6 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
 export const useMember = () => {
   const context = useContext(MemberContext);
-  if (context === undefined) {
-    throw new Error('useMember harus digunakan di dalam MemberProvider');
-  }
+  if (context === undefined) throw new Error('useMember must be used within MemberProvider');
   return context;
 };
