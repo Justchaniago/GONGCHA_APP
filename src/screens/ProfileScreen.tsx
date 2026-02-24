@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications/build/Notifications.types';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -37,7 +38,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
-import { MockBackend } from '../services/MockBackend';
+import { UserService } from '../services/UserService';
 import { AuthService } from '../services/AuthService';
 import { UserProfile, XpRecord } from '../types/types';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -74,7 +75,7 @@ export default function ProfileScreen() {
 
   const loadData = async () => {
     try {
-      const data = await MockBackend.getUser();
+      const data = await UserService.getUserProfile();
       setUser(data);
     } catch (error) {
       console.log('Failed to load user data', error);
@@ -127,7 +128,7 @@ export default function ProfileScreen() {
           title: 'GongCha Admin',
           body: '🔔 Test notification triggered successfully!',
         },
-        trigger: { type: 'time', seconds: 1 },
+        trigger: { type: SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
       });
     } catch (error: any) {
       Alert.alert('Notification error', String(error?.message || error));
@@ -355,7 +356,7 @@ export default function ProfileScreen() {
                   onPress={async () => {
                     Alert.alert('Processing', 'Adding 5.000 XP...');
                     try {
-                      await MockBackend.addTransaction(5000 * 100); 
+                      await UserService.addTransaction(5000 * 100);
                       await loadData();
                       Alert.alert('Success', '5.000 XP Added!');
                     } catch (e) {
@@ -380,12 +381,8 @@ export default function ProfileScreen() {
                           style: 'destructive',
                           onPress: async () => {
                             try {
-                              await MockBackend.resetData();
-                              if (user?.phoneNumber) {
-                                await MockBackend.initUser(user.phoneNumber);
-                              }
-                              await loadData();
-                              Alert.alert('Reset Complete', 'Welcome back, new user!');
+                              // TODO: Implement resetData and initUser in UserService if needed
+                              Alert.alert('Not Implemented', 'Reset Data and Init User are not available in UserService.');
                             } catch (e) {
                               Alert.alert('Error', 'Failed to reset data');
                             }

@@ -1,45 +1,79 @@
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 
-export interface MemberCardAnchor {
-  x: number;
-  y: number;
-  size: number;
+interface MemberData {
+  uid: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  points: number;
+  tier: 'Silver' | 'Gold' | 'Platinum';
+  photoURL?: string;
+  createdAt?: any;
 }
 
 interface MemberContextType {
-  isCardVisible: boolean;
-  anchor: MemberCardAnchor | null;
-  showCard: (nextAnchor?: MemberCardAnchor) => void;
-  hideCard: () => void;
+  member: MemberData | null;
+  loading: boolean;
+  isAuthenticated: boolean;
 }
 
 const MemberContext = createContext<MemberContextType | undefined>(undefined);
 
-export const MemberProvider = ({ children }: { children: ReactNode }) => {
-  const [isCardVisible, setIsCardVisible] = useState(false);
-  const [anchor, setAnchor] = useState<MemberCardAnchor | null>(null);
+export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [member, setMember] = useState<MemberData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const showCard = (nextAnchor?: MemberCardAnchor) => {
-    if (nextAnchor) {
-      setAnchor(nextAnchor);
-    }
-    setIsCardVisible(true);
-  };
-  const hideCard = () => setIsCardVisible(false);
+  useEffect(() => {
+    // 1. Monitor status login Firebase
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // 2. Jika login, dengarkan perubahan data di Firestore secara REALTIME
+        // Ini memastikan poin di App langsung berubah saat Kasir melakukan transaksi
+        const memberRef = doc(db, "users", user.uid);
+        
+        const unsubscribeDoc = onSnapshot(memberRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setMember({
+              uid: user.uid,
+              fullName: data.fullName || 'Member',
+              email: data.email || user.email,
+              phoneNumber: data.phoneNumber || '',
+              points: data.points || 0,
+              tier: data.tier || 'Silver',
+              photoURL: data.photoURL || '',
+            });
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching member data:", error);
+          setLoading(false);
+        });
+
+        return () => unsubscribeDoc();
+      } else {
+        setMember(null);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
 
   return (
-    <MemberContext.Provider value={{ isCardVisible, anchor, showCard, hideCard }}>
+    <MemberContext.Provider value={{ member, loading, isAuthenticated: !!member }}>
       {children}
     </MemberContext.Provider>
   );
 };
 
-export const useMemberCard = () => {
+export const useMember = () => {
   const context = useContext(MemberContext);
-
-  if (!context) {
-    throw new Error('useMemberCard must be used within a MemberProvider');
+  if (context === undefined) {
+    throw new Error('useMember harus digunakan di dalam MemberProvider');
   }
-
   return context;
 };

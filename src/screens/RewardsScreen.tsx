@@ -24,7 +24,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
-import { MockBackend } from '../services/MockBackend';
+import { UserService } from '../services/UserService';
+import { CatalogService } from '../services/CatalogService';
 import { RewardItem, UserProfile, UserVoucher } from '../types/types';
 
 type RewardsTab = 'catalog' | 'vouchers';
@@ -34,6 +35,7 @@ export default function RewardsScreen() {
   const { width } = useWindowDimensions();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [catalog, setCatalog] = useState<RewardItem[]>([]);
+  const [availableVouchers, setAvailableVouchers] = useState<RewardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<RewardsTab>('catalog');
@@ -49,9 +51,14 @@ export default function RewardsScreen() {
 
   const fetchData = async () => {
     try {
-      const [userData, catalogData] = await Promise.all([MockBackend.getUser(), MockBackend.getCatalog()]);
+      const [userData, catalogData, vouchersData] = await Promise.all([
+        UserService.getUserProfile(),
+        CatalogService.getCatalog(),
+        CatalogService.getAvailableVouchers()
+      ]);
       setUser(userData);
       setCatalog(catalogData);
+      setAvailableVouchers(vouchersData);
     } catch (error) {
       console.error(error);
     } finally {
@@ -69,6 +76,14 @@ export default function RewardsScreen() {
     }, [])
   );
 
+  // Real-time listener for available vouchers
+  useEffect(() => {
+    const unsubscribe = CatalogService.onVouchersChange((vouchers) => {
+      setAvailableVouchers(vouchers);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleRedeem = (reward: RewardItem) => {
     if (!user) return;
 
@@ -84,7 +99,9 @@ export default function RewardsScreen() {
         onPress: async () => {
           try {
             setRedeemingId(reward.id);
-            const updatedUser = await MockBackend.redeemReward(reward.id);
+            await UserService.redeemVoucher(reward);
+            // Refresh user profile supaya voucher langsung muncul
+            const updatedUser = await UserService.getUserProfile();
             setUser(updatedUser);
             Alert.alert('Berhasil!', 'Voucher berhasil ditambahkan ke akunmu.');
           } catch (error: any) {
@@ -124,8 +141,9 @@ export default function RewardsScreen() {
 
     try {
       setUseVoucherLoading(true);
-      const payload = await MockBackend.getVoucherCheckoutPayload(voucher.id);
       setSelectedVoucher(voucher);
+      // Generate QR payload
+      const payload = await UserService.getVoucherCheckoutPayload(voucher);
       setVoucherQrPayload(payload);
       setIsVoucherModalVisible(true);
     } catch (error: any) {
@@ -140,7 +158,10 @@ export default function RewardsScreen() {
 
     try {
       setUseVoucherLoading(true);
-      const updatedUser = await MockBackend.markVoucherUsed(selectedVoucher.id);
+      // Fallback manual mark as used
+      await UserService.markVoucherUsed(selectedVoucher.id);
+      // Refresh user profile
+      const updatedUser = await UserService.getUserProfile();
       setUser(updatedUser);
       setIsVoucherModalVisible(false);
       setSelectedVoucher(null);
@@ -188,6 +209,37 @@ export default function RewardsScreen() {
     ]).start(() => setSelectedReward(null));
   };
 
+  // Helper: is voucher available to use
+  const isVoucherAvailable = (voucher: UserVoucher) => {
+    const isUsed = voucher.isUsed;
+    const isExpired = new Date(voucher.expiresAt).getTime() < Date.now();
+    return !isUsed && !isExpired;
+  };
+
+  // Helper: is voucher expiring soon (within 3 days)
+  const isExpiringSoon = (voucher: UserVoucher) => {
+    const now = Date.now();
+    const exp = new Date(voucher.expiresAt).getTime();
+    return !voucher.isUsed && exp > now && exp - now < 3 * 24 * 60 * 60 * 1000;
+  };
+
+  // Sort vouchers: expiring soonest (active), then expired, then used
+  const sortedVouchers = (user?.vouchers || []).slice().sort((a, b) => {
+    // Used always last
+    if (a.isUsed && !b.isUsed) return 1;
+    if (!a.isUsed && b.isUsed) return -1;
+    // Expired after active
+    const aExpired = new Date(a.expiresAt).getTime() < Date.now();
+    const bExpired = new Date(b.expiresAt).getTime() < Date.now();
+    if (aExpired && !bExpired) return 1;
+    if (!aExpired && bExpired) return -1;
+    // Among active, expiring soonest first
+    return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
+  });
+
+  // Badge: only available vouchers
+  const availableVoucherCount = (user?.vouchers || []).filter(isVoucherAvailable).length;
+
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>{activeTab === 'catalog' ? 'Rewards Catalog' : 'My Vouchers'}</Text>
@@ -210,7 +262,12 @@ export default function RewardsScreen() {
           <Text style={activeTab === 'catalog' ? styles.activeTabText : styles.tabText}>All Rewards</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tab, activeTab === 'vouchers' && styles.activeTab]} onPress={() => setActiveTab('vouchers')}>
-          <Text style={activeTab === 'vouchers' ? styles.activeTabText : styles.tabText}>My Vouchers ({user?.vouchers?.length || 0})</Text>
+          <Text style={activeTab === 'vouchers' ? styles.activeTabText : styles.tabText}>
+            My Vouchers
+            {availableVoucherCount > 0 && (
+              <Text style={{ color: '#B91C2F', fontWeight: 'bold' }}> ({availableVoucherCount})</Text>
+            )}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -258,6 +315,7 @@ export default function RewardsScreen() {
   const renderVoucherItem = ({ item }: { item: UserVoucher }) => {
     const status = getVoucherStatus(item);
     const canUseVoucher = status.label === 'Active';
+    const expiringSoon = isExpiringSoon(item);
 
     return (
       <View style={styles.voucherCard}>
@@ -266,7 +324,7 @@ export default function RewardsScreen() {
             <Ticket size={16} color="#B91C2F" />
             <Text style={styles.voucherTitle}>{item.title}</Text>
           </View>
-          <View style={[styles.voucherStatusBadge, { backgroundColor: status.bg }]}>
+          <View style={[styles.voucherStatusBadge, { backgroundColor: status.bg }]}> 
             <Text style={[styles.voucherStatusText, { color: status.color }]}>{status.label}</Text>
           </View>
         </View>
@@ -277,6 +335,12 @@ export default function RewardsScreen() {
           <Text style={styles.voucherMetaLabel}>Redeemed: {formatDate(item.redeemedAt)}</Text>
           <Text style={styles.voucherMetaLabel}>Expire: {formatDate(item.expiresAt)}</Text>
         </View>
+
+        {expiringSoon && !item.isUsed && (
+          <Text style={{ color: '#B91C2F', fontWeight: 'bold', marginTop: 4 }}>
+            ⚠️ Voucher akan segera expired!
+          </Text>
+        )}
 
         <TouchableOpacity
           style={[styles.useVoucherButton, !canUseVoucher && styles.useVoucherButtonDisabled]}
@@ -312,7 +376,7 @@ export default function RewardsScreen() {
           ) : activeTab === 'catalog' ? (
             <FlatList
               key="catalog-list"
-              data={catalog}
+              data={availableVouchers.length > 0 ? availableVouchers : catalog}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               ListHeaderComponent={renderHeader}
@@ -324,7 +388,7 @@ export default function RewardsScreen() {
           ) : (
             <FlatList
               key="voucher-list"
-              data={user?.vouchers || []}
+              data={sortedVouchers}
               keyExtractor={(item) => item.id}
               renderItem={renderVoucherItem}
               ListHeaderComponent={renderHeader}
@@ -420,13 +484,16 @@ export default function RewardsScreen() {
                 <TouchableOpacity style={styles.modalSecondaryBtn} onPress={() => setIsVoucherModalVisible(false)}>
                   <Text style={styles.modalSecondaryText}>Close</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalPrimaryBtn} onPress={handleMarkVoucherUsed} disabled={useVoucherLoading}>
-                  {useVoucherLoading ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Text style={styles.modalPrimaryText}>Mark as Used</Text>
-                  )}
-                </TouchableOpacity>
+                {/* Mark as Used fallback, shown only if voucher is not used */}
+                {selectedVoucher && !selectedVoucher.isUsed && (
+                  <TouchableOpacity style={styles.modalPrimaryBtn} onPress={handleMarkVoucherUsed} disabled={useVoucherLoading}>
+                    {useVoucherLoading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text style={styles.modalPrimaryText}>Mark as Used</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>

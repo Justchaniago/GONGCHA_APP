@@ -24,18 +24,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
-import MockBackend from '../services/MockBackend';
+import { UserService } from '../services/UserService';
+import { NotificationService, NotificationItem } from '../services/NotificationService';
 import type { RootTabParamList } from '../navigation/AppNavigator';
 import { MemberTier, UserProfile } from '../types/types';
+
 import { getGreeting } from '../utils/greetingHelper';
 import { useTheme } from '../context/ThemeContext';
 
-const NOTIFICATIONS = [
-  { id: '1', title: 'Selamat Ulang Tahun!', body: 'Voucher Birthday diskon 10% sudah aktif. Traktir dirimu sekarang!', time: 'Baru saja', read: false, type: 'gift' },
-  { id: '2', title: 'Poin Masuk', body: 'Kamu mendapatkan 5.000 XP dari Admin Bonus. Level up semakin dekat!', time: '2 jam lalu', read: false, type: 'points' },
-  { id: '3', title: 'Promo Brown Sugar', body: 'Beli 2 Brown Sugar Milk Tea, Gratis 1 Topping. Cek menu sekarang.', time: '1 hari lalu', read: true, type: 'promo' },
-  { id: '4', title: 'Update Aplikasi', body: 'Fitur baru Store Locator sudah tersedia. Yuk update aplikasi Gong Cha kamu.', time: '3 hari lalu', read: true, type: 'system' },
-];
+
+// Helper to format notification time (e.g., "2 hours ago")
+function formatNotifTime(iso: string) {
+  const now = new Date();
+  const date = new Date(iso);
+  const diff = (now.getTime() - date.getTime()) / 1000;
+  if (diff < 60) return 'Baru saja';
+  if (diff < 3600) return `${Math.floor(diff/60)} menit lalu`;
+  if (diff < 86400) return `${Math.floor(diff/3600)} jam lalu`;
+  if (diff < 604800) return `${Math.floor(diff/86400)} hari lalu`;
+  return date.toLocaleDateString('id-ID');
+}
 
 const TIER_THEME: Record<MemberTier, any> = {
   Silver: {
@@ -62,6 +70,16 @@ const TIER_THEME: Record<MemberTier, any> = {
 };
 
 export default function HomeScreen() {
+  // Notification State (Live)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Subscribe to notifications
+  useEffect(() => {
+    const unsubscribe = NotificationService.subscribeToUserNotifications((notifs) => {
+      setNotifications(notifs);
+    });
+    return unsubscribe;
+  }, []);
   const { colors, activeMode } = useTheme();
   const isDark = activeMode === 'dark';
   
@@ -170,7 +188,7 @@ export default function HomeScreen() {
   const loadUserData = async () => {
     setLoading(true);
     try {
-      const user = await MockBackend.getUser();
+      const user = await UserService.getUserProfile();
       setUserData(user);
     } finally {
       setLoading(false);
@@ -187,7 +205,9 @@ export default function HomeScreen() {
   const currentPoints = userData?.currentPoints ?? 0;
   const tier = userData?.tier ?? 'Silver';
   const tierTheme = TIER_THEME[tier];
-  const target = tier === 'Silver' ? MockBackend.TIER_MILESTONES.Gold : tier === 'Gold' ? MockBackend.TIER_MILESTONES.Platinum : MockBackend.TIER_MILESTONES.Platinum;
+  // Use TIER_LIMITS from UserService or define locally
+  const TIER_LIMITS = { Silver: 0, Gold: 5000, Platinum: 15000 };
+  const target = tier === 'Silver' ? TIER_LIMITS.Gold : tier === 'Gold' ? TIER_LIMITS.Platinum : TIER_LIMITS.Platinum;
   const isPlatinum = tier === 'Platinum';
   const progress = isPlatinum ? 100 : Math.max(0, Math.min((tierXp / target) * 100, 100));
   const remainingToNextTier = isPlatinum ? 0 : Math.max(0, target - tierXp);
@@ -293,9 +313,13 @@ export default function HomeScreen() {
                     disabled={loading}
                   >
                      <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
-                     <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}>
-                        <Text style={styles.notificationBadgeText}>2</Text>
-                     </View>
+                     {notifications.some((n) => !n.read) && (
+                       <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}> 
+                          <Text style={styles.notificationBadgeText}>
+                            {notifications.filter((n) => !n.read).length}
+                          </Text>
+                       </View>
+                     )}
                   </TouchableOpacity>
                 </View>
 
@@ -453,13 +477,13 @@ export default function HomeScreen() {
              <View style={[styles.modalHeader, { borderBottomColor: colors.border.light }]}>
                  <View style={{ flex: 1 }}>
                     <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Notifications</Text>
-                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have 2 unread messages</Text>
+                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have {notifications.filter((n) => !n.read).length} unread message{notifications.filter((n) => !n.read).length === 1 ? '' : 's'}</Text>
                  </View>
              </View>
 
              <View style={[styles.notifListContainer, { backgroundColor: colors.background.tertiary }]}>
                 <FlatList
-                  data={NOTIFICATIONS}
+                  data={notifications}
                   keyExtractor={item => item.id}
                   contentContainerStyle={{ padding: 20 }}
                   ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
@@ -482,7 +506,7 @@ export default function HomeScreen() {
                        <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                              <Text style={[styles.notifItemTitle, { color: !item.read ? colors.text.primary : colors.text.secondary }]}>{item.title}</Text>
-                             <Text style={[styles.notifTime, { color: colors.text.tertiary }]}>{item.time}</Text>
+                             <Text style={[styles.notifTime, { color: colors.text.tertiary }]}>{formatNotifTime(item.time)}</Text>
                           </View>
                           <Text style={[styles.notifBody, { color: colors.text.secondary }]}>{item.body}</Text>
                        </View>
@@ -490,6 +514,8 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   )}
                 />
+
+
              </View>
 
              <TouchableOpacity style={[styles.markReadBtn, { backgroundColor: colors.surface.card, borderTopColor: colors.border.light }]} onPress={() => {}}>

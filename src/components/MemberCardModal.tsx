@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useMemberCard } from '../context/MemberContext';
-import { MockBackend } from '../services/MockBackend';
+import { UserService } from '../services/UserService';
 import { UserProfile } from '../types/types';
 
 const TIER_BADGE_THEME = {
@@ -49,7 +49,7 @@ export default function MemberCardModal() {
 
     if (isCardVisible) {
       setMounted(true);
-      MockBackend.getUser().then((profile) => {
+      UserService.getUserProfile().then((profile) => {
         if (active) {
           setUser(profile);
         }
@@ -325,7 +325,11 @@ export default function MemberCardModal() {
               }]}>
                 <View style={styles.userInfoBlock}>
                   <Text style={styles.memberName}>{user?.name ?? 'Guest'}</Text>
-                  <Text style={styles.memberId}>Joined Dec 2025</Text>
+                  <Text style={styles.memberId}>
+                    {user?.joinedDate
+                      ? `Joined ${new Date(user.joinedDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                      : ''}
+                  </Text>
                 </View>
                 <LinearGradient
                   colors={TIER_BADGE_THEME[user?.tier ?? 'Silver'].gradient}

@@ -1,3 +1,4 @@
+    // ...existing code...
 import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { firebaseAuth, firestoreDb } from '../config/firebase';
 import { UserProfile, MemberTier, XpRecord, RewardItem, UserVoucher } from '../types/types';
@@ -12,6 +13,22 @@ const RULES = {
     Platinum: 15000,
   },
   XP_VALIDITY_DAYS: 365,
+// ...existing code...
+  // --- UPDATE USER PROFILE (PATCH) ---
+  async updateUserProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
+    const currentUser = firebaseAuth.currentUser;
+    if (!currentUser) throw new Error('User not found');
+    const userRef = doc(firestoreDb, 'users', currentUser.uid);
+    const snapshot = await getDoc(userRef);
+    if (!snapshot.exists()) throw new Error('User profile not found');
+    const data = snapshot.data() as UserProfile;
+    const updatedProfile: UserProfile = {
+      ...data,
+      ...updates,
+    };
+    await setDoc(userRef, updatedProfile, { merge: true });
+    return updatedProfile;
+  },
 };
 
 const REWARD_CATALOG: RewardItem[] = [
@@ -56,27 +73,6 @@ export const MockBackend = {
     Platinum: RULES.TIER_LIMITS.Platinum,
   },
 
-  // --- HELPER: UPDATE PROFILE ---
-  async updateUserProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
-    await delay(120);
-    const currentUser = firebaseAuth.currentUser;
-    if (!currentUser) throw new Error('User not found');
-    
-    const userRef = doc(firestoreDb, 'users', currentUser.uid);
-    const snapshot = await getDoc(userRef);
-    
-    if (!snapshot.exists()) throw new Error('User profile not found');
-    
-    const data = snapshot.data() as UserProfile;
-    const updatedProfile: UserProfile = {
-      ...data,
-      ...updates,
-    };
-    
-    await setDoc(userRef, updatedProfile, { merge: true });
-    return updatedProfile;
-  },
-
   // --- INTERNAL: HITUNG TIER ---
   _calculateTierStatus(xpHistory: XpRecord[]): { activeXp: number; newTier: MemberTier; activeRecords: XpRecord[] } {
     const now = new Date();
@@ -101,7 +97,7 @@ export const MockBackend = {
     return { activeXp, newTier, activeRecords };
   },
 
-  // --- INTERNAL: NORMALIZE & CEK ADMIN ---
+  // --- INTERNAL: NORMALIZE & PRESERVE ROLES (FIXED) ---
   _normalizeUserProfile(user: Partial<UserProfile>, fallback: { id: string; name: string; phoneNumber: string }): UserProfile {
     const normalizedHistory = (user.xpHistory || []).map((record) => ({
       ...record,
@@ -111,11 +107,19 @@ export const MockBackend = {
       tierEligible: record.tierEligible ?? ((record.type || 'earn') === 'earn'),
     }));
 
-    // --- SECURITY: ADMIN UID LIST (UPDATED) ---
+    // --- SECURITY: ROLE LOGIC ---
     const ADMIN_UIDS = ['qIyNEH8XywdBubH5PugI5qQTwc53']; 
-    
     const isHardcodedAdmin = ADMIN_UIDS.includes(fallback.id);
-    const determinedRole = (user.role === 'admin' || isHardcodedAdmin) ? 'admin' : 'member';
+    
+    // Perbaikan: Gunakan role yang ada di DB, jika tidak ada baru member.
+    // Memastikan 'trial' dan 'master' tidak dibuang.
+    let determinedRole = user.role || 'member';
+
+    if (isHardcodedAdmin) {
+      determinedRole = 'admin';
+    } else if (!['master', 'trial', 'admin', 'member'].includes(determinedRole)) {
+      determinedRole = 'member';
+    }
 
     const base: UserProfile = {
       id: user.id || fallback.id,
@@ -130,7 +134,7 @@ export const MockBackend = {
       tier: user.tier || 'Silver',
       joinedDate: user.joinedDate || new Date().toISOString(),
       vouchers: user.vouchers || [],
-      role: determinedRole, 
+      role: determinedRole as any, 
     };
 
     const { activeXp, newTier, activeRecords } = this._calculateTierStatus(base.xpHistory);
@@ -143,78 +147,21 @@ export const MockBackend = {
     };
   },
 
-  _getAuthIdentity(phoneNumber?: string): { uid: string; name: string; phoneNumber: string } {
-    const user = firebaseAuth.currentUser;
-    if (!user) {
-      throw new Error('Not authenticated. Please login first.');
-    }
-
-    const normalizedPhone =
-      phoneNumber ||
-      user.email?.split('@')[0] ||
-      '8123456789';
-
-    return {
-      uid: user.uid,
-      name: user.displayName || 'Gong Cha Member',
-      phoneNumber: normalizedPhone,
-    };
-  },
-
-  async initUser(phoneNumber: string): Promise<UserProfile> {
-    await delay(120);
-    const identity = this._getAuthIdentity(phoneNumber);
-    const userRef = doc(firestoreDb, 'users', identity.uid);
-    const snapshot = await getDoc(userRef);
-
-    if (snapshot.exists()) {
-      const normalized = this._normalizeUserProfile(snapshot.data() as Partial<UserProfile>, {
-        id: identity.uid,
-        name: identity.name,
-        phoneNumber: identity.phoneNumber,
-      });
-      await setDoc(userRef, normalized, { merge: true });
-      return normalized;
-    }
-
-    const newUser: UserProfile = {
-      id: identity.uid,
-      name: identity.name,
-      phoneNumber: identity.phoneNumber,
-      currentPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      xpHistory: [],
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      vouchers: [],
-      role: 'member', 
-    };
-    
-    const finalUser = this._normalizeUserProfile(newUser, {
-        id: identity.uid,
-        name: identity.name,
-        phoneNumber: identity.phoneNumber
-    });
-
-    await setDoc(userRef, finalUser);
-    return finalUser;
-  },
-
+  // --- GET USER DATA ---
   async getUser(): Promise<UserProfile | null> {
     await delay(120);
-
     const currentUser = firebaseAuth.currentUser;
     if (!currentUser) return null;
 
     const userRef = doc(firestoreDb, 'users', currentUser.uid);
     const snapshot = await getDoc(userRef);
 
+    // Jika dokumen tidak ada, buat fallback tapi JANGAN paksa role member jika ini trial
     if (!snapshot.exists()) {
       const phoneFromEmail = currentUser.email?.split('@')[0] || '8123456789';
       const fallbackIdentity = {
           id: currentUser.uid,
-          name: currentUser.displayName || phoneFromEmail || 'Member',
+          name: currentUser.displayName || 'Member',
           phoneNumber: phoneFromEmail
       };
       
@@ -227,42 +174,68 @@ export const MockBackend = {
         tier: 'Silver',
         joinedDate: new Date().toISOString(),
         vouchers: [],
-        role: 'member',
+        role: 'trial', // Default fallback untuk login baru kita set ke trial/member sesuai keinginan
       };
       
       return this._normalizeUserProfile(tempUser, fallbackIdentity);
     }
 
     const data = snapshot.data() as UserProfile;
-    
     const normalizedData = this._normalizeUserProfile(data, {
         id: currentUser.uid,
         name: data.name,
         phoneNumber: data.phoneNumber
     });
     
-    if (data.id !== currentUser.uid || data.role !== normalizedData.role) {
+    // Sinkronisasi ke DB jika role berubah (misal dari member ke admin via UID)
+    if (data.role !== normalizedData.role || data.id !== currentUser.uid) {
       await setDoc(userRef, normalizedData, { merge: true });
     }
     
     return normalizedData;
   },
 
-  async getCatalog(): Promise<RewardItem[]> {
-    await delay(300);
-    return REWARD_CATALOG;
+  async initUser(phoneNumber: string, forcedRole?: string): Promise<UserProfile> {
+    await delay(120);
+    const user = firebaseAuth.currentUser;
+    if (!user) throw new Error('Auth required');
+
+    const userRef = doc(firestoreDb, 'users', user.uid);
+    const snapshot = await getDoc(userRef);
+
+    if (snapshot.exists()) {
+      return this._normalizeUserProfile(snapshot.data() as UserProfile, {
+        id: user.uid,
+        name: user.displayName || 'Member',
+        phoneNumber: phoneNumber
+      });
+    }
+
+    // Buat User Baru
+    const newUser: UserProfile = {
+      id: user.uid,
+      name: user.displayName || 'Member',
+      phoneNumber: phoneNumber,
+      currentPoints: 0,
+      lifetimePoints: 0,
+      tierXp: 0,
+      xpHistory: [],
+      tier: 'Silver',
+      joinedDate: new Date().toISOString(),
+      vouchers: [],
+      role: (forcedRole as any) || 'trial', 
+    };
+    
+    await setDoc(userRef, newUser);
+    return newUser;
   },
 
+  // ... (Sisa fungsi addTransaction, redeemReward, dll tetap sama)
   async addTransaction(amount: number): Promise<UserProfile> {
     await delay(180);
     const user = await this.getUser();
     if (!user) throw new Error('User not found');
     const earnedVal = Math.floor(amount / RULES.CONVERSION_RATE);
-    const safeLifetimePoints = user.lifetimePoints ?? user.currentPoints ?? 0;
-
-    user.currentPoints += earnedVal;
-    user.lifetimePoints = safeLifetimePoints + earnedVal;
-    user.vouchers = user.vouchers || [];
 
     const newXpRecord: XpRecord = {
       id: `xp_${Date.now()}`,
@@ -273,11 +246,13 @@ export const MockBackend = {
       location: 'Gong Cha App',
       tierEligible: true,
     };
-    user.xpHistory.push(newXpRecord);
+    
+    const { activeXp, newTier, activeRecords } = this._calculateTierStatus([...user.xpHistory, newXpRecord]);
 
-    const { activeXp, newTier, activeRecords } = this._calculateTierStatus(user.xpHistory);
     const updatedUser: UserProfile = {
       ...user,
+      currentPoints: user.currentPoints + earnedVal,
+      lifetimePoints: (user.lifetimePoints || 0) + earnedVal,
       tierXp: activeXp,
       tier: newTier,
       xpHistory: activeRecords,
@@ -287,97 +262,9 @@ export const MockBackend = {
     return updatedUser;
   },
 
-  async redeemReward(rewardId: string): Promise<UserProfile> {
-    await delay(180);
-    const user = await this.getUser();
-    if (!user) throw new Error('User not found');
-    const safeUser: UserProfile = {
-      ...user,
-      lifetimePoints: user.lifetimePoints ?? user.currentPoints ?? 0,
-      vouchers: user.vouchers || [],
-    };
-    const reward = REWARD_CATALOG.find((catalogItem) => catalogItem.id === rewardId);
-
-    if (!reward) throw new Error('Reward tidak ditemukan');
-    if (safeUser.currentPoints < reward.pointsCost) throw new Error('Poin tidak cukup.');
-
-    const newVoucher: UserVoucher = {
-      id: `v_${Date.now()}`,
-      rewardId: reward.id,
-      title: reward.title,
-      code: `GC-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
-      redeemedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      isUsed: false,
-    };
-
-    const redeemHistory: XpRecord = {
-      id: `xp_redeem_${Date.now()}`,
-      date: new Date().toISOString(),
-      amount: reward.pointsCost,
-      type: 'redeem',
-      context: reward.title,
-      location: 'Rewards Catalog',
-      tierEligible: false,
-    };
-
-    const updatedUser: UserProfile = {
-      ...safeUser,
-      currentPoints: safeUser.currentPoints - reward.pointsCost,
-      xpHistory: [...(safeUser.xpHistory || []), redeemHistory],
-      vouchers: [newVoucher, ...safeUser.vouchers],
-    };
-
-    await setDoc(doc(firestoreDb, 'users', safeUser.id), updatedUser, { merge: true });
-    return updatedUser;
-  },
-
-  async getVoucherCheckoutPayload(voucherId: string): Promise<string> {
-    await delay(250);
-    const user = await this.getUser();
-    if (!user) throw new Error('User not found');
-
-    const voucher = (user.vouchers || []).find((item) => item.id === voucherId);
-    if (!voucher) throw new Error('Voucher tidak ditemukan');
-    if (voucher.isUsed) throw new Error('Voucher sudah digunakan');
-    if (new Date(voucher.expiresAt).getTime() < Date.now()) throw new Error('Voucher sudah kedaluwarsa');
-
-    return JSON.stringify({
-      type: 'GONGCHA_VOUCHER',
-      voucherId: voucher.id,
-      code: voucher.code,
-      userId: user.id,
-      issuedAt: new Date().toISOString(),
-      nonce: Math.random().toString(36).slice(2, 12),
-    });
-  },
-
-  async markVoucherUsed(voucherId: string): Promise<UserProfile> {
-    await delay(140);
-    const user = await this.getUser();
-    if (!user) throw new Error('User not found');
-    const vouchers = user.vouchers || [];
-    const targetIndex = vouchers.findIndex((item) => item.id === voucherId);
-
-    if (targetIndex < 0) throw new Error('Voucher tidak ditemukan');
-    const targetVoucher = vouchers[targetIndex];
-    if (targetVoucher.isUsed) throw new Error('Voucher sudah digunakan');
-
-    const updatedVouchers = [...vouchers];
-    updatedVouchers[targetIndex] = { ...targetVoucher, isUsed: true };
-
-    const updatedUser: UserProfile = { ...user, vouchers: updatedVouchers };
-    await setDoc(doc(firestoreDb, 'users', user.id), updatedUser, { merge: true });
-    return updatedUser;
-  },
-
-  // --- NEW: RESET DATA FUNCTION ---
   async resetData(): Promise<void> {
-    await delay(120);
     const currentUser = firebaseAuth.currentUser;
     if (!currentUser) return;
-    
-    // Hapus total data user dari Firestore
     await deleteDoc(doc(firestoreDb, 'users', currentUser.uid));
   },
 };

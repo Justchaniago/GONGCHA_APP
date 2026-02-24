@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import DecorativeBackground from '../components/DecorativeBackground';
 import UserAvatar from '../components/UserAvatar';
-import MockBackend from '../services/MockBackend';
+import { UserService } from '../services/UserService';
 import { UserProfile } from '../types/types';
 
 export default function EditProfileScreen() {
@@ -49,7 +49,7 @@ export default function EditProfileScreen() {
 
   const loadUserData = async () => {
     try {
-      const user = await MockBackend.getUser();
+      const user = await UserService.getUserProfile();
       if (user) {
         setProfile(user);
         setName(user.name);
@@ -137,7 +137,7 @@ export default function EditProfileScreen() {
         photoURL: photo, // Update foto juga
       };
 
-      await MockBackend.updateUserProfile(updates);
+      await UserService.updateProfile(updates);
       
       Alert.alert('Success', 'Profile updated successfully!', [
         { text: 'OK', onPress: () => navigation.goBack() }
