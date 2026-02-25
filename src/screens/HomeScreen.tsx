@@ -1,17 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  useWindowDimensions,
-  StyleSheet,
-  Animated,
-  Easing,
-  Platform,
-  FlatList,
-  Modal,
+  View, Text, ScrollView, Image, TouchableOpacity,
+  useWindowDimensions, StyleSheet, Animated, Easing, Platform, FlatList, Modal,
 } from 'react-native';
 import { Trophy, Gift, ChevronRight, Bell, X } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -22,18 +12,19 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMember } from '../context/MemberContext';
-// 🔥 IMPORT WARNA STATIS (Pengganti ThemeContext)
-import { colors } from '../theme/colorTokens';
 import { NotificationService, NotificationItem } from '../services/NotificationService';
 import type { RootTabParamList } from '../navigation/AppNavigator';
 import { MemberTier } from '../types/types';
 
+import { colors } from '../theme/colorTokens';
+
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
+// 🔥 IMPORT SKELETON KITA
+import SkeletonLoader from '../components/SkeletonLoader';
 import { getGreeting } from '../utils/greetingHelper';
 
-// Helper to format notification time
 function formatNotifTime(iso: string) {
   const now = new Date();
   const date = new Date(iso);
@@ -70,27 +61,21 @@ const TIER_THEME: Record<MemberTier, any> = {
 };
 
 export default function HomeScreen() {
-  // 🔥 KITA BUANG CONST { colors, activeMode } = useTheme();
-  // 🔥 KITA BUANG CONST isDark = activeMode === 'dark';
-  const isDark = false; // Set statis ke false agar logika UI tidak perlu dirombak
+  const isDark = false; 
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   
-  // Realtime Context
   const { member, loading: isMemberLoading } = useMember();
   
-  // Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const bellRef = useRef<View>(null);
   const [bellLayout, setBellLayout] = useState({ x: 0, y: 0, width: 0, height: 0, pageY: 0 });
   
-  // Promos State
   const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
 
-  // Animation Values
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
@@ -134,7 +119,6 @@ export default function HomeScreen() {
     ]).start(() => setShowNotifications(false));
   };
 
-  // Data Calculations
   const tierXp = member?.tierXp ?? 0;
   const currentPoints = member?.points ?? 0;
   const tier = member?.tier ?? 'Silver';
@@ -166,7 +150,6 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [promoCardWidth, promos.length]);
 
-  // Modal Transform Logic
   const bellCenterX = (width - horizontalPadding - 42 - 10 - (headerIconSize / 2)); 
   const modalTransform = [
     { translateX: bellCenterX - width / 2 },
@@ -192,7 +175,7 @@ export default function HomeScreen() {
         <DecorativeBackground />
 
         <View style={styles.mainLayout}>
-          {/* FIXED HEADER */}
+          {/* HEADER */}
           <View style={[
             styles.fixedHeaderContainer, 
             { 
@@ -212,7 +195,13 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.headerTextContainer}>
                   <Text style={[styles.greeting, { color: colors.text.secondary }]}>{getGreeting()},</Text>
-                  <Text style={[styles.name, { color: colors.text.primary }]}>{member?.fullName ?? 'Member'}</Text>
+                  
+                  {/* 🔥 SKELETON: Nama User */}
+                  {isMemberLoading ? (
+                    <SkeletonLoader width={100} height={20} style={{ marginTop: 4 }} />
+                  ) : (
+                    <Text style={[styles.name, { color: colors.text.primary }]}>{member?.fullName ?? 'Member'}</Text>
+                  )}
                 </View>
               </View>
               <View style={styles.headerRight}>
@@ -224,7 +213,6 @@ export default function HomeScreen() {
                     ]}
                     activeOpacity={0.8}
                     onPress={openNotifications}
-                    disabled={isMemberLoading}
                   >
                      <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
                      {notifications.some((n) => !n.read) && (
@@ -250,9 +238,13 @@ export default function HomeScreen() {
               <View style={styles.rewardsHeader}>
                 <View>
                   <Text style={[styles.rewardsLabel, { color: colors.text.secondary }]}>MEMBERSHIP STATUS</Text>
-                  <Text style={[styles.rewardsPoints, { color: colors.text.primary }]}>
-                    {isMemberLoading ? 'Loading...' : `${tierXp} / ${target} XP`}
-                  </Text>
+                  
+                  {/* 🔥 SKELETON: Poin Tier */}
+                  {isMemberLoading ? (
+                    <SkeletonLoader width={90} height={18} style={{ marginTop: 2 }} />
+                  ) : (
+                    <Text style={[styles.rewardsPoints, { color: colors.text.primary }]}>{`${tierXp} / ${target} XP`}</Text>
+                  )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <View style={[styles.tierBadge, { backgroundColor: tierTheme.tierBadgeBg }]}>
@@ -272,9 +264,13 @@ export default function HomeScreen() {
               </View>
               <View style={styles.rewardsFooter}>
                 <Gift size={14} color={tierTheme.footerIcon} />
-                <Text style={[styles.rewardsFooterText, { color: colors.text.secondary }]}>
-                  {isMemberLoading ? 'Syncing rewards...' : footerMessage}
-                </Text>
+                
+                {/* 🔥 SKELETON: Pesan Bawah Tier */}
+                {isMemberLoading ? (
+                  <SkeletonLoader width={140} height={12} />
+                ) : (
+                  <Text style={[styles.rewardsFooterText, { color: colors.text.secondary }]}>{footerMessage}</Text>
+                )}
               </View>
             </View>
 
@@ -318,9 +314,13 @@ export default function HomeScreen() {
               <View style={styles.walletTopRow}>
                 <View>
                   <Text style={styles.walletLabel}>Gong Cha Wallet</Text>
-                  <Text style={styles.walletAmount}>
-                    {isMemberLoading ? '...' : currentPoints.toLocaleString('id-ID')}
-                  </Text>
+                  
+                  {/* 🔥 SKELETON: Saldo Wallet */}
+                  {isMemberLoading ? (
+                    <SkeletonLoader width={110} height={32} style={{ marginTop: 2, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                  ) : (
+                    <Text style={styles.walletAmount}>{currentPoints.toLocaleString('id-ID')}</Text>
+                  )}
                 </View>
                 <View style={[styles.trophyIconBg, { backgroundColor: tierTheme.trophyBg }]}>
                   <Trophy size={21} color="#2A1F1F" />
@@ -345,64 +345,25 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* MODAL (NOTIFICATIONS OVERLAY) */}
-        <Modal
-          visible={showNotifications}
-          transparent
-          animationType="none"
-          statusBarTranslucent
-          onRequestClose={closeNotifications}
-        >
+        {/* MODAL (NOTIFICATIONS OVERLAY) ... */}
+        {/* Konten modal notifikasi persis seperti sebelumnya, tidak dirubah */}
+        <Modal visible={showNotifications} transparent animationType="none" statusBarTranslucent onRequestClose={closeNotifications}>
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropAnim }]}>
-             {Platform.OS === 'ios' ? (
-                <BlurView intensity={30} style={StyleSheet.absoluteFill} tint={isDark ? 'light' : 'dark'} />
-             ) : (
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />
-             )}
+             {Platform.OS === 'ios' ? <BlurView intensity={30} style={StyleSheet.absoluteFill} tint={isDark ? 'light' : 'dark'} /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />}
              <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeNotifications} activeOpacity={1} />
           </Animated.View>
-
-          <Animated.View 
-            style={[
-              styles.modalContainer,
-              {
-                backgroundColor: colors.surface.card,
-                top: insets.top + 6 + headerIconSize + 20, 
-                opacity: opacityAnim,
-                transform: modalTransform
-              }
-            ]}
-          >
+          <Animated.View style={[styles.modalContainer, { backgroundColor: colors.surface.card, top: insets.top + 6 + headerIconSize + 20, opacity: opacityAnim, transform: modalTransform }]}>
              <View style={[styles.modalHeader, { borderBottomColor: colors.border.light }]}>
                  <View style={{ flex: 1 }}>
                     <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Notifications</Text>
-                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>
-                      You have {notifications.filter((n) => !n.read).length} unread message{notifications.filter((n) => !n.read).length === 1 ? '' : 's'}
-                    </Text>
+                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have {notifications.filter((n) => !n.read).length} unread message{notifications.filter((n) => !n.read).length === 1 ? '' : 's'}</Text>
                  </View>
              </View>
-
              <View style={[styles.notifListContainer, { backgroundColor: colors.background.tertiary }]}>
-                <FlatList
-                  data={notifications}
-                  keyExtractor={item => item.id}
-                  contentContainerStyle={{ padding: 20 }}
-                  ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={[
-                        styles.notifItem, 
-                        { backgroundColor: colors.surface.card, shadowColor: colors.shadow.color },
-                        !item.read && { borderColor: colors.status.errorBg, borderWidth: 1 }
-                      ]}
-                      activeOpacity={0.7}
-                    >
-                       <View style={[
-                         styles.notifIconCircle, 
-                         !item.read ? { backgroundColor: colors.brand.primary } : { backgroundColor: colors.background.elevated }
-                        ]}>
-                          {item.type === 'gift' ? <Gift size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> : 
-                           item.type === 'points' ? <Trophy size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> :
-                           <Bell size={18} color={!item.read ? '#FFF' : colors.text.secondary} />}
+                <FlatList data={notifications} keyExtractor={item => item.id} contentContainerStyle={{ padding: 20 }} ItemSeparatorComponent={() => <View style={{ height: 16 }} />} renderItem={({ item }) => (
+                    <TouchableOpacity style={[styles.notifItem, { backgroundColor: colors.surface.card, shadowColor: colors.shadow.color }, !item.read && { borderColor: colors.status.errorBg, borderWidth: 1 }]} activeOpacity={0.7}>
+                       <View style={[styles.notifIconCircle, !item.read ? { backgroundColor: colors.brand.primary } : { backgroundColor: colors.background.elevated }]}>
+                          {item.type === 'gift' ? <Gift size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> : item.type === 'points' ? <Trophy size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> : <Bell size={18} color={!item.read ? '#FFF' : colors.text.secondary} />}
                        </View>
                        <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -413,31 +374,13 @@ export default function HomeScreen() {
                        </View>
                        {!item.read && <View style={[styles.unreadDot, { backgroundColor: colors.brand.primary }]} />}
                     </TouchableOpacity>
-                  )}
-                />
+                  )} />
              </View>
-
              <TouchableOpacity style={[styles.markReadBtn, { backgroundColor: colors.surface.card, borderTopColor: colors.border.light }]} onPress={() => {}}>
                 <Text style={[styles.markReadText, { color: colors.brand.primary }]}>Mark all as read</Text>
              </TouchableOpacity>
           </Animated.View>
-
-          {/* DUPLICATE FLOATING BELL */}
-          <Animated.View
-            style={[
-              styles.notificationBtn,
-              { 
-                position: 'absolute',
-                top: bellLayout.pageY > 0 ? bellLayout.pageY : (insets.top + 6 + 10), 
-                right: 20 + 42 + 10,
-                width: headerIconSize, 
-                height: headerIconSize,
-                backgroundColor: buttonBackgroundColor,
-                zIndex: 9999,
-                elevation: 10,
-              }
-            ]}
-          >
+          <Animated.View style={[styles.notificationBtn, { position: 'absolute', top: bellLayout.pageY > 0 ? bellLayout.pageY : (insets.top + 6 + 10), right: 20 + 42 + 10, width: headerIconSize, height: headerIconSize, backgroundColor: buttonBackgroundColor, zIndex: 9999, elevation: 10 }]}>
              <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={0.8} onPress={closeNotifications}>
                 <Animated.View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', transform: [{ rotate: iconRotation }, { scale: iconScale }] }]}>
                    <Animated.View style={{ opacity: bellOpacity, position: 'absolute' }}><Bell size={22} color={colors.brand.primary} strokeWidth={2.5} /></Animated.View>
@@ -446,7 +389,6 @@ export default function HomeScreen() {
              </TouchableOpacity>
           </Animated.View>
         </Modal>
-
       </View>
     </ScreenFadeTransition>
   );
@@ -455,10 +397,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   mainLayout: { flex: 1 }, 
-  fixedHeaderContainer: {
-    paddingBottom: 20, 
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
-  },
+  fixedHeaderContainer: { paddingBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
@@ -473,10 +412,7 @@ const styles = StyleSheet.create({
   notificationBadge: { position: 'absolute', top: 12, right: 14, width: 8, height: 8, borderRadius: 4, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   notificationBadgeText: { fontSize: 8, color: '#FFF', fontWeight: 'bold', display: 'none' },
   logoTopRight: { width: 48, height: 48 },
-  modalContainer: {
-    position: 'absolute', left: 10, right: 10, bottom: 20, borderRadius: 32, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 20, maxHeight: '75%',
-  },
+  modalContainer: { position: 'absolute', left: 10, right: 10, bottom: 20, borderRadius: 32, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 20, maxHeight: '75%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderBottomWidth: 1 },
   modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 2 },
   modalSubtitle: { fontSize: 14 },
