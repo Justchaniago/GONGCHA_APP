@@ -1,8 +1,13 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, ActivityIndicator } from 'react-native';
+
+// Import Context
+import { useMember } from '../context/MemberContext';
 import CustomTabBar from '../components/CustomTabBar';
 
+// Import Screens
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -15,18 +20,14 @@ import StoreLocatorScreen from '../screens/StoreLocatorScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
-  Login: undefined;
+  Login: { initialStep?: 'phone' | 'otp' };
   MainApp: undefined;
   StoreLocator: undefined;
   EditProfile: undefined;
 };
 
 export type RootTabParamList = {
-  Home: undefined;
-  Menu: undefined;
-  QR: undefined;
-  Rewards: undefined;
-  Profile: undefined;
+  Home: undefined; Menu: undefined; QR: undefined; Rewards: undefined; Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -34,12 +35,7 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 function MainTabNavigator() {
   return (
-    <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
+    <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Menu" component={MenuScreen} />
       <Tab.Screen name="QR" component={QrPlaceholderScreen} />
@@ -50,26 +46,34 @@ function MainTabNavigator() {
 }
 
 export default function AppNavigator() {
+  const { isAuthenticated, loading } = useMember();
+
+  // Jika sedang mengecek sesi ke server Firebase, tahan dengan loading
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8F0' }}>
+        <ActivityIndicator size="large" color="#C8102E" />
+      </View>
+    );
+  }
+
+  // ⚠️ FIX: Auto Redirect Logic (Satpam)
   return (
-    <Stack.Navigator
-      initialRouteName="Welcome"
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="MainApp" component={MainTabNavigator} />
-      <Stack.Screen
-        name="StoreLocator"
-        component={StoreLocatorScreen}
-        options={{ animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="EditProfile"
-        component={EditProfileScreen}
-        options={{ animation: 'slide_from_right' }}
-      />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {isAuthenticated ? (
+        // Kalau sudah login, hanya bisa akses area dalam
+        <>
+          <Stack.Screen name="MainApp" component={MainTabNavigator} />
+          <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
+        </>
+      ) : (
+        // Kalau belum login, hanya bisa akses area luar
+        <>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+        </>
+      )}
     </Stack.Navigator>
   );
 }

@@ -142,7 +142,7 @@ export default function LoginScreen() {
           throw new Error('User Auth tidak ditemukan setelah login.');
         }
       }
-      navigation.navigate('MainApp');
+      // navigation.navigate('MainApp'); // Removed: Navigation handled by AppNavigator after login
     } catch (err) {
       Alert.alert('Login gagal', err && typeof err === 'object' && 'message' in err
         ? (err as any).message : String(err));
@@ -164,7 +164,7 @@ export default function LoginScreen() {
     try {
       setIsEmailSubmitting(true);
       await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
-      navigation.navigate('MainApp');
+      // navigation.navigate('MainApp'); // Removed: Navigation handled by AppNavigator after login
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
       if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))

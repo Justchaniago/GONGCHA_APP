@@ -8,17 +8,15 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { useMemberCard } from '../context/MemberContext';
-import { UserService } from '../services/UserService';
-import { UserProfile } from '../types/types';
+
+// Menggunakan Context API yang baru
+import { useMember } from '../context/MemberContext';
 
 const TIER_BADGE_THEME = {
   Silver: { gradient: ['#E8E8E8', '#B8B8B8'], text: '#1A1A1A', glow: '#E8E8E8' },
@@ -27,17 +25,20 @@ const TIER_BADGE_THEME = {
 } as const;
 
 export default function MemberCardModal() {
-  const { isCardVisible, hideCard, anchor } = useMemberCard();
+  // Logic state baru dari Context
+  const { isCardVisible, hideCard, anchor, member } = useMember();
+  
   const { width, height } = useWindowDimensions();
-  const [user, setUser] = useState<UserProfile | null>(null);
   const [mounted, setMounted] = useState(false);
   const gestureDismissRef = useRef(false);
+  
+  // Perhitungan UI dari code lama dipertahankan 100%
   const cardWidth = Math.min(Math.max(width * 0.78, 270), 340);
   const cardHeight = cardWidth * 1.58;
   const qrSize = Math.round(Math.min(Math.max(cardWidth * 0.45, 132), 156));
-  const brandFontSize = width < 360 ? 20 : 22;
   const pointsFontSize = width < 360 ? 26 : 30;
 
+  // Animasi dari code lama dipertahankan 100%
   const entranceProgress = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -49,17 +50,13 @@ export default function MemberCardModal() {
 
     if (isCardVisible) {
       setMounted(true);
-      UserService.getUserProfile().then((profile) => {
-        if (active) {
-          setUser(profile);
-        }
-      });
 
       entranceProgress.setValue(0);
       dragY.setValue(0);
       cardOpacity.setValue(0);
       dismissScale.setValue(1);
       gestureDismissRef.current = false;
+      
       Animated.parallel([
         Animated.spring(entranceProgress, {
           toValue: 1,
@@ -108,7 +105,7 @@ export default function MemberCardModal() {
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
-        if (finished) {
+        if (finished && active) {
           setMounted(false);
         }
       });
@@ -117,8 +114,9 @@ export default function MemberCardModal() {
     return () => {
       active = false;
     };
-  }, [backdropOpacity, cardOpacity, dismissScale, dragY, entranceProgress, hideCard, isCardVisible, mounted]);
+  }, [backdropOpacity, cardOpacity, dismissScale, dragY, entranceProgress, isCardVisible, mounted]);
 
+  // Kalkulasi PanResponder & Gesture dari code lama
   const startDx = anchor ? anchor.x - width / 2 : 0;
   const startDy = anchor ? anchor.y - height / 2 : height * 0.3;
   const startScale = anchor ? Math.max(0.2, Math.min(anchor.size / cardWidth, 0.48)) : 0.45;
@@ -211,7 +209,7 @@ export default function MemberCardModal() {
           }).start();
         },
       }),
-    [backdropOpacity, cardOpacity, dismissScale, dragY, hideCard]
+    [backdropOpacity, cardOpacity, dismissScale, dragY, height, hideCard]
   );
 
   if (!mounted) {
@@ -277,7 +275,7 @@ export default function MemberCardModal() {
             <View style={[styles.cardContent, {
               paddingHorizontal: Math.max(22, cardWidth * 0.068),
               paddingTop: Math.max(20, cardWidth * 0.062),
-              paddingBottom: Math.max(38, cardWidth * 0.115),
+              paddingBottom: Math.max(54, cardWidth * 0.16), // Lebih besar agar tidak mepet bawah
             }]}>
               {/* Header with logo */}
               <View style={[styles.cardHeader, {
@@ -299,8 +297,8 @@ export default function MemberCardModal() {
               }]}>
                 <BlurView intensity={20} tint="light" style={styles.qrBlurContainer}>
                   <View style={styles.qrInnerContainer}>
-                    {user ? (
-                      <QRCode value={user.id} size={qrSize} color="#1A1A1A" backgroundColor="transparent" />
+                    {member?.uid ? (
+                      <QRCode value={member.uid} size={qrSize} color="#1A1A1A" backgroundColor="transparent" />
                     ) : (
                       <Text style={styles.loadingText}>Loading...</Text>
                     )}
@@ -315,7 +313,7 @@ export default function MemberCardModal() {
               }]}>
                 <Text style={styles.pointsLabel}>WALLET POINTS</Text>
                 <Text style={[styles.pointsValue, { fontSize: pointsFontSize }]}>
-                  {(user?.currentPoints ?? 0).toLocaleString('id-ID')}
+                  {(member?.points ?? 0).toLocaleString('id-ID')}
                 </Text>
               </View>
 
@@ -324,21 +322,20 @@ export default function MemberCardModal() {
                 marginTop: Math.max(12, cardWidth * 0.036),
               }]}>
                 <View style={styles.userInfoBlock}>
-                  <Text style={styles.memberName}>{user?.name ?? 'Guest'}</Text>
+                  <Text style={styles.memberName}>{member?.fullName ?? 'Guest'}</Text>
+                  {/* Tampilkan tanggal join member jika ada */}
                   <Text style={styles.memberId}>
-                    {user?.joinedDate
-                      ? `Joined ${new Date(user.joinedDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`
-                      : ''}
+                    {member?.joinDate ? `Joined ${new Date(member.joinDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
                   </Text>
                 </View>
                 <LinearGradient
-                  colors={TIER_BADGE_THEME[user?.tier ?? 'Silver'].gradient}
+                  colors={TIER_BADGE_THEME[member?.tier ?? 'Silver'].gradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.tierBadge}
                 >
-                  <Text style={[styles.tierText, { color: TIER_BADGE_THEME[user?.tier ?? 'Silver'].text }]}>
-                    {(user?.tier ?? 'Silver').toUpperCase()}
+                  <Text style={[styles.tierText, { color: TIER_BADGE_THEME[member?.tier ?? 'Silver'].text }]}>
+                    {(member?.tier ?? 'Silver').toUpperCase()}
                   </Text>
                 </LinearGradient>
               </View>

@@ -17,23 +17,22 @@ import { Trophy, Gift, ChevronRight, Bell, X } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useMember } from '../context/MemberContext';
+import { useTheme } from '../context/ThemeContext';
+import { NotificationService, NotificationItem } from '../services/NotificationService';
+import type { RootTabParamList } from '../navigation/AppNavigator';
+import { MemberTier } from '../types/types';
 
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
-import { UserService } from '../services/UserService';
-import { NotificationService, NotificationItem } from '../services/NotificationService';
-import type { RootTabParamList } from '../navigation/AppNavigator';
-import { MemberTier, UserProfile } from '../types/types';
-
 import { getGreeting } from '../utils/greetingHelper';
-import { useTheme } from '../context/ThemeContext';
 
-
-// Helper to format notification time (e.g., "2 hours ago")
+// Helper to format notification time
 function formatNotifTime(iso: string) {
   const now = new Date();
   const date = new Date(iso);
@@ -70,30 +69,25 @@ const TIER_THEME: Record<MemberTier, any> = {
 };
 
 export default function HomeScreen() {
-  // Notification State (Live)
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-
-  // Subscribe to notifications
-  useEffect(() => {
-    const unsubscribe = NotificationService.subscribeToUserNotifications((notifs) => {
-      setNotifications(notifs);
-    });
-    return unsubscribe;
-  }, []);
   const { colors, activeMode } = useTheme();
   const isDark = activeMode === 'dark';
-  
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
-  const promoScrollRef = useRef<ScrollView | null>(null);
-  const [activePromo, setActivePromo] = useState(0);
-  const [userData, setUserData] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   
-  // Notification State
+  // Realtime Context
+  const { member, loading: isMemberLoading } = useMember();
+  
+  // Notifications State
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const bellRef = useRef<View>(null);
   const [bellLayout, setBellLayout] = useState({ x: 0, y: 0, width: 0, height: 0, pageY: 0 });
   
+  // Promos State
+  const promoScrollRef = useRef<ScrollView | null>(null);
+  const [activePromo, setActivePromo] = useState(0);
+
   // Animation Values
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -101,111 +95,49 @@ export default function HomeScreen() {
   const iconRotate = useRef(new Animated.Value(0)).current;
   const buttonBg = useRef(new Animated.Value(0)).current;
   
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const isCompact = width < 360;
   const horizontalPadding = isCompact ? 16 : 20;
   const avatarSize = isCompact ? 46 : 52;
   const headerIconSize = isCompact ? 44 : 48;
 
-  // --- ANIMASI NOTIFIKASI ---
+  useEffect(() => {
+    const unsubscribe = NotificationService.subscribeToUserNotifications((notifs) => {
+      setNotifications(notifs);
+    });
+    return unsubscribe;
+  }, []);
+
   const openNotifications = () => {
-    // Karena header sekarang fixed, posisi Y lonceng relatif stabil
-    // Tapi kita tetap pakai measure untuk akurasi pixel perfect di berbagai device
     bellRef.current?.measure((x, y, width, height, pageX, pageY) => {
       setBellLayout({ x, y, width, height, pageY });
       setShowNotifications(true);
       
       Animated.parallel([
-        Animated.timing(backdropAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-          easing: Easing.out(Easing.ease),
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          friction: 10,
-          tension: 80,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 350,
-          delay: 100,
-          useNativeDriver: true,
-          easing: Easing.out(Easing.cubic),
-        }),
-        Animated.spring(iconRotate, {
-          toValue: 1,
-          useNativeDriver: true,
-          friction: 8,
-          tension: 100,
-        }),
-        Animated.timing(buttonBg, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: false,
-        }),
+        Animated.timing(backdropAnim, { toValue: 1, duration: 300, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 10, tension: 80 }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 350, delay: 100, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+        Animated.spring(iconRotate, { toValue: 1, useNativeDriver: true, friction: 8, tension: 100 }),
+        Animated.timing(buttonBg, { toValue: 1, duration: 300, useNativeDriver: false }),
       ]).start();
     });
   };
 
   const closeNotifications = () => {
     Animated.parallel([
-      Animated.timing(backdropAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 0,
-        duration: 280,
-        useNativeDriver: true,
-        easing: Easing.in(Easing.back(1.2)),
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.spring(iconRotate, {
-        toValue: 0,
-        useNativeDriver: true,
-        friction: 8,
-        tension: 100,
-      }),
-      Animated.timing(buttonBg, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: false, 
-      }),
-    ]).start(() => {
-      setShowNotifications(false);
-    });
+      Animated.timing(backdropAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 0, duration: 280, useNativeDriver: true, easing: Easing.in(Easing.back(1.2)) }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.spring(iconRotate, { toValue: 0, useNativeDriver: true, friction: 8, tension: 100 }),
+      Animated.timing(buttonBg, { toValue: 0, duration: 250, useNativeDriver: false }),
+    ]).start(() => setShowNotifications(false));
   };
 
-  const loadUserData = async () => {
-    setLoading(true);
-    try {
-      const user = await UserService.getUserProfile();
-      setUserData(user);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    React.useCallback(() => {
-      loadUserData();
-    }, [])
-  );
-
-  const tierXp = userData?.tierXp ?? 0;
-  const currentPoints = userData?.currentPoints ?? 0;
-  const tier = userData?.tier ?? 'Silver';
+  // Data Calculations
+  const tierXp = member?.tierXp ?? 0;
+  const currentPoints = member?.points ?? 0;
+  const tier = member?.tier ?? 'Silver';
   const tierTheme = TIER_THEME[tier];
-  // Use TIER_LIMITS from UserService or define locally
+  
   const TIER_LIMITS = { Silver: 0, Gold: 5000, Platinum: 15000 };
   const target = tier === 'Silver' ? TIER_LIMITS.Gold : tier === 'Gold' ? TIER_LIMITS.Platinum : TIER_LIMITS.Platinum;
   const isPlatinum = tier === 'Platinum';
@@ -233,18 +165,11 @@ export default function HomeScreen() {
   }, [promoCardWidth, promos.length]);
 
   // Modal Transform Logic
-  // Menggunakan posisi Y dari measure (bellLayout.pageY) yang sekarang stabil karena header fixed
   const bellCenterX = (width - horizontalPadding - 42 - 10 - (headerIconSize / 2)); 
-  
   const modalTransform = [
     { translateX: bellCenterX - width / 2 },
     { translateY: -(height / 2) + 100 },
-    { 
-      scale: scaleAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.01, 1],
-      }) 
-    },
+    { scale: scaleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.01, 1] }) },
     { translateX: -(bellCenterX - width / 2) },
     { translateY: (height / 2) - 100 },
   ];
@@ -265,97 +190,67 @@ export default function HomeScreen() {
         <DecorativeBackground />
 
         <View style={styles.mainLayout}>
-          {/* ============================================================ */}
-          {/* KONTAINER 1: FIXED HEADER (Tidak ikut scroll) */}
-          {/* ============================================================ */}
+          {/* FIXED HEADER */}
           <View style={[
             styles.fixedHeaderContainer, 
             { 
               paddingTop: insets.top + 6,
               paddingHorizontal: horizontalPadding,
-              backgroundColor: colors.background.primary, // Agar konten scroll tidak terlihat di belakang header
+              backgroundColor: colors.background.primary,
               borderBottomColor: isDark ? colors.border.light : 'transparent',
-              borderBottomWidth: isDark ? 1 : 0, // Garis tipis halus di dark mode
+              borderBottomWidth: isDark ? 1 : 0,
               zIndex: 20
             }
           ]}>
             <View style={styles.headerContent}> 
               <View style={styles.headerLeft}>
                 <View style={styles.avatarWrap}>
-                  <UserAvatar
-                    name={userData?.name ?? 'Member'}
-                    photoURL={userData?.photoURL}
-                    size={avatarSize}
-                  />
+                  <UserAvatar name={member?.fullName ?? 'Member'} photoURL={member?.photoURL} size={avatarSize} />
                   <View style={styles.avatarStatusDot} />
                 </View>
                 <View style={styles.headerTextContainer}>
                   <Text style={[styles.greeting, { color: colors.text.secondary }]}>{getGreeting()},</Text>
-                  <Text style={[styles.name, { color: colors.text.primary }]}>{userData?.name ?? 'Member'}</Text>
+                  <Text style={[styles.name, { color: colors.text.primary }]}>{member?.fullName ?? 'Member'}</Text>
                 </View>
               </View>
               <View style={styles.headerRight}>
-                
-                {/* TOMBOL LONCENG (Sekarang Fixed) */}
                 <View ref={bellRef} style={{ opacity: showNotifications ? 0 : 1 }}>
                   <TouchableOpacity
                     style={[
                       styles.notificationBtn, 
-                      { 
-                        width: headerIconSize, 
-                        height: headerIconSize,
-                        backgroundColor: colors.surface.card,
-                        shadowColor: colors.shadow.color,
-                      }
+                      { width: headerIconSize, height: headerIconSize, backgroundColor: colors.surface.card, shadowColor: colors.shadow.color }
                     ]}
                     activeOpacity={0.8}
                     onPress={openNotifications}
-                    disabled={loading}
+                    disabled={isMemberLoading}
                   >
                      <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
                      {notifications.some((n) => !n.read) && (
                        <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}> 
-                          <Text style={styles.notificationBadgeText}>
-                            {notifications.filter((n) => !n.read).length}
-                          </Text>
+                          <Text style={styles.notificationBadgeText}>{notifications.filter((n) => !n.read).length}</Text>
                        </View>
                      )}
                   </TouchableOpacity>
                 </View>
-
                 <Image source={require('../../assets/images/logo1.webp')} style={styles.logoTopRight} resizeMode="contain" />
               </View>
             </View>
           </View>
 
-          {/* ============================================================ */}
-          {/* KONTAINER 2: SCROLLABLE CONTENT (Sisa layar) */}
-          {/* ============================================================ */}
+          {/* SCROLLABLE CONTENT */}
           <ScrollView 
             showsVerticalScrollIndicator={false} 
             style={styles.scrollView} 
-            contentContainerStyle={[
-              styles.scrollContent, 
-              { 
-                paddingHorizontal: horizontalPadding, 
-                paddingBottom: 120 + insets.bottom,
-                paddingTop: 10 // Jarak sedikit dari header
-              }
-            ]}
+            contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom, paddingTop: 10 }]}
           >
-            {/* --- 2. MEMBERSHIP STATUS CARD --- */}
-            <View style={[
-              styles.rewardsCard, 
-              { 
-                backgroundColor: colors.surface.card,
-                borderColor: tierTheme.rewardsBorder, 
-                shadowColor: tierTheme.rewardsShadow 
-              }
-            ]}>
+            {/* MEMBERSHIP STATUS CARD */}
+            <View style={[styles.rewardsCard, { backgroundColor: colors.surface.card, borderColor: tierTheme.rewardsBorder, shadowColor: tierTheme.rewardsShadow }]}>
               <View style={styles.rewardsHeader}>
                 <View>
                   <Text style={[styles.rewardsLabel, { color: colors.text.secondary }]}>MEMBERSHIP STATUS</Text>
-                  <Text style={[styles.rewardsPoints, { color: colors.text.primary }]}>{loading ? 'Loading...' : `${tierXp} / ${target} XP`}</Text>
+                  <Text style={[styles.rewardsPoints, { color: colors.text.primary }]}>
+                    {isMemberLoading ? 'Loading...' : `${tierXp} / ${target} XP`}
+                  </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <View style={[styles.tierBadge, { backgroundColor: tierTheme.tierBadgeBg }]}>
@@ -375,11 +270,13 @@ export default function HomeScreen() {
               </View>
               <View style={styles.rewardsFooter}>
                 <Gift size={14} color={tierTheme.footerIcon} />
-                <Text style={[styles.rewardsFooterText, { color: colors.text.secondary }]}>{loading ? 'Syncing rewards...' : footerMessage}</Text>
+                <Text style={[styles.rewardsFooterText, { color: colors.text.secondary }]}>
+                  {isMemberLoading ? 'Syncing rewards...' : footerMessage}
+                </Text>
               </View>
             </View>
 
-            {/* --- 3. SPECIAL OFFERS --- */}
+            {/* SPECIAL OFFERS */}
             <View style={styles.sectionHeader}>
               <View style={[styles.redPill, { backgroundColor: colors.brand.primary }]} />
               <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Special Offers</Text>
@@ -408,20 +305,20 @@ export default function HomeScreen() {
               {promos.map((_, i) => <View key={i} style={[styles.dot, activePromo === i && { backgroundColor: colors.brand.primary, width: 24 }]} />)}
             </View>
 
-            {/* --- 4. GONG CHA WALLET --- */}
+            {/* GONG CHA WALLET */}
             <View style={styles.sectionHeader}>
               <View style={[styles.redPill, { backgroundColor: colors.brand.primary }]} />
               <Text style={[styles.walletTitle, { color: colors.text.primary }]}>Gong Cha Wallet</Text>
             </View>
 
-            <LinearGradient 
-              colors={tierTheme.walletGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletCard}
-            >
+            <LinearGradient colors={tierTheme.walletGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletCard}>
               <Image source={require('../../assets/images/liquid.webp')} style={styles.walletLiquid} />
               <View style={styles.walletTopRow}>
                 <View>
                   <Text style={styles.walletLabel}>Gong Cha Wallet</Text>
-                  <Text style={styles.walletAmount}>{loading ? '...' : currentPoints.toLocaleString('id-ID')}</Text>
+                  <Text style={styles.walletAmount}>
+                    {isMemberLoading ? '...' : currentPoints.toLocaleString('id-ID')}
+                  </Text>
                 </View>
                 <View style={[styles.trophyIconBg, { backgroundColor: tierTheme.trophyBg }]}>
                   <Trophy size={21} color="#2A1F1F" />
@@ -446,7 +343,7 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* --- MODAL (OVERLAY) --- */}
+        {/* MODAL (NOTIFICATIONS OVERLAY) */}
         <Modal
           visible={showNotifications}
           transparent
@@ -477,7 +374,9 @@ export default function HomeScreen() {
              <View style={[styles.modalHeader, { borderBottomColor: colors.border.light }]}>
                  <View style={{ flex: 1 }}>
                     <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Notifications</Text>
-                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have {notifications.filter((n) => !n.read).length} unread message{notifications.filter((n) => !n.read).length === 1 ? '' : 's'}</Text>
+                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>
+                      You have {notifications.filter((n) => !n.read).length} unread message{notifications.filter((n) => !n.read).length === 1 ? '' : 's'}
+                    </Text>
                  </View>
              </View>
 
@@ -514,8 +413,6 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   )}
                 />
-
-
              </View>
 
              <TouchableOpacity style={[styles.markReadBtn, { backgroundColor: colors.surface.card, borderTopColor: colors.border.light }]} onPress={() => {}}>
@@ -523,13 +420,12 @@ export default function HomeScreen() {
              </TouchableOpacity>
           </Animated.View>
 
-          {/* DUPLICATE FLOATING BELL (Fixed Position sesuai Header) */}
+          {/* DUPLICATE FLOATING BELL */}
           <Animated.View
             style={[
               styles.notificationBtn,
               { 
                 position: 'absolute',
-                // Gunakan koordinat hasil measure, atau fallback ke posisi estimasi header
                 top: bellLayout.pageY > 0 ? bellLayout.pageY : (insets.top + 6 + 10), 
                 right: 20 + 42 + 10,
                 width: headerIconSize, 
@@ -556,31 +452,14 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
-  // Flex container untuk membagi layar jadi 2: Header (fixed) dan Scroll (fluid)
   mainLayout: { flex: 1 }, 
-  
-  // FIXED HEADER STYLES
   fixedHeaderContainer: {
-    paddingBottom: 20, // Spacing bawah header
-    // Shadow halus agar header terlihat "mengambang" di atas konten
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    paddingBottom: 20, 
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
   },
-  headerContent: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center',
-    marginTop: 10, // Margin internal
-  },
-  
-  // SCROLL CONTENT
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
-
-  // HEADER ELEMENTS
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarWrap: { position: 'relative', marginRight: 12 },
@@ -588,27 +467,19 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 13, fontWeight: '500' },
   headerTextContainer: { justifyContent: 'center' },
   name: { fontSize: 19, fontWeight: 'bold' },
-  
   notificationBtn: { borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
   notificationBadge: { position: 'absolute', top: 12, right: 14, width: 8, height: 8, borderRadius: 4, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   notificationBadgeText: { fontSize: 8, color: '#FFF', fontWeight: 'bold', display: 'none' },
   logoTopRight: { width: 48, height: 48 },
-
-  // MODAL STYLES (Sama seperti sebelumnya)
   modalContainer: {
-    position: 'absolute', left: 10, right: 10, bottom: 20,
-    borderRadius: 32, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 20,
-    maxHeight: '75%',
+    position: 'absolute', left: 10, right: 10, bottom: 20, borderRadius: 32, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 20, maxHeight: '75%',
   },
   modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderBottomWidth: 1 },
   modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 2 },
   modalSubtitle: { fontSize: 14 },
   notifListContainer: { flex: 1 },
-  notifItem: {
-    flexDirection: 'row', padding: 16, borderRadius: 20,
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2,
-  },
+  notifItem: { flexDirection: 'row', padding: 16, borderRadius: 20, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
   notifIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
   notifItemTitle: { fontSize: 15, fontWeight: 'bold', flex: 1 },
   notifTime: { fontSize: 11, marginLeft: 8 },
@@ -616,8 +487,6 @@ const styles = StyleSheet.create({
   unreadDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8, marginTop: 6 },
   markReadBtn: { padding: 16, alignItems: 'center', borderTopWidth: 1 },
   markReadText: { fontWeight: 'bold', fontSize: 14 },
-
-  // CARD STYLES
   rewardsCard: { borderRadius: 22, padding: 12, marginBottom: 12, borderWidth: 1, elevation: 3 },
   rewardsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 7 },
   rewardsLabel: { fontSize: 10, fontWeight: 'bold', letterSpacing: 0.8, marginBottom: 2 },
