@@ -3,10 +3,19 @@ import { View, TouchableOpacity, StyleSheet, Animated, Easing, LayoutChangeEvent
 import { Home, Coffee, QrCode, Trophy, User } from 'lucide-react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMemberCard } from '../context/MemberContext';
-import { useTheme } from '../context/ThemeContext';
+
+// 🔥 IMPORT BARU: Menggunakan useMember & Token Warna Statis
+import { useMember } from '../context/MemberContext';
+import { colors } from '../theme/colorTokens';
 
 const BAR_HORIZONTAL_PADDING = 10;
+
+// Mapping warna khusus Bottom Nav yang diambil dari token utama
+const bottomNavColors = {
+  background: colors.surface.card,
+  active: colors.brand.primary,
+  inactive: colors.text.secondary
+};
 
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   // --- STATE UNTUK VISIBILITY ---
@@ -20,9 +29,11 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
     return () => subscription.remove();
   }, []);
 
-  const { showCard } = useMemberCard();
-  const { colors, activeMode } = useTheme();
-  const isDark = activeMode === 'dark';
+  // 🔥 PERBAIKAN: Gunakan useMember sebagai gantinya useMemberCard
+  const { showCard } = useMember();
+  
+  // 🔥 PERBAIKAN: Hapus pengecekan Dark Mode
+  const isDark = false; 
 
   const memberTriggerRef = useRef<View | null>(null);
   const { width: screenWidth } = useWindowDimensions();
@@ -50,7 +61,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const navButtonHeight = isCompact ? 44 : 48;
   const dynamicBarPadding = isCompact ? 8 : BAR_HORIZONTAL_PADDING;
   
-  // Value 0 = Visible, 1 = Hidden
   const tabBarHideProgress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -62,7 +72,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   // --- ANIMASI APPLE STYLE (BOUNCY) ---
   useEffect(() => {
     if (isTabBarHidden) {
-      // HIDING: Slide down cepat & mulus (agar tidak ganggu modal)
       Animated.timing(tabBarHideProgress, {
         toValue: 1,
         duration: 300,
@@ -70,12 +79,11 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
         useNativeDriver: true,
       }).start();
     } else {
-      // SHOWING: Spring Up dengan efek mantul (Bouncy)
       Animated.spring(tabBarHideProgress, {
         toValue: 0,
-        damping: 16,     // Lebih kecil = lebih mantul
-        stiffness: 140,  // Kekakuan pegas
-        mass: 0.8,       // Berat elemen
+        damping: 16,
+        stiffness: 140,
+        mass: 0.8,
         useNativeDriver: true,
       }).start();
     }
@@ -107,7 +115,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   const innerWidth = Math.max(barWidth - dynamicBarPadding * 2, 0);
   const slotWidth = innerWidth > 0 ? innerWidth / tabCount : 0;
   const bottomOffset = Math.max(insets.bottom + (isCompact ? 2 : 4), isCompact ? 8 : 10);
-  const hideTranslateY = barHeight + bottomOffset + 60; // Jarak sembunyi ke bawah
+  const hideTranslateY = barHeight + bottomOffset + 60; 
 
   const pillTranslateX = activeIndex.interpolate({
     inputRange: state.routes.map((_, idx) => idx),
@@ -131,20 +139,15 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           borderRadius: barHeight / 2,
           paddingHorizontal: dynamicBarPadding,
           
-          backgroundColor: colors.bottomNav.background,
+          backgroundColor: bottomNavColors.background,
+          borderWidth: 0.5,
+          borderColor: 'rgba(185, 28, 47, 0.12)', 
+          shadowColor: colors.brand.primary,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.12,
+          shadowRadius: 28,
+          elevation: 12,
           
-          borderWidth: isDark ? 1.5 : 0.5,
-          borderColor: isDark 
-            ? colors.border.default 
-            : 'rgba(185, 28, 47, 0.12)', 
-          
-          shadowColor: isDark ? colors.shadow.color : colors.brand.primary,
-          shadowOffset: { width: 0, height: isDark ? -4 : 8 },
-          shadowOpacity: isDark ? 0.16 : 0.12,
-          shadowRadius: isDark ? 20 : 28,
-          elevation: isDark ? 10 : 12,
-          
-          // Apply Animasi Naik/Turun
           transform: [
             {
               translateY: tabBarHideProgress.interpolate({
@@ -167,11 +170,11 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
               width: activePillSize,
               height: activePillSize,
               borderRadius: activePillSize / 2,
-              backgroundColor: colors.bottomNav.active,
+              backgroundColor: bottomNavColors.active,
               shadowColor: colors.brand.primary,
-              shadowOffset: { width: 0, height: isDark ? 3 : 4 },
-              shadowOpacity: isDark ? 0.24 : 0.28,
-              shadowRadius: isDark ? 10 : 12,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.28,
+              shadowRadius: 12,
               elevation: 6,
               transform: [{ translateX: pillTranslateX }, { scale: activePillScale }],
             },
@@ -183,8 +186,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
         const isFocused = state.index === index;
         const isMemberCardTrigger = route.name === 'QR';
         const IconComponent = iconMap[route.name] || Home;
-
-        const scaleInputRange = [index - 1 > 0 ? index - 1 : 0, index, index + 1 < state.routes.length ? index + 1 : state.routes.length - 1];
         
         const iconScale = activeIndex.interpolate({
           inputRange: [index - 1, index, index + 1],
@@ -229,7 +230,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           }
         };
 
-        const iconColor = isFocused ? '#FFFFFF' : colors.bottomNav.inactive;  
+        const iconColor = isFocused ? '#FFFFFF' : bottomNavColors.inactive;  
         const finalIconColor = isMemberCardTrigger ? '#FFFFFF' : iconColor;
 
         return (
@@ -252,9 +253,9 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                       width: triggerButtonSize, height: triggerButtonSize, borderRadius: triggerButtonSize / 2,
                       transform: [{ translateY: triggerLift }],
                       backgroundColor: colors.brand.primary,
-                      borderWidth: isDark ? 4 : 3, borderColor: colors.bottomNav.background,
-                      shadowColor: colors.brand.primary, shadowOffset: { width: 0, height: isDark ? 6 : 8 },
-                      shadowOpacity: isDark ? 0.35 : 0.3, shadowRadius: isDark ? 10 : 14, elevation: 8,
+                      borderWidth: 3, borderColor: bottomNavColors.background,
+                      shadowColor: colors.brand.primary, shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
                     },
                   ]}
                 >

@@ -21,8 +21,10 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Sun, Moon, Eye, EyeOff } from 'lucide-react-native';
-import { useTheme } from '../context/ThemeContext';
+import { Eye, EyeOff } from 'lucide-react-native';
+
+// 🔥 PENGGANTI THEME CONTEXT
+import { colors } from '../theme/colorTokens';
 import { AuthService } from '../services/AuthService';
 import { UserService } from '../services/UserService';
 import { firebaseAuth } from '../config/firebase';
@@ -35,9 +37,6 @@ type RootStackParamList = {
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
-  const { colors, activeMode, toggleTheme } = useTheme();
-  const isDark = activeMode === 'dark';
-
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -142,7 +141,6 @@ export default function LoginScreen() {
           throw new Error('User Auth tidak ditemukan setelah login.');
         }
       }
-      // navigation.navigate('MainApp'); // Removed: Navigation handled by AppNavigator after login
     } catch (err) {
       Alert.alert('Login gagal', err && typeof err === 'object' && 'message' in err
         ? (err as any).message : String(err));
@@ -164,7 +162,6 @@ export default function LoginScreen() {
     try {
       setIsEmailSubmitting(true);
       await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
-      // navigation.navigate('MainApp'); // Removed: Navigation handled by AppNavigator after login
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
       if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))
@@ -230,11 +227,11 @@ export default function LoginScreen() {
               paddingTop: 12,
               paddingBottom: dynamicSheetBottomPadding,
               minHeight: height * 0.52,
-              backgroundColor: colors.background.modal,
+              backgroundColor: colors.surface.card, // Fallback warna solid putih
             },
           ]}>
             <View style={styles.sheetHeader}>
-              <View style={[styles.dragIndicator, { backgroundColor: colors.border.default }]} />
+              <View style={[styles.dragIndicator, { backgroundColor: colors.border.medium }]} />
             </View>
 
             <ScrollView
@@ -253,9 +250,7 @@ export default function LoginScreen() {
                       <TouchableOpacity onPress={handleBackToPhone} style={{ marginBottom: 16 }}>
                         <Text style={{ fontSize: 16, color: colors.text.secondary }}>← Back to number</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={toggleTheme} style={{ padding: 4 }}>
-                        {isDark ? <Sun size={24} color={colors.text.primary} /> : <Moon size={24} color={colors.text.primary} />}
-                      </TouchableOpacity>
+                      {/* 🔥 Tombol Theme Dihapus */}
                     </View>
 
                     <Text style={[styles.header, { color: colors.text.primary }]}>Verify Phone</Text>
@@ -271,10 +266,8 @@ export default function LoginScreen() {
                             {
                               width: otpBoxWidth,
                               height: otpBoxHeight,
-                              backgroundColor: digit
-                                ? (isDark ? 'rgba(255, 107, 107, 0.1)' : '#FFF5F5')
-                                : colors.background.input,
-                              borderColor: digit ? colors.brand.primary : colors.border.default,
+                              backgroundColor: digit ? '#FFF5F5' : colors.background.tertiary,
+                              borderColor: digit ? colors.brand.primary : colors.border.light,
                               color: colors.text.primary,
                             },
                           ]}
@@ -289,19 +282,19 @@ export default function LoginScreen() {
                     <TouchableOpacity
                       style={[
                         styles.primaryButton,
-                        { backgroundColor: otp.join('').length < 4 || verifying ? colors.brand.primaryDisabled : colors.brand.primary },
+                        { backgroundColor: otp.join('').length < 4 || verifying ? '#FCA5A5' : colors.brand.primary }, // Hardcode warna merah redup kalau disabled
                       ]}
                       onPress={handleVerify}
                       disabled={otp.join('').length < 4 || verifying}
                     >
-                      <Text style={[styles.primaryButtonText, { color: colors.text.inverse }]}>
+                      <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
                         {verifying ? 'Verifying...' : 'Verify & Login'}
                       </Text>
                     </TouchableOpacity>
 
                     <View style={{ alignItems: 'center', marginTop: 16 }}>
                       {resendTimer > 0 ? (
-                        <Text style={{ color: colors.text.disabled }}>
+                        <Text style={{ color: colors.text.tertiary }}>
                           Resend in 00:{resendTimer.toString().padStart(2, '0')}
                         </Text>
                       ) : (
@@ -313,12 +306,9 @@ export default function LoginScreen() {
                   </>
                 ) : (
                   <>
-                    {/* ── Header + theme toggle ── */}
+                    {/* ── Header Tanpa Theme Toggle ── */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <Text style={[styles.header, { color: colors.text.primary, marginBottom: 0 }]}>Welcome Back</Text>
-                      <TouchableOpacity onPress={toggleTheme} style={{ padding: 4 }}>
-                        {isDark ? <Sun size={24} color={colors.text.primary} /> : <Moon size={24} color={colors.text.primary} />}
-                      </TouchableOpacity>
                     </View>
 
                     <Text style={[styles.subtext, { color: colors.text.secondary }]}>
@@ -330,16 +320,16 @@ export default function LoginScreen() {
                       <>
                         <View style={[
                           styles.phoneInputContainer,
-                          { backgroundColor: colors.background.input, borderColor: colors.border.default },
+                          { backgroundColor: colors.background.tertiary, borderColor: colors.border.light },
                         ]}>
-                          <View style={[styles.countryCodeBox, { borderRightColor: colors.border.default }]}>
+                          <View style={[styles.countryCodeBox, { borderRightColor: colors.border.light }]}>
                             <Text style={{ fontSize: 18 }}>🇮🇩</Text>
                             <Text style={[styles.countryCodeText, { color: colors.text.primary }]}>+62</Text>
                           </View>
                           <TextInput
                             style={[styles.phoneInput, { color: colors.text.primary }]}
                             placeholder="812 3456 7890"
-                            placeholderTextColor={colors.text.disabled}
+                            placeholderTextColor={colors.text.tertiary}
                             keyboardType="number-pad"
                             value={phoneNumber}
                             onChangeText={setPhoneNumber}
@@ -348,12 +338,12 @@ export default function LoginScreen() {
                         <TouchableOpacity
                           style={[
                             styles.primaryButton,
-                            { backgroundColor: phoneNumber.length < 9 ? colors.brand.primaryDisabled : colors.brand.primary },
+                            { backgroundColor: phoneNumber.length < 9 ? '#FCA5A5' : colors.brand.primary },
                           ]}
                           onPress={handleGetOtp}
                           disabled={phoneNumber.length < 9}
                         >
-                          <Text style={[styles.primaryButtonText, { color: colors.text.inverse }]}>Get OTP</Text>
+                          <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>Get OTP</Text>
                         </TouchableOpacity>
                       </>
                     )}
@@ -361,11 +351,11 @@ export default function LoginScreen() {
                     {/* ── Email method ── */}
                     {loginMethod === 'email' && (
                       <>
-                        <View style={[styles.emailInputContainer, { backgroundColor: colors.background.input, borderColor: colors.border.default }]}>
+                        <View style={[styles.emailInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.light }]}>
                           <TextInput
                             style={[styles.phoneInput, { color: colors.text.primary }]}
                             placeholder="Email address"
-                            placeholderTextColor={colors.text.disabled}
+                            placeholderTextColor={colors.text.tertiary}
                             keyboardType="email-address"
                             autoCapitalize="none"
                             autoCorrect={false}
@@ -373,11 +363,11 @@ export default function LoginScreen() {
                             onChangeText={setLoginEmail}
                           />
                         </View>
-                        <View style={[styles.emailInputContainer, { backgroundColor: colors.background.input, borderColor: colors.border.default }]}>
+                        <View style={[styles.emailInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.light }]}>
                           <TextInput
                             style={[styles.phoneInput, { color: colors.text.primary, flex: 1 }]}
                             placeholder="Password"
-                            placeholderTextColor={colors.text.disabled}
+                            placeholderTextColor={colors.text.tertiary}
                             secureTextEntry={!showPassword}
                             autoCapitalize="none"
                             value={loginPassword}
@@ -389,8 +379,8 @@ export default function LoginScreen() {
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
                             {showPassword
-                              ? <EyeOff size={18} color={colors.text.disabled} />
-                              : <Eye size={18} color={colors.text.disabled} />}
+                              ? <EyeOff size={18} color={colors.text.tertiary} />
+                              : <Eye size={18} color={colors.text.tertiary} />}
                           </TouchableOpacity>
                         </View>
                         <TouchableOpacity onPress={handleForgotPassword} style={{ alignSelf: 'flex-end', marginBottom: 16 }}>
@@ -399,12 +389,12 @@ export default function LoginScreen() {
                         <TouchableOpacity
                           style={[
                             styles.primaryButton,
-                            { backgroundColor: isEmailSubmitting ? colors.brand.primaryDisabled : colors.brand.primary },
+                            { backgroundColor: isEmailSubmitting ? '#FCA5A5' : colors.brand.primary },
                           ]}
                           onPress={handleEmailLogin}
                           disabled={isEmailSubmitting}
                         >
-                          <Text style={[styles.primaryButtonText, { color: colors.text.inverse }]}>
+                          <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
                             {isEmailSubmitting ? 'Signing in...' : 'Login'}
                           </Text>
                         </TouchableOpacity>
@@ -413,9 +403,9 @@ export default function LoginScreen() {
 
                     {/* ── Method toggle ── */}
                     <View style={styles.dividerRow}>
-                      <View style={[styles.dividerLine, { backgroundColor: colors.border.default }]} />
-                      <Text style={[styles.dividerText, { color: colors.text.disabled }]}>or</Text>
-                      <View style={[styles.dividerLine, { backgroundColor: colors.border.default }]} />
+                      <View style={[styles.dividerLine, { backgroundColor: colors.border.light }]} />
+                      <Text style={[styles.dividerText, { color: colors.text.tertiary }]}>or</Text>
+                      <View style={[styles.dividerLine, { backgroundColor: colors.border.light }]} />
                     </View>
                     <TouchableOpacity
                       style={styles.methodToggleButton}

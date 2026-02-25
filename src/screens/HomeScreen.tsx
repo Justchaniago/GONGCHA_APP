@@ -22,7 +22,8 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMember } from '../context/MemberContext';
-import { useTheme } from '../context/ThemeContext';
+// 🔥 IMPORT WARNA STATIS (Pengganti ThemeContext)
+import { colors } from '../theme/colorTokens';
 import { NotificationService, NotificationItem } from '../services/NotificationService';
 import type { RootTabParamList } from '../navigation/AppNavigator';
 import { MemberTier } from '../types/types';
@@ -69,8 +70,9 @@ const TIER_THEME: Record<MemberTier, any> = {
 };
 
 export default function HomeScreen() {
-  const { colors, activeMode } = useTheme();
-  const isDark = activeMode === 'dark';
+  // 🔥 KITA BUANG CONST { colors, activeMode } = useTheme();
+  // 🔥 KITA BUANG CONST isDark = activeMode === 'dark';
+  const isDark = false; // Set statis ke false agar logika UI tidak perlu dirombak
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
