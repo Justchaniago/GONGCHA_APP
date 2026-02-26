@@ -1,73 +1,31 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, FlatList, Image, TouchableOpacity, StyleSheet, Modal, Animated, TouchableWithoutFeedback, useWindowDimensions } from 'react-native';
 import { Heart, X } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// 🔥 IMPORT FIREBASE (Ganti baris ini)
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { firestoreDb as db } from '../config/firebase';
+
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
+import SkeletonLoader from '../components/SkeletonLoader';
 
-// Real Gong Cha Menu Data
+// Struktur Data tersinkronisasi dengan Web Panel
 interface MenuItem {
   id: string;
   name: string;
-  category: 'Signature' | 'MilkTea' | 'Coffee' | 'Matcha' | 'Mint' | 'BrownSugar' | 'CreativeMix' | 'BrewedTea';
-  mediumPrice: number;  // M price (smallest / base)
-  availableLarge: boolean;  // L available? (L = M + 2k)
-  availableHot?: boolean;  // Hot version available?
+  category: string;
+  mediumPrice: number;
+  availableLarge: boolean;
+  availableHot?: boolean;
+  description?: string;
   image?: string;
   rating?: number;
+  isAvailable?: boolean;
 }
-
-const GONGCHA_MENU: MenuItem[] = [
-  // SIGNATURE SERIES
-  { id: 's1', name: 'Gong Cha Tea', category: 'Signature', mediumPrice: 29, availableLarge: true, availableHot: false },
-  { id: 's2', name: 'Gong Cha Wintermelon', category: 'Signature', mediumPrice: 29, availableLarge: true, availableHot: false },
-  { id: 's3', name: 'Gong Cha Milk Coffee', category: 'Signature', mediumPrice: 35, availableLarge: false, availableHot: false },
-  { id: 's4', name: 'Gong Cha Milo', category: 'Signature', mediumPrice: 35, availableLarge: false, availableHot: false },
-
-  // MILK TEA SERIES
-  { id: 'm1', name: 'Milk Tea', category: 'MilkTea', mediumPrice: 28, availableLarge: true, availableHot: true },
-  { id: 'm2', name: 'Pearl Milk Tea', category: 'MilkTea', mediumPrice: 32, availableLarge: true, availableHot: true },
-  { id: 'm3', name: 'Milk Tea w Herbal Jelly', category: 'MilkTea', mediumPrice: 32, availableLarge: true, availableHot: false },
-  { id: 'm4', name: 'Earl Grey Milk Tea', category: 'MilkTea', mediumPrice: 37, availableLarge: true, availableHot: false },
-  { id: 'm5', name: 'Taro Milk', category: 'MilkTea', mediumPrice: 35, availableLarge: true, availableHot: true },
-  { id: 'm6', name: 'Chocolate Milk', category: 'MilkTea', mediumPrice: 35, availableLarge: true, availableHot: true },
-  { id: 'm7', name: 'Strawberry Milk Tea', category: 'MilkTea', mediumPrice: 39, availableLarge: true, availableHot: false },
-
-  // COFFEE SERIES
-  { id: 'c1', name: 'Black Coffee', category: 'Coffee', mediumPrice: 28, availableLarge: false, availableHot: false },
-  { id: 'c2', name: 'Dolce Milk Coffee', category: 'Coffee', mediumPrice: 26, availableLarge: false, availableHot: false },
-
-  // MATCHA SERIES
-  { id: 'mt1', name: 'Matcha Latte', category: 'Matcha', mediumPrice: 35, availableLarge: true, availableHot: false },
-  { id: 'mt2', name: 'Matcha Milk Tea w Foam', category: 'Matcha', mediumPrice: 41, availableLarge: false, availableHot: false },
-
-  // MINT SERIES
-  { id: 'min1', name: 'Mint Choco Smoothie', category: 'Mint', mediumPrice: 52, availableLarge: false, availableHot: false },
-  { id: 'min2', name: 'Mint Choco Milk Tea w Pearl', category: 'Mint', mediumPrice: 45, availableLarge: false, availableHot: false },
-
-  // BROWN SUGAR SERIES
-  { id: 'bs1', name: 'Brown Sugar Milk Tea w Pearl', category: 'BrownSugar', mediumPrice: 39, availableLarge: true, availableHot: true },
-  { id: 'bs2', name: 'Brown Sugar Milk Coffee', category: 'BrownSugar', mediumPrice: 35, availableLarge: false, availableHot: false },
-  { id: 'bs3', name: 'Brown Sugar Fresh Milk w Pearl', category: 'BrownSugar', mediumPrice: 39, availableLarge: true, availableHot: true },
-
-  // CREATIVE MIX SERIES
-  { id: 'cm1', name: 'OO Passion Fruit Green Tea', category: 'CreativeMix', mediumPrice: 42, availableLarge: true, availableHot: false },
-  { id: 'cm2', name: 'Lemon Juice w White Pearl & Aiyu', category: 'CreativeMix', mediumPrice: 42, availableLarge: true, availableHot: false },
-  { id: 'cm3', name: 'Passion Fruit Peach Green Tea', category: 'CreativeMix', mediumPrice: 34, availableLarge: true, availableHot: false },
-  { id: 'cm4', name: 'Peach Green Tea', category: 'CreativeMix', mediumPrice: 32, availableLarge: true, availableHot: false },
-  { id: 'cm5', name: 'Lemon Wintermelon', category: 'CreativeMix', mediumPrice: 32, availableLarge: true, availableHot: false },
-  { id: 'cm6', name: 'Green Tea Yakult', category: 'CreativeMix', mediumPrice: 31, availableLarge: true, availableHot: false },
-  { id: 'cm7', name: 'Mango Yakult', category: 'CreativeMix', mediumPrice: 33, availableLarge: true, availableHot: true },
-
-  // BREWED TEA SERIES
-  { id: 'bt1', name: 'Black Tea', category: 'BrewedTea', mediumPrice: 24, availableLarge: true, availableHot: false },
-  { id: 'bt2', name: 'Oolong Tea', category: 'BrewedTea', mediumPrice: 25, availableLarge: true, availableHot: false },
-  { id: 'bt3', name: 'Green Tea', category: 'BrewedTea', mediumPrice: 24, availableLarge: true, availableHot: false },
-  { id: 'bt4', name: 'Alisan Tea', category: 'BrewedTea', mediumPrice: 25, availableLarge: true, availableHot: false },
-  { id: 'bt5', name: 'Wintermelon Tea', category: 'BrewedTea', mediumPrice: 24, availableLarge: true, availableHot: false },
-];
 
 const CATEGORY_LABELS: Record<string, string> = {
   Signature: 'Signature',
@@ -78,6 +36,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   BrownSugar: 'Brown Sugar',
   CreativeMix: 'Creative Mix',
   BrewedTea: 'Brewed Tea',
+  Topping: 'Topping'
 };
 
 const CATEGORIES = ['All', 'Signature', 'MilkTea', 'Coffee', 'Matcha', 'Mint', 'BrownSugar', 'CreativeMix', 'BrewedTea'];
@@ -88,12 +47,40 @@ export default function MenuScreen() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
+  
+  // State Data Firestore
+  const [gongchaMenu, setGongchaMenu] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true); 
+  
   const scaleValue = useRef(new Animated.Value(0)).current;
   const opacityValue = useRef(new Animated.Value(0)).current;
 
+  // 🔥 Fetch Real-time Data dari Firestore
+  useEffect(() => {
+    const q = query(collection(db, 'products'), orderBy('name'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedMenus: MenuItem[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as MenuItem));
+      
+      setGongchaMenu(fetchedMenus);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Gagal mengambil data menu:", error);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Filter Menu (Hanya tampilkan yang isAvailable !== false)
+  const availableMenu = gongchaMenu.filter(item => item.isAvailable !== false);
   const filteredMenu = selectedCategory === 'All' 
-    ? GONGCHA_MENU
-    : GONGCHA_MENU.filter(item => item.category === selectedCategory);
+    ? availableMenu
+    : availableMenu.filter(item => item.category === selectedCategory);
+    
   const isCompact = width < 360;
   const horizontalPadding = isCompact ? 16 : 20;
 
@@ -104,6 +91,7 @@ export default function MenuScreen() {
   };
 
   const formatPrice = (price: number) => {
+    // Karena di Web Panel harga asli sudah 29000 (bukan 29), tidak perlu dikali 1000 lagi
     return `Rp ${price.toLocaleString('id-ID')}`;
   };
 
@@ -161,6 +149,25 @@ export default function MenuScreen() {
     );
   };
 
+  const renderProductSkeleton = () => (
+    <View style={styles.productCard}>
+      <View style={styles.imageContainer}>
+         <SkeletonLoader width="100%" height="100%" borderRadius={0} />
+      </View>
+      <View style={styles.productInfo}>
+        <SkeletonLoader width="90%" height={16} style={{ marginBottom: 10 }} />
+        <View style={styles.priceContainer}>
+           <SkeletonLoader width="50%" height={16} />
+        </View>
+        <View style={[styles.pillRow, { gap: 6 }]}>
+           <SkeletonLoader width={45} height={20} borderRadius={10} />
+           <SkeletonLoader width={45} height={20} borderRadius={10} />
+        </View>
+        <SkeletonLoader width="60%" height={10} style={{ marginTop: 8 }} />
+      </View>
+    </View>
+  );
+
   const renderProductCard = ({ item }: { item: MenuItem }) => {
     const isFavorite = favorites.includes(item.id);
     const largeNote = item.availableLarge ? `Upsize + ${formatPrice(2000)}` : '';
@@ -172,9 +179,15 @@ export default function MenuScreen() {
         onPress={() => onOpenModal(item)}
       >
         <View style={styles.imageContainer}>
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>🥤</Text>
-          </View>
+          {/* 🔥 Render Image WebP dari Firebase jika ada, jika kosong tampilkan Emoji */}
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.productImage} />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Text style={styles.placeholderText}>🥤</Text>
+            </View>
+          )}
+
           <TouchableOpacity 
             style={styles.favoriteButton}
             onPress={() => toggleFavorite(item.id)}
@@ -192,7 +205,7 @@ export default function MenuScreen() {
             {item.name}
           </Text>
           <View style={styles.priceContainer}>
-            <Text style={styles.productPrice}>{formatPrice(item.mediumPrice * 1000)}</Text>
+            <Text style={styles.productPrice}>{formatPrice(item.mediumPrice)}</Text>
           </View>
           <View style={styles.pillRow}>
             <View style={[styles.pill, styles.icePill]}>
@@ -216,108 +229,127 @@ export default function MenuScreen() {
         <StatusBar style="dark" translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
-      <View style={[styles.container, { paddingTop: insets.top + 4 }]}> 
-      
-      {/* Header */}
-      <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}> 
-        <Text style={styles.headerTitle}>Menu</Text>
-        <Text style={styles.headerSubtitle}>Discover our signature drinks</Text>
-      </View>
+        <View style={[styles.container, { paddingTop: insets.top + 4 }]}> 
+          {/* Header */}
+          <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}> 
+            <Text style={styles.headerTitle}>Menu</Text>
+            <Text style={styles.headerSubtitle}>Discover our signature drinks</Text>
+          </View>
 
-      {/* Category Filter */}
-      <View style={styles.categoryContainer}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.categoryScrollContent, { paddingHorizontal: horizontalPadding }]}
-        >
-          {CATEGORIES.map(renderCategoryPill)}
-        </ScrollView>
-      </View>
+          {/* Category Filter */}
+          <View style={styles.categoryContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.categoryScrollContent, { paddingHorizontal: horizontalPadding }]}
+            >
+              {CATEGORIES.map(renderCategoryPill)}
+            </ScrollView>
+          </View>
 
-      {/* Product Grid */}
-      <FlatList
-        data={filteredMenu}
-        renderItem={renderProductCard}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={[styles.productGrid, { paddingHorizontal: horizontalPadding, paddingBottom: 100 + insets.bottom }]}
-        columnWrapperStyle={styles.columnWrapper}
-        showsVerticalScrollIndicator={false}
-      />
+          {/* Product Grid */}
+          {isLoading ? (
+            <FlatList
+              data={[1, 2, 3, 4, 5, 6]}
+              renderItem={renderProductSkeleton}
+              keyExtractor={(item) => String(item)}
+              numColumns={2}
+              contentContainerStyle={[styles.productGrid, { paddingHorizontal: horizontalPadding, paddingBottom: 100 + insets.bottom }]}
+              columnWrapperStyle={styles.columnWrapper}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <FlatList
+              data={filteredMenu}
+              renderItem={renderProductCard}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              contentContainerStyle={[styles.productGrid, { paddingHorizontal: horizontalPadding, paddingBottom: 100 + insets.bottom }]}
+              columnWrapperStyle={styles.columnWrapper}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Text style={{ color: '#8C7B75', fontSize: 14 }}>Menu tidak ditemukan.</Text>
+                </View>
+              }
+            />
+          )}
 
-      {/* Product Detail Modal */}
-      <Modal
-        transparent
-        visible={!!selectedProduct}
-        animationType="none"
-        presentationStyle="overFullScreen"
-        statusBarTranslucent
-        onRequestClose={onCloseModal}
-      >
-        <TouchableWithoutFeedback onPress={onCloseModal}>
-          <Animated.View style={[styles.modalOverlay, { opacity: opacityValue }]}>
-            <BlurView intensity={20} style={StyleSheet.absoluteFillObject}>
-              <View style={styles.modalOverlayContent}>
-                <TouchableWithoutFeedback>
-                  <Animated.View 
-                style={[
-                  styles.modalContent,
-                  { transform: [{ scale: scaleValue }] }
-                ]}
-              >
-                {selectedProduct && (
-                  <>
-                    {/* Close Button */}
-                    <TouchableOpacity 
-                      style={styles.closeButton}
-                      onPress={onCloseModal}
-                    >
-                      <X size={24} color="#2A1F1F" />
-                    </TouchableOpacity>
+          {/* Product Detail Modal */}
+          <Modal
+            transparent
+            visible={!!selectedProduct}
+            animationType="none"
+            presentationStyle="overFullScreen"
+            statusBarTranslucent
+            onRequestClose={onCloseModal}
+          >
+            <TouchableWithoutFeedback onPress={onCloseModal}>
+              <Animated.View style={[styles.modalOverlay, { opacity: opacityValue }]}>
+                <BlurView intensity={20} style={StyleSheet.absoluteFillObject}>
+                  <View style={styles.modalOverlayContent}>
+                    <TouchableWithoutFeedback>
+                      <Animated.View 
+                        style={[
+                          styles.modalContent,
+                          { transform: [{ scale: scaleValue }] }
+                        ]}
+                      >
+                        {selectedProduct && (
+                          <>
+                            {/* Close Button */}
+                            <TouchableOpacity 
+                              style={styles.closeButton}
+                              onPress={onCloseModal}
+                            >
+                              <X size={24} color="#2A1F1F" />
+                            </TouchableOpacity>
 
-                    {/* Product Emoji Icon */}
-                    <View style={styles.modalImage}>
-                      <Text style={styles.modalEmoji}>🥤</Text>
-                    </View>
+                            {/* Modal Image */}
+                            {selectedProduct.image ? (
+                              <Image source={{ uri: selectedProduct.image }} style={styles.modalImageActual} />
+                            ) : (
+                              <View style={styles.modalImage}>
+                                <Text style={styles.modalEmoji}>🥤</Text>
+                              </View>
+                            )}
 
-                    {/* Product Details */}
-                    <View style={styles.modalDetails}>
-                      <Text style={styles.modalTitle}>{selectedProduct.name}</Text>
-                      <View style={styles.modalPriceRow}>
-                        <Text style={styles.modalPrice}>{formatPrice(selectedProduct.mediumPrice * 1000)}</Text>
-                        {selectedProduct.availableLarge && (
-                          <Text style={styles.modalLargeNote}> Upsize + {formatPrice(2000)}</Text>
+                            {/* Product Details */}
+                            <View style={styles.modalDetails}>
+                              <Text style={styles.modalTitle}>{selectedProduct.name}</Text>
+                              <View style={styles.modalPriceRow}>
+                                <Text style={styles.modalPrice}>{formatPrice(selectedProduct.mediumPrice)}</Text>
+                                {selectedProduct.availableLarge && (
+                                  <Text style={styles.modalLargeNote}> Upsize + {formatPrice(2000)}</Text>
+                                )}
+                              </View>
+                              <View style={styles.modalPillRow}>
+                                <View style={[styles.pill, styles.icePill]}>
+                                  <Text style={styles.pillText}>🧊 ICE</Text>
+                                </View>
+                                {selectedProduct.availableHot && (
+                                  <View style={[styles.pill, styles.hotPill]}>
+                                    <Text style={styles.pillText}>🔥 HOT</Text>
+                                  </View>
+                                )}
+                              </View>
+
+                              <Text style={styles.modalCategory}>{CATEGORY_LABELS[selectedProduct.category] || selectedProduct.category}</Text>
+
+                              <Text style={styles.modalDescription}>
+                                {selectedProduct.description || "Enjoy our signature drink made with premium ingredients. Perfectly crafted to satisfy your cravings with authentic flavors and quality ingredients."}
+                              </Text>
+                            </View>
+                          </>
                         )}
-                      </View>
-                      <View style={styles.modalPillRow}>
-                        <View style={[styles.pill, styles.icePill]}>
-                          <Text style={styles.pillText}>🧊 ICE</Text>
-                        </View>
-                        {selectedProduct.availableHot && (
-                          <View style={[styles.pill, styles.hotPill]}>
-                            <Text style={styles.pillText}>🔥 HOT</Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <Text style={styles.modalCategory}>{CATEGORY_LABELS[selectedProduct.category]}</Text>
-
-                      <Text style={styles.modalDescription}>
-                        Enjoy our signature drink made with premium ingredients. 
-                        Perfectly crafted to satisfy your cravings with authentic flavors and quality ingredients.
-                      </Text>
-                    </View>
-                  </>
-                )}
+                      </Animated.View>
+                    </TouchableWithoutFeedback>
+                  </View>
+                </BlurView>
               </Animated.View>
             </TouchableWithoutFeedback>
-              </View>
-            </BlurView>
-          </Animated.View>
-        </TouchableWithoutFeedback>
-      </Modal>
-      </View>
+          </Modal>
+        </View>
       </View>
     </ScreenFadeTransition>
   );
@@ -417,6 +449,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F1ED',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+productImage: {
+    width: '100%',
+    height: '100%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    resizeMode: 'contain', // <--- UBAH DARI 'cover' MENJADI 'contain'
+    backgroundColor: '#F5F1ED', // Opsional: Beri background agar sisa ruang terlihat rapi
   },
   placeholderText: {
     fontSize: 48,
@@ -519,6 +559,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F1ED',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+ modalImageActual: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'contain', // <--- UBAH JUGA DI SINI MENJADI 'contain'
+    backgroundColor: '#F5F1ED', // Opsional: Beri background senada
   },
   modalEmoji: {
     fontSize: 80,
