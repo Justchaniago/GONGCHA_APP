@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-// ⚠️ FIX: Gunakan nama export yang benar dari firebase.ts
 import { firebaseAuth, firestoreDb } from '../config/firebase';
+
+// 🔥 IMPORT TIPE VOUCHER DARI TYPES
+import { UserVoucher } from '../types/types';
 
 interface MemberData {
   uid: string;
@@ -10,10 +12,11 @@ interface MemberData {
   email: string;
   phoneNumber: string;
   points: number;
-  tierXp: number; // <--- Tambahkan ini
+  tierXp: number;
   tier: 'Silver' | 'Gold' | 'Platinum';
   photoURL?: string;
   joinDate?: string;
+  vouchers?: UserVoucher[]; // 🔥 TAMBAHKAN INI AGAR TYPESCRIPT TIDAK ERROR
 }
 
 export interface MemberCardAnchor {
@@ -24,7 +27,6 @@ interface MemberContextType {
   member: MemberData | null;
   loading: boolean;
   isAuthenticated: boolean;
-  // Fitur Modal Kartu
   isCardVisible: boolean;
   anchor: MemberCardAnchor | null;
   showCard: (nextAnchor?: MemberCardAnchor) => void;
@@ -43,14 +45,12 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let unsubscribeDoc: (() => void) | undefined;
 
     const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (user) => {
-      // 1. Matikan CCTV (Snapshot) lama jika ada, sebelum mengecek status user baru
       if (unsubscribeDoc) {
         unsubscribeDoc();
         unsubscribeDoc = undefined;
       }
 
       if (user) {
-        // 2. Jika login, nyalakan CCTV ke dokumen user tersebut
         const memberRef = doc(firestoreDb, "users", user.uid);
         unsubscribeDoc = onSnapshot(memberRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -61,15 +61,23 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               email: data.email || user.email || '',
               phoneNumber: data.phoneNumber || '',
               points: data.currentPoints || data.points || 0,
-              tierXp: data.tierXp || data.points || 0, // <--- Tambahkan baris ini
+              tierXp: data.tierXp || data.points || 0,
               tier: data.tier || 'Silver',
               photoURL: data.photoURL || '',
               joinDate: data.joinDate || '',
+              vouchers: data.vouchers || [], // 🔥 PASTIKAN VOUCHER DIAMBIL DARI FIRESTORE
             });
           } else {
             setMember({
-              uid: user.uid, fullName: user.displayName || 'Member',
-              email: user.email || '', phoneNumber: '', points: 0, tierXp: 0, tier: 'Silver', joinDate: '',
+              uid: user.uid, 
+              fullName: user.displayName || 'Member',
+              email: user.email || '', 
+              phoneNumber: '', 
+              points: 0, 
+              tierXp: 0, 
+              tier: 'Silver', 
+              joinDate: '',
+              vouchers: [], // 🔥 DEFAULT ARRAY KOSONG
             });
           }
           setLoading(false);
@@ -78,13 +86,11 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setLoading(false);
         });
       } else {
-        // 3. Jika logout, pastikan data dikosongkan
         setMember(null);
         setLoading(false);
       }
     });
 
-    // 4. Bersihkan semuanya jika aplikasi dimatikan
     return () => {
       if (unsubscribeDoc) unsubscribeDoc();
       unsubscribeAuth();
@@ -107,7 +113,6 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-// Menggabungkan nama agar tidak merusak komponen lama
 export const useMember = () => {
   const context = useContext(MemberContext);
   if (context === undefined) throw new Error('useMember harus di dalam MemberProvider');

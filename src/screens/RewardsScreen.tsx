@@ -19,21 +19,27 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Star, Ticket, X } from 'lucide-react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import { UserService } from '../services/UserService';
 import { CatalogService } from '../services/CatalogService';
-import { RewardItem, UserProfile, UserVoucher } from '../types/types';
+import { RewardItem, UserVoucher } from '../types/types';
+
+// 🔥 FASE 2: Import Skeleton dan Context
+import { useMember } from '../context/MemberContext';
+import SkeletonLoader from '../components/SkeletonLoader';
 
 type RewardsTab = 'catalog' | 'vouchers';
 
 export default function RewardsScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  
+  // 🔥 FASE 2: Gunakan CCTV Realtime dari MemberContext
+  const { member, loading: isMemberLoading } = useMember();
+  
   const [catalog, setCatalog] = useState<RewardItem[]>([]);
   const [availableVouchers, setAvailableVouchers] = useState<RewardItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,12 +57,10 @@ export default function RewardsScreen() {
 
   const fetchData = async () => {
     try {
-      const [userData, catalogData, vouchersData] = await Promise.all([
-        UserService.getUserProfile(),
+      const [catalogData, vouchersData] = await Promise.all([
         CatalogService.getCatalog(),
         CatalogService.getAvailableVouchers()
       ]);
-      setUser(userData);
       setCatalog(catalogData);
       setAvailableVouchers(vouchersData);
     } catch (error) {
@@ -70,12 +74,6 @@ export default function RewardsScreen() {
     fetchData();
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchData();
-    }, [])
-  );
-
   // Real-time listener for available vouchers
   useEffect(() => {
     const unsubscribe = CatalogService.onVouchersChange((vouchers) => {
@@ -85,10 +83,10 @@ export default function RewardsScreen() {
   }, []);
 
   const handleRedeem = (reward: RewardItem) => {
-    if (!user) return;
+    if (!member) return;
 
-    if (user.currentPoints < reward.pointsCost) {
-      Alert.alert('Poin Kurang', `Kamu butuh ${reward.pointsCost - user.currentPoints} poin lagi!`);
+    if (member.points < reward.pointsCost) {
+      Alert.alert('Poin Kurang', `Kamu butuh ${reward.pointsCost - member.points} poin lagi!`);
       return;
     }
 
@@ -100,14 +98,13 @@ export default function RewardsScreen() {
           try {
             setRedeemingId(reward.id);
             await UserService.redeemVoucher(reward);
-            // Refresh user profile supaya voucher langsung muncul
-            const updatedUser = await UserService.getUserProfile();
-            setUser(updatedUser);
+            // Saraf MemberContext akan otomatis mendeteksi voucher baru & poin berkurang via Firestore Listener
             Alert.alert('Berhasil!', 'Voucher berhasil ditambahkan ke akunmu.');
           } catch (error: any) {
             Alert.alert('Gagal', error?.message || 'Terjadi kesalahan saat redeem.');
           } finally {
             setRedeemingId(null);
+            if (selectedReward) closeRewardDetail();
           }
         },
       },
@@ -160,9 +157,6 @@ export default function RewardsScreen() {
       setUseVoucherLoading(true);
       // Fallback manual mark as used
       await UserService.markVoucherUsed(selectedVoucher.id);
-      // Refresh user profile
-      const updatedUser = await UserService.getUserProfile();
-      setUser(updatedUser);
       setIsVoucherModalVisible(false);
       setSelectedVoucher(null);
       setVoucherQrPayload('');
@@ -224,7 +218,7 @@ export default function RewardsScreen() {
   };
 
   // Sort vouchers: expiring soonest (active), then expired, then used
-  const sortedVouchers = (user?.vouchers || []).slice().sort((a, b) => {
+  const sortedVouchers = (member?.vouchers || []).slice().sort((a, b) => {
     // Used always last
     if (a.isUsed && !b.isUsed) return 1;
     if (!a.isUsed && b.isUsed) return -1;
@@ -238,7 +232,7 @@ export default function RewardsScreen() {
   });
 
   // Badge: only available vouchers
-  const availableVoucherCount = (user?.vouchers || []).filter(isVoucherAvailable).length;
+  const availableVoucherCount = (member?.vouchers || []).filter(isVoucherAvailable).length;
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -250,7 +244,12 @@ export default function RewardsScreen() {
       <LinearGradient colors={['#2A1F1F', '#4A3B32']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
         <View>
           <Text style={styles.balanceLabel}>Your Points Balance</Text>
-          <Text style={styles.balanceValue}>{user?.currentPoints.toLocaleString() || '0'}</Text>
+          {/* 🔥 SKELETON UNTUK POIN WALLET */}
+          {isMemberLoading ? (
+            <SkeletonLoader width={100} height={35} style={{ marginTop: 4, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+          ) : (
+            <Text style={styles.balanceValue}>{member?.points.toLocaleString() || '0'}</Text>
+          )}
         </View>
         <View style={styles.iconCircle}>
           <Star size={24} color="#D4A853" fill="#D4A853" />
@@ -273,26 +272,47 @@ export default function RewardsScreen() {
     </View>
   );
 
-  const renderItem = ({ item }: { item: RewardItem }) => {
-    const isAffordable = (user?.currentPoints || 0) >= item.pointsCost;
-    const isProcessing = redeemingId === item.id;
+  // 🔥 SKELETON UNTUK KATALOG REWARD
+  const renderCatalogSkeleton = () => (
+    <View style={styles.card}>
+      <View style={[styles.imageWrap, { backgroundColor: '#F3E9DC' }]}>
+        <SkeletonLoader width="100%" height="100%" borderRadius={0} />
+      </View>
+      <View style={styles.content}>
+        <SkeletonLoader width="80%" height={14} style={{ marginBottom: 4 }} />
+        <SkeletonLoader width="100%" height={10} style={{ marginBottom: 4 }} />
+        <SkeletonLoader width="60%" height={10} style={{ marginBottom: 12 }} />
+      </View>
+      <View style={{ marginHorizontal: 12, marginBottom: 12 }}>
+        <SkeletonLoader width="100%" height={32} borderRadius={12} />
+      </View>
+    </View>
+  );
+
+  const renderItem = ({ item }: { item: RewardItem | any }) => {
+    // Render skeleton jika item berupa number
+    if (typeof item === 'number') return renderCatalogSkeleton();
+
+    const reward = item as RewardItem;
+    const isAffordable = (member?.points || 0) >= reward.pointsCost;
+    const isProcessing = redeemingId === reward.id;
 
     return (
       <View style={styles.card}>
-        <TouchableOpacity style={styles.cardTapArea} activeOpacity={0.8} onPress={() => openRewardDetail(item)}>
+        <TouchableOpacity style={styles.cardTapArea} activeOpacity={0.8} onPress={() => openRewardDetail(reward)}>
           <View style={styles.imageWrap}>
-            <Image source={item.image} style={styles.image} resizeMode="contain" />
+            <Image source={reward.image} style={styles.image} resizeMode="contain" />
             <View style={styles.costBadge}>
-              <Text style={styles.costText}>{item.pointsCost} Pts</Text>
+              <Text style={styles.costText}>{reward.pointsCost} Pts</Text>
             </View>
           </View>
 
           <View style={styles.content}>
             <Text style={styles.title} numberOfLines={1}>
-              {item.title}
+              {reward.title}
             </Text>
             <Text style={styles.desc} numberOfLines={2}>
-              {item.description}
+              {reward.description}
             </Text>
           </View>
         </TouchableOpacity>
@@ -300,7 +320,7 @@ export default function RewardsScreen() {
         <TouchableOpacity
           style={[styles.button, styles.cardRedeemButton, !isAffordable && styles.buttonDisabled, isProcessing && styles.buttonProcessing]}
           disabled={!isAffordable || isProcessing}
-          onPress={() => handleRedeem(item)}
+          onPress={() => handleRedeem(reward)}
         >
           {isProcessing ? (
             <ActivityIndicator size="small" color="#FFF" />
@@ -312,31 +332,51 @@ export default function RewardsScreen() {
     );
   };
 
-  const renderVoucherItem = ({ item }: { item: UserVoucher }) => {
-    const status = getVoucherStatus(item);
+  // 🔥 SKELETON UNTUK LIST VOUCHER
+  const renderVoucherSkeleton = () => (
+    <View style={styles.voucherCard}>
+      <View style={styles.voucherTopRow}>
+        <SkeletonLoader width="50%" height={16} />
+        <SkeletonLoader width="20%" height={16} borderRadius={12} />
+      </View>
+      <SkeletonLoader width="40%" height={20} style={{ marginTop: 10 }} />
+      <View style={{ marginTop: 8 }}>
+        <SkeletonLoader width="60%" height={11} style={{ marginBottom: 4 }} />
+        <SkeletonLoader width="55%" height={11} />
+      </View>
+      <SkeletonLoader width="100%" height={36} borderRadius={12} style={{ marginTop: 10 }} />
+    </View>
+  );
+
+  const renderVoucherItem = ({ item }: { item: UserVoucher | any }) => {
+    // Render skeleton jika item berupa number
+    if (typeof item === 'number') return renderVoucherSkeleton();
+
+    const voucher = item as UserVoucher;
+    const status = getVoucherStatus(voucher);
     const canUseVoucher = status.label === 'Active';
-    const expiringSoon = isExpiringSoon(item);
+    const expiringSoon = isExpiringSoon(voucher);
 
     return (
       <View style={styles.voucherCard}>
         <View style={styles.voucherTopRow}>
           <View style={styles.voucherTitleWrap}>
             <Ticket size={16} color="#B91C2F" />
-            <Text style={styles.voucherTitle}>{item.title}</Text>
+            <Text style={styles.voucherTitle}>{voucher.title}</Text>
           </View>
           <View style={[styles.voucherStatusBadge, { backgroundColor: status.bg }]}> 
             <Text style={[styles.voucherStatusText, { color: status.color }]}>{status.label}</Text>
           </View>
         </View>
 
-        <Text style={styles.voucherCode}>{item.code}</Text>
+        <Text style={styles.voucherCode}>{voucher.code}</Text>
 
         <View style={styles.voucherMetaRow}>
-          <Text style={styles.voucherMetaLabel}>Redeemed: {formatDate(item.redeemedAt)}</Text>
-          <Text style={styles.voucherMetaLabel}>Expire: {formatDate(item.expiresAt)}</Text>
+          <Text style={styles.voucherMetaLabel}>Redeemed: {formatDate(voucher.redeemedAt)}</Text>
+          <Text style={styles.voucherMetaLabel}>Expire: {formatDate(voucher.expiresAt)}</Text>
         </View>
 
-        {expiringSoon && !item.isUsed && (
+        {expiringSoon && !voucher.isUsed && (
           <Text style={{ color: '#B91C2F', fontWeight: 'bold', marginTop: 4 }}>
             ⚠️ Voucher akan segera expired!
           </Text>
@@ -344,7 +384,7 @@ export default function RewardsScreen() {
 
         <TouchableOpacity
           style={[styles.useVoucherButton, !canUseVoucher && styles.useVoucherButtonDisabled]}
-          onPress={() => handleUseVoucher(item)}
+          onPress={() => handleUseVoucher(voucher)}
           disabled={!canUseVoucher || useVoucherLoading}
         >
           <Text style={[styles.useVoucherButtonText, !canUseVoucher && styles.useVoucherButtonTextDisabled]}>
@@ -369,15 +409,12 @@ export default function RewardsScreen() {
         <DecorativeBackground />
 
         <View style={[styles.container, { paddingTop: insets.top + 4 }]}> 
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color="#B91C2F" />
-            </View>
-          ) : activeTab === 'catalog' ? (
+          {activeTab === 'catalog' ? (
             <FlatList
               key="catalog-list"
-              data={availableVouchers.length > 0 ? availableVouchers : catalog}
-              keyExtractor={(item) => item.id}
+              // 🔥 Render data Skeleton [1,2,3,4] jika loading, selain itu render data asli
+              data={loading ? [1, 2, 3, 4] : (availableVouchers.length > 0 ? availableVouchers : catalog)}
+              keyExtractor={(item) => typeof item === 'number' ? item.toString() : item.id}
               renderItem={renderItem}
               ListHeaderComponent={renderHeader}
               numColumns={2}
@@ -388,11 +425,12 @@ export default function RewardsScreen() {
           ) : (
             <FlatList
               key="voucher-list"
-              data={sortedVouchers}
-              keyExtractor={(item) => item.id}
+              // 🔥 Render data Skeleton [1,2,3] jika profil user belum muncul
+              data={isMemberLoading ? [1, 2, 3] : sortedVouchers}
+              keyExtractor={(item) => typeof item === 'number' ? item.toString() : item.id}
               renderItem={renderVoucherItem}
               ListHeaderComponent={renderHeader}
-              ListEmptyComponent={renderVoucherEmptyState}
+              ListEmptyComponent={isMemberLoading ? null : renderVoucherEmptyState}
               contentContainerStyle={[styles.voucherListContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom }]}
               showsVerticalScrollIndicator={false}
             />
@@ -433,16 +471,16 @@ export default function RewardsScreen() {
                           <TouchableOpacity
                             style={[
                               styles.rewardModalRedeem,
-                              ((user?.currentPoints || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id) && styles.buttonDisabled,
+                              ((member?.points || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id) && styles.buttonDisabled,
                             ]}
-                            disabled={(user?.currentPoints || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id}
+                            disabled={(member?.points || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id}
                             onPress={() => handleRedeem(selectedReward)}
                           >
                             {redeemingId === selectedReward.id ? (
                               <ActivityIndicator size="small" color="#FFF" />
                             ) : (
                               <Text style={styles.rewardModalRedeemText}>
-                                {(user?.currentPoints || 0) >= selectedReward.pointsCost ? 'Redeem Now' : 'Not Enough Pts'}
+                                {(member?.points || 0) >= selectedReward.pointsCost ? 'Redeem Now' : 'Not Enough Pts'}
                               </Text>
                             )}
                           </TouchableOpacity>
