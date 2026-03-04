@@ -66,9 +66,11 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               tier: data.tier || 'Silver',
               photoURL: data.photoURL || '',
               joinDate: data.joinDate || '',
-              vouchers: data.vouchers || [], // 🔥 PASTIKAN VOUCHER DIAMBIL DARI FIRESTORE
+              vouchers: data.vouchers || [],
+              profileComplete: data.profileComplete, // 🔥 INCLUDE profileComplete dari Firestore
             });
           } else {
+            // Doc belum exist (unlikely dengan delayed creation, tapi handle case ini)
             setMember({
               uid: user.uid, 
               fullName: user.displayName || 'Member',
@@ -78,7 +80,8 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               tierXp: 0, 
               tier: 'Silver', 
               joinDate: '',
-              vouchers: [], // 🔥 DEFAULT ARRAY KOSONG
+              vouchers: [],
+              profileComplete: false, // 🔥 Default false jika doc tidak exist
             });
           }
           setLoading(false);

@@ -29,6 +29,7 @@ type RootStackParamList = {
   Welcome: undefined;
   Login: { initialStep?: 'phone' | 'otp' };
   MainApp: undefined;
+  ProfileCompletion: undefined;
 };
 
 type WelcomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
@@ -321,15 +322,25 @@ export default function WelcomeScreen() {
         setIsPostEmailVerificationLogin(true);
       }
       
-      await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
+      const profile = await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
       
       // Explicitly navigate for post-verification login
-      // For regular email login, onAuthStateChanged will handle it
+      // Check profileComplete status dan navigate accordingly
       if (isAfterVerification) {
-        navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
-        // Reset flag after navigation to prevent future issues
+        const needsProfileCompletion = profile.profileComplete === false || profile.profileComplete === undefined;
+        
+        if (needsProfileCompletion) {
+          console.log('[WelcomeScreen] First-time login, navigating to ProfileCompletion');
+          navigation.reset({ index: 0, routes: [{ name: 'ProfileCompletion' }] });
+        } else {
+          console.log('[WelcomeScreen] Profile already complete, navigating to MainApp');
+          navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+        }
+        
+        // Reset flag after navigation
         setIsPostEmailVerificationLogin(false);
       }
+      // For regular email login (not post-verification), onAuthStateChanged will handle navigation
     } catch (error: any) {
       setIsPostEmailVerificationLogin(false);
       const message = String(error?.message || 'Login gagal.');

@@ -76,6 +76,7 @@ export default function HomeScreen() {
   
   const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
+  const hasRedirectedToProfileCompletion = useRef(false); // 🔥 Prevent double redirect
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -97,11 +98,28 @@ export default function HomeScreen() {
 
   // Redirect to ProfileCompletion if first-time user
   useEffect(() => {
-    if (!isMemberLoading && member && member.profileComplete === false) {
-      // User belum complete profile, redirect ke ProfileCompletion
-      setTimeout(() => {
-        navigation.navigate('ProfileCompletion' as never);
-      }, 500);
+    // Early return jika sudah pernah redirect
+    if (hasRedirectedToProfileCompletion.current) return;
+    
+    // Check jika member loaded DAN profileComplete adalah false atau undefined
+    if (!isMemberLoading && member) {
+      const needsProfileCompletion = member.profileComplete === false || member.profileComplete === undefined;
+      
+      if (needsProfileCompletion) {
+        console.log('[HomeScreen] Profile incomplete, redirecting to ProfileCompletion', {
+          profileComplete: member.profileComplete,
+          memberUid: member.uid,
+        });
+        
+        // Set flag untuk prevent double redirect
+        hasRedirectedToProfileCompletion.current = true;
+        
+        // Immediate redirect dengan reset stack
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'ProfileCompletion' as never }],
+        });
+      }
     }
   }, [isMemberLoading, member, navigation]);
 
