@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
+  Pressable,
   Image,
   Platform,
   TextInput,
@@ -450,19 +450,17 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
 
-      {/* Background Image - Wrapped with TouchableWithoutFeedback for keyboard dismiss */}
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={{ flex: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 0 }}>
-          <Image
-            source={require('../../assets/images/welcome1.webp')}
-            style={{ flex: 1, width: undefined, height: undefined }}
-            resizeMode="cover"
-          />
-        </View>
-      </TouchableWithoutFeedback>
+      {/* Background Image - Wrapped with Pressable for keyboard dismiss */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss}>
+        <Image
+          source={require('../../assets/images/welcome1.webp')}
+          style={{ flex: 1, width: '100%', height: '100%' }}
+          resizeMode="cover"
+        />
+      </Pressable>
 
       {/* Logo */}
-      <View style={[styles.logoSection, { top: dynamicLogoTop, zIndex: 10 }]}>
+      <View style={[styles.logoSection, { top: dynamicLogoTop, zIndex: 10 }]} pointerEvents="none">
         <Image
           source={require('../../assets/images/logo1.webp')}
           style={[styles.logoImage, { width: logoSize, height: logoSize }]}
@@ -509,11 +507,12 @@ export default function WelcomeScreen() {
             </TouchableOpacity>
 
             <ScrollView
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
               keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
               showsVerticalScrollIndicator={false}
               bounces={false}
-              contentContainerStyle={styles.sheetScrollContent}
+              contentContainerStyle={[styles.sheetScrollContent, { flexGrow: 1 }]}
+              style={{ width: '100%' }}
               scrollEnabled={true}
             >
               <Animated.View style={{ opacity: contentOpacity }}>
@@ -861,7 +860,7 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 0, width: '100%',
     backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28,
     shadowColor: '#000', shadowOffset: { width: 0, height: -5 },
-    shadowOpacity: 0.2, shadowRadius: 20, elevation: 25, zIndex: 20,
+    shadowOpacity: 0.2, shadowRadius: 20, elevation: 25, zIndex: 999,
   },
   bottomSheetContent: {},
   sheetScrollContent: { paddingBottom: 10 },
