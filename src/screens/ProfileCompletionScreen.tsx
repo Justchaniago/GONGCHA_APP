@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Keyboard,
   Platform,
   SafeAreaView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,6 +32,13 @@ export default function ProfileCompletionScreen() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Validate inputs
+  const isFormValid = useMemo(() => {
+    const isNameValid = fullName.trim().length > 0;
+    const isDobValid = dateOfBirth.replace(/\D/g, '').length === 8;
+    return isNameValid && isDobValid;
+  }, [fullName, dateOfBirth]);
+
   const handleDobChange = (text: string) => {
     const d = text.replace(/\D/g, '').slice(0, 8);
     if (d.length <= 2) {
@@ -45,18 +53,7 @@ export default function ProfileCompletionScreen() {
   };
 
   const handleCompleteProfile = async () => {
-    if (!fullName.trim()) {
-      Alert.alert('Nama diperlukan', 'Masukkan nama lengkap kamu.');
-      return;
-    }
-    if (!dateOfBirth.trim()) {
-      Alert.alert('Tanggal lahir diperlukan', 'Masukkan tanggal lahir kamu (DD/MM/YYYY).');
-      return;
-    }
-    if (dateOfBirth.replace(/\D/g, '').length !== 8) {
-      Alert.alert('Format tanggal tidak valid', 'Gunakan format DD/MM/YYYY.');
-      return;
-    }
+    if (!isFormValid) return; // Prevent action if invalid
 
     const user = firebaseAuth.currentUser;
     if (!user) {
@@ -74,42 +71,47 @@ export default function ProfileCompletionScreen() {
         {
           name: fullName.trim(),
           dateOfBirth: dateOfBirth,
-          profileComplete: true,
+          profileComplete: true, 
         },
         { merge: true }
       );
 
-      // Navigate to MainApp setelah profile lengkap
-      navigation.replace('MainApp');
+      // FORCE REFRESH: Reload user to ensure token and claims are updated immediately
+      // This helps trigger any listeners listening to token changes
+      await user.getIdToken(true);
+      
+      // UX: Keep loading state active indefinitely upon success
+      // The AppNavigator will unmount this screen once it sees member.profileComplete = true
+      // So the user just sees "Menyimpan..." until the Home Screen appears.
+      
     } catch (error: any) {
       Alert.alert('Gagal', String(error?.message || 'Coba lagi nanti.'));
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // Only stop loading on error
     }
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="always"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.headerSection}>
-          <Text style={styles.emoji}>👤</Text>
-          <Text style={styles.title}>Lengkapi Profil Kamu</Text>
-          <Text style={styles.subtitle}>
-            Kami perlu beberapa informasi untuk menyelesaikan setup akun kamu
-          </Text>
-        </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled" 
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.headerSection}>
+            <Text style={styles.emoji}>👤</Text>
+            <Text style={styles.title}>Lengkapi Profil Kamu</Text>
+            <Text style={styles.subtitle}>
+              Kami perlu beberapa informasi untuk menyelesaikan setup akun kamu
+            </Text>
+          </View>
 
-        {/* Form Section */}
-        <View style={styles.formSection}>
-          {/* Full Name Field */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Nama Lengkap</Text>
-            <View style={styles.textInputContainer}>
+          {/* Form Section */}
+          <View style={styles.formSection}>
+            {/* Full Name Field */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Nama Lengkap</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="Masukkan nama lengkap"
@@ -119,12 +121,10 @@ export default function ProfileCompletionScreen() {
                 editable={!isSubmitting}
               />
             </View>
-          </View>
 
-          {/* Date of Birth Field */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Tanggal Lahir</Text>
-            <View style={styles.textInputContainer}>
+            {/* Date of Birth Field */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Tanggal Lahir</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="DD/MM/YYYY"
@@ -136,30 +136,36 @@ export default function ProfileCompletionScreen() {
                 editable={!isSubmitting}
               />
             </View>
-          </View>
 
-          {/* Info Box */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              💡 Informasi ini membantu kami memberikan pengalaman yang lebih personal dan sesuai dengan kebutuhan kamu.
+            {/* Info Box */}
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                💡 Informasi ini membantu kami memberikan pengalaman yang lebih personal dan sesuai dengan kebutuhan kamu.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Action Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.submitButton, 
+              (!isFormValid || isSubmitting) && { backgroundColor: '#E5E7EB' }
+            ]}
+            onPress={handleCompleteProfile}
+            disabled={!isFormValid || isSubmitting}
+          >
+            <Text style={[
+              styles.submitButtonText, 
+              (!isFormValid || isSubmitting) && { color: '#9CA3AF' }
+            ]}>
+              {isSubmitting ? 'Menyimpan...' : 'Lanjut ke Dashboard'}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-
-      {/* Action Button */}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-        <TouchableOpacity
-          style={[styles.submitButton, isSubmitting && { backgroundColor: '#E5E7EB' }]}
-          onPress={handleCompleteProfile}
-          disabled={isSubmitting}
-        >
-          <Text style={[styles.submitButtonText, isSubmitting && { color: '#9CA3AF' }]}>
-            {isSubmitting ? 'Menyimpan...' : 'Lanjut ke Dashboard'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 

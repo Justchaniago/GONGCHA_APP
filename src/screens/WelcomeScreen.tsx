@@ -144,18 +144,22 @@ export default function WelcomeScreen() {
   // ─── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-      const current = navGuardRef.current;
+      // DEBUG: Monitor Auth State Check
+      // console.log('Auth State Changed:', user?.uid);
       
-      // Jangan navigate ke MainApp jika:
-      // 1. User masih dalam signup process (signup_form, signup_otp, email_verify_pending)
-      // 2. User sedang login setelah email verification (let handleEmailLogin handle it)
-      // 3. User sedang membuat akun email baru (tunggu sampai verification flow selesai)
+      // FIX CRASH: Jangan lakukan navigasi manual di sini.
+      // Biarkan AppNavigator yang menangani perpindahan screen berdasarkan perubahan state 'isAuthenticated'.
+      // Jika kita memaksa navigasi ke 'MainApp' di sini, akan crash jika AppNavigator sedang memblokir akses ke MainApp (karena profile belum lengkap).
+      
+      /* 
+      const current = navGuardRef.current;
       if (user && 
           !['signup_form', 'signup_otp', 'email_verify_pending'].includes(current.viewMode) && 
           !current.isPostEmailVerificationLogin &&
           !current.isCreatingAccount) {
         navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
       }
+      */
     });
     return unsubscribe;
   }, [navigation]); // Only depend on navigation, internal state is accessed via ref
@@ -346,8 +350,12 @@ export default function WelcomeScreen() {
       
       const profile = await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
       
-      // Explicitly navigate for post-verification login
-      // Check profileComplete status dan navigate accordingly
+      // CRITICAL FIX: Hapus manual navigation reset.
+      // Biarkan AppNavigator mendeteksi perubahan auth state dan member data.
+      // Navigasi manual di sini menyebabkan crash karena routed screen (ProfileCompletion/MainApp)
+      // mungkin belum ter-mount di stack navigator saat baris ini dieksekusi.
+      
+      /*
       if (isAfterVerification) {
         const needsProfileCompletion = profile.profileComplete === false || profile.profileComplete === undefined;
         
@@ -362,6 +370,13 @@ export default function WelcomeScreen() {
         // Reset flag after navigation
         setIsPostEmailVerificationLogin(false);
       }
+      */
+     
+      // Reset flag immediately
+      if (isAfterVerification) {
+        setIsPostEmailVerificationLogin(false);
+      }
+      
       // For regular email login (not post-verification), onAuthStateChanged will handle navigation
     } catch (error: any) {
       setIsPostEmailVerificationLogin(false);

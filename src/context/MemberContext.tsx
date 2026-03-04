@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, onIdTokenChanged } from 'firebase/auth'; // 🔥 Use onIdTokenChanged for email verif updates
 import { doc, onSnapshot } from 'firebase/firestore';
 import { firebaseAuth, firestoreDb } from '../config/firebase';
 
@@ -44,6 +44,8 @@ const MemberContext = createContext<MemberContextType>({
   hideCard: () => {},
 });
 
+// export const useMember = () => useContext(MemberContext); // Already defined below
+
 export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [member, setMember] = useState<MemberData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,10 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let unsubscribeDoc: (() => void) | undefined;
     let authUnsubscribed = false;
 
-    const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (user) => {
+    // 🔥 GANTI: Pakai onIdTokenChanged, bukan onAuthStateChanged
+    // onAuthStateChanged tidak mentrigger ulang saat 'user.reload()' dipanggil (untuk refresh status emailVerified)
+    // onIdTokenChanged mentrigger saat token direfresh, yang terjadi saat user.reload()
+    const unsubscribeAuth = onIdTokenChanged(firebaseAuth, (user) => {
       if (authUnsubscribed) return;
 
       // Reset state if user changes
@@ -64,14 +69,18 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         unsubscribeDoc = undefined;
       }
 
-      if (user) {
+      // 🚦 BLOCK: Jika user baru daftar dengan email tapi belum verifikasi, anggap sebagai belum login.
+      // Ini mencegah AppNavigator berpindah ke ProfileCompletion, sehingga WelcomeScreen tetap aktif untuk menampilkan UI "Cek Email".
+      const isUnverifiedEmailUser = user && user.providerData.some(p => p.providerId === 'password') && !user.emailVerified;
+
+      if (user && !isUnverifiedEmailUser) {
         setLoading(true); // Set loading true while fetching doc
         const memberRef = doc(firestoreDb, "users", user.uid);
         
         unsubscribeDoc = onSnapshot(memberRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setMember({
+            const memberData = {
               uid: user.uid,
               fullName: data.fullName || data.name || 'Member',
               email: data.email || user.email || '',
@@ -82,12 +91,11 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               photoURL: data.photoURL || '',
               joinDate: data.joinDate || '',
               vouchers: data.vouchers || [],
-              profileComplete: data.profileComplete,
-            });
+              profileComplete: typeof data.profileComplete === 'boolean' ? data.profileComplete : false,
+            };
+            setMember(memberData);
           } else {
-            // Doc doesn't exist yet (delayed creation pattern)
-            // Do NOT set member here if we expect profile to be incomplete
-            // Let the components handle null member gracefully or show skeletal loading
+            // Document creation might be delayed
             setMember({
               uid: user.uid,
               fullName: user.displayName || 'Member',
@@ -98,7 +106,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               tier: 'Silver',
               joinDate: '',
               vouchers: [],
-              profileComplete: false, // Default false until doc created
+              profileComplete: false, 
             });
           }
           setLoading(false);
@@ -107,6 +115,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setLoading(false);
         });
       } else {
+        // User is null OR User is unverified email user
         setMember(null);
         setLoading(false);
       }

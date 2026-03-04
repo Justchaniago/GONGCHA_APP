@@ -50,7 +50,7 @@ function MainTabNavigator() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated, loading } = useMember();
+  const { isAuthenticated, loading, member } = useMember();
 
   // Jika sedang mengecek sesi ke server Firebase, tahan dengan loading
   if (loading) {
@@ -61,18 +61,28 @@ export default function AppNavigator() {
     );
   }
 
-  // ⚠️ FIX: Auto Redirect Logic (Satpam)
+  // Debugging log specific to navigation decision
+  // console.log('[AppNavigator] State:', { isAuthenticated, profileComplete: member?.profileComplete });
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
-        // Kalau sudah login, hanya bisa akses area dalam
-        <>
-          <Stack.Screen name="MainApp" component={MainTabNavigator} />
-          <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} options={{ animationTypeForReplace: isAuthenticated ? 'pop' : 'pop' }} />
-          <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_right' }} />
-        </>
+        // Check Profile Completion
+        !member?.profileComplete ? (
+             // SATPAM: Stop right here! You shall not pass until profile is complete.
+             // This prevents MainApp (and HomeScreen) from mounting and triggering the "force exit" crash
+             <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
+        ) : (
+          // Authenticated AND Profile Complete -> Welcome home
+          <>
+            <Stack.Screen name="MainApp" component={MainTabNavigator} />
+            <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_right' }} />
+            {/* Keeping ProfileCompletion accessible in case we need to revisit, though logically we shouldn't */}
+            <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} /> 
+          </>
+        )
       ) : (
         // Kalau belum login, hanya bisa akses area luar
         <>

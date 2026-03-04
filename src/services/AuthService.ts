@@ -123,7 +123,9 @@ export const AuthService = {
     const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
     const user = userCredential.user;
 
-    // Reload untuk mendapatkan status emailVerified terbaru dari Firebase
+    // 🔥 FIX: Force Refresh Token untuk memastikan status emailVerified terbaru dari server
+    // user.reload() saja kadang mengambil cache, getIdToken(true) memaksa sync dengan server
+    await user.getIdToken(true);
     await user.reload();
 
     if (!user.emailVerified) {

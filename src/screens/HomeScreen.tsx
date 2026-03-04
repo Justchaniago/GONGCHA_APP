@@ -97,6 +97,8 @@ export default function HomeScreen() {
   }, []);
 
   // Redirect to ProfileCompletion if first-time user
+  // BLOCKED: Logic dipindah ke AppNavigator (Satpam Routing)
+  /*
   useEffect(() => {
     // Early return jika sudah pernah redirect
     if (hasRedirectedToProfileCompletion.current) return;
@@ -122,6 +124,7 @@ export default function HomeScreen() {
       }
     }
   }, [isMemberLoading, member, navigation]);
+  */
 
   const openNotifications = () => {
     bellRef.current?.measure((x, y, width, height, pageX, pageY) => {
