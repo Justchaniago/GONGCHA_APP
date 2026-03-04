@@ -470,6 +470,14 @@ export default function WelcomeScreen() {
     
     try {
       setIsCreatingAccount(true);
+      
+      // Update Ref IMMEDIATELY to block navigation guards
+      navGuardRef.current = {
+        ...navGuardRef.current,
+        viewMode: 'email_verify_pending',
+        isCreatingAccount: true
+      };
+      
       // Set ALL state SYNCHRONOUSLY before calling registerWithEmail
       setPendingVerifyEmail(newAccountEmail.trim());
       setPendingVerifyPassword(newAccountPassword);
@@ -478,6 +486,11 @@ export default function WelcomeScreen() {
       
       const defaultName = newAccountEmail.split('@')[0];
       await AuthService.registerWithEmail(newAccountEmail.trim(), newAccountPassword, defaultName);
+      
+      // CRITICAL: Sign out immediately so we don't have a lingering session.
+      // The user must login manually after verification, which ensures the correct flow.
+      await firebaseAuth.signOut();
+      
     } catch (error: any) {
       const message = String(error?.message || 'Registrasi gagal.');
       // Reset state on error
