@@ -359,8 +359,6 @@ export default function WelcomeScreen() {
 
   // ─── Phone Signup ─────────────────────────────────────────────────────────
   const handleSignUpGetOtp = () => {
-    if (!signupName.trim()) setSignupName('User Trial');
-    if (!signupDob.trim()) setSignupDob('01/01/2000');
     if (!signupPhone.trim()) setSignupPhone('8123456789');
     Alert.alert('OTP Demo (Sign Up)', `Kode OTP demo: ${generateDemoOtp()}\nUntuk trial, isi sembarang 4 digit juga bisa.`);
     Keyboard.dismiss();
@@ -380,7 +378,7 @@ export default function WelcomeScreen() {
     if (signupOtp.join('').length < 4) { Alert.alert('OTP belum lengkap', 'Masukkan 4 digit OTP.'); return; }
     const normalizedPhone = normalizePhoneNumber(signupPhone);
     const email = mapPhoneToEmail(normalizedPhone);
-    const profileName = signupName.trim() || 'User Trial';
+    const profileName = 'Member';
     try {
       setIsAuthSubmitting(true);
       setAuthProgressMessage('Creating account...');
@@ -410,14 +408,14 @@ export default function WelcomeScreen() {
 
   // ─── Email Signup ─────────────────────────────────────────────────────────
   const handleEmailSignup = async () => {
-    if (!newAccountName.trim()) { Alert.alert('Nama diperlukan', 'Masukkan nama lengkap kamu.'); return; }
     if (!newAccountEmail.trim()) { Alert.alert('Email diperlukan', 'Masukkan alamat email kamu.'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newAccountEmail.trim())) { Alert.alert('Email tidak valid', 'Masukkan format email yang benar.'); return; }
     if (newAccountPassword.length < 6) { Alert.alert('Password terlalu pendek', 'Password minimal 6 karakter.'); return; }
     if (newAccountPassword !== newAccountPasswordConfirm) { Alert.alert('Password tidak cocok', 'Konfirmasi password tidak sesuai.'); return; }
     try {
       setIsCreatingAccount(true);
-      await AuthService.registerWithEmail(newAccountEmail.trim(), newAccountPassword, newAccountName.trim());
+      const defaultName = newAccountEmail.split('@')[0];
+      await AuthService.registerWithEmail(newAccountEmail.trim(), newAccountPassword, defaultName);
       // Simpan untuk keperluan resend verifikasi
       setPendingVerifyEmail(newAccountEmail.trim());
       setPendingVerifyPassword(newAccountPassword);
@@ -632,19 +630,13 @@ export default function WelcomeScreen() {
                       <View>
                         <Text style={styles.formTitle}>Create Account</Text>
                         <Text style={styles.formSubtext}>
-                          {signupMethod === 'phone' ? 'Fill a few details to continue' : 'Sign up with your email'}
+                          {signupMethod === 'phone' ? 'Enter your phone number' : 'Sign up with your email'}
                         </Text>
                       </View>
                     </View>
 
                     {signupMethod === 'phone' ? (
                       <>
-                        <View style={styles.textInputContainer}>
-                          <TextInput style={styles.phoneInput} placeholder="Full name" placeholderTextColor="#9CA3AF" value={signupName} onChangeText={setSignupName} />
-                        </View>
-                        <View style={styles.textInputContainer}>
-                          <TextInput style={styles.phoneInput} placeholder="Date of birth (DD/MM/YYYY)" placeholderTextColor="#9CA3AF" value={signupDob} onChangeText={handleDobChange} keyboardType="number-pad" maxLength={10} />
-                        </View>
                         <View style={styles.phoneInputContainer}>
                           <View style={styles.countryCodeBox}>
                             <Text style={{ fontSize: 18 }}>🇮🇩</Text>
@@ -659,17 +651,6 @@ export default function WelcomeScreen() {
                     ) : (
                       <>
                         <View style={{ marginTop: 20 }} />
-                        
-                        {/* Full Name Field */}
-                        <View style={styles.textInputContainer}>
-                          <TextInput
-                            style={styles.phoneInput}
-                            placeholder="Full name"
-                            placeholderTextColor="#9CA3AF"
-                            value={newAccountName}
-                            onChangeText={setNewAccountName}
-                          />
-                        </View>
                         
                         {/* Email Field */}
                         <View style={styles.textInputContainer}>

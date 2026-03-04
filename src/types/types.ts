@@ -34,6 +34,9 @@ export interface UserProfile {
 
   // --- EMAIL VERIFICATION ---
   emailVerified?: boolean;
+
+  // --- PROFILE COMPLETION ---
+  profileComplete?: boolean;
 }
 
 export interface Transaction {

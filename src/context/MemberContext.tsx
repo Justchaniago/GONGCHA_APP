@@ -17,6 +17,7 @@ interface MemberData {
   photoURL?: string;
   joinDate?: string;
   vouchers?: UserVoucher[]; // 🔥 TAMBAHKAN INI AGAR TYPESCRIPT TIDAK ERROR
+  profileComplete?: boolean;
 }
 
 export interface MemberCardAnchor {

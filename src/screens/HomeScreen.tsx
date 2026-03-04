@@ -10,8 +10,11 @@ import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { doc, setDoc } from 'firebase/firestore';
 
 import { useMember } from '../context/MemberContext';
+import { firestoreDb } from '../config/firebase';
+import { firebaseAuth } from '../config/firebase';
 import { NotificationService, NotificationItem } from '../services/NotificationService';
 import type { RootTabParamList } from '../navigation/AppNavigator';
 import { MemberTier } from '../types/types';
@@ -21,6 +24,7 @@ import { colors } from '../theme/colorTokens';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
+import BioDataModal from '../components/BioDataModal';
 // 🔥 IMPORT SKELETON KITA
 import SkeletonLoader from '../components/SkeletonLoader';
 import { getGreeting } from '../utils/greetingHelper';
@@ -70,6 +74,7 @@ export default function HomeScreen() {
   
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showBioDataModal, setShowBioDataModal] = useState(false);
   const bellRef = useRef<View>(null);
   const [bellLayout, setBellLayout] = useState({ x: 0, y: 0, width: 0, height: 0, pageY: 0 });
   
@@ -94,6 +99,13 @@ export default function HomeScreen() {
     return unsubscribe;
   }, []);
 
+  // Show biodata modal if profileComplete is false (only once after signup)
+  useEffect(() => {
+    if (!isMemberLoading && member && member.profileComplete === false) {
+      setShowBioDataModal(true);
+    }
+  }, [isMemberLoading, member]);
+
   const openNotifications = () => {
     bellRef.current?.measure((x, y, width, height, pageX, pageY) => {
       setBellLayout({ x, y, width, height, pageY });
@@ -117,6 +129,24 @@ export default function HomeScreen() {
       Animated.spring(iconRotate, { toValue: 0, useNativeDriver: true, friction: 8, tension: 100 }),
       Animated.timing(buttonBg, { toValue: 0, duration: 250, useNativeDriver: false }),
     ]).start(() => setShowNotifications(false));
+  };
+
+  const handleBioDataSubmit = async (data: { name: string; dateOfBirth: string }) => {
+    if (!member?.uid) return;
+    try {
+      await setDoc(doc(firestoreDb, 'users', member.uid), {
+        name: data.name,
+        dateOfBirth: data.dateOfBirth,
+        profileComplete: true,
+      }, { merge: true });
+      setShowBioDataModal(false);
+    } catch (error: any) {
+      throw new Error(String(error?.message || 'Failed to save biodata'));
+    }
+  };
+
+  const handleBioDataSkip = () => {
+    setShowBioDataModal(false);
   };
 
   const tierXp = member?.tierXp ?? 0;
@@ -390,6 +420,14 @@ export default function HomeScreen() {
           </Animated.View>
         </Modal>
       </View>
+
+      {/* Biodata Modal */}
+      <BioDataModal
+        visible={showBioDataModal}
+        onSubmit={handleBioDataSubmit}
+        onSkip={handleBioDataSkip}
+        initialName={member?.fullName || ''}
+      />
     </ScreenFadeTransition>
   );
 }

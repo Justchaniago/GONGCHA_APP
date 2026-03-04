@@ -69,6 +69,7 @@ export const AuthService = {
       xpHistory: [],
       vouchers: [],
       role: 'member',
+      profileComplete: false,
     };
 
     await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
@@ -177,6 +178,49 @@ export const AuthService = {
   async applyEmailVerificationCode(oobCode: string): Promise<void> {
     await applyActionCode(firebaseAuth, oobCode);
     await firebaseAuth.currentUser?.reload();
+  },
+
+  // ─── AUTO-LOGIN SETELAH VERIFIKASI EMAIL ──────────────────────────────────
+  async autoLoginAfterEmailVerification(email: string, password: string): Promise<UserProfile> {
+    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    const user = userCredential.user;
+
+    // Reload untuk mendapatkan status emailVerified terbaru
+    await user.reload();
+
+    if (!user.emailVerified) {
+      await signOut(firebaseAuth);
+      throw new Error('Email belum diverifikasi. Periksa inbox kamu.');
+    }
+
+    const profile = await UserService.getUserProfile();
+    if (profile) {
+      // Update profileComplete flag jika belum ada
+      if (!(profile as any).profileComplete) {
+        await setDoc(doc(firestoreDb, 'users', user.uid), { profileComplete: false }, { merge: true });
+      }
+      return { ...profile, profileComplete: false };
+    }
+
+    const newProfile: UserProfile = {
+      id: user.uid,
+      name: user.displayName || email.split('@')[0],
+      email: user.email || email,
+      phoneNumber: '',
+      currentPoints: 0,
+      lifetimePoints: 0,
+      tierXp: 0,
+      tier: 'Silver',
+      joinedDate: new Date().toISOString(),
+      xpHistory: [],
+      vouchers: [],
+      role: 'member',
+      emailVerified: true,
+      profileComplete: false,
+    };
+
+    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
+    return newProfile;
   },
 
   // ─── GANTI PASSWORD (untuk user yang sudah login) ─────────────────────────
