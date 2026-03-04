@@ -34,7 +34,15 @@ interface MemberContextType {
   hideCard: () => void;
 }
 
-const MemberContext = createContext<MemberContextType | undefined>(undefined);
+const MemberContext = createContext<MemberContextType>({
+  member: null,
+  loading: true,
+  isAuthenticated: false,
+  isCardVisible: false,
+  anchor: null,
+  showCard: () => {},
+  hideCard: () => {},
+});
 
 export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [member, setMember] = useState<MemberData | null>(null);
@@ -43,16 +51,23 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [anchor, setAnchor] = useState<MemberCardAnchor | null>(null);
 
   useEffect(() => {
+    // Unsubscribe function for doc listener
     let unsubscribeDoc: (() => void) | undefined;
+    let authUnsubscribed = false;
 
     const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (user) => {
+      if (authUnsubscribed) return;
+
+      // Reset state if user changes
       if (unsubscribeDoc) {
         unsubscribeDoc();
         unsubscribeDoc = undefined;
       }
 
       if (user) {
+        setLoading(true); // Set loading true while fetching doc
         const memberRef = doc(firestoreDb, "users", user.uid);
+        
         unsubscribeDoc = onSnapshot(memberRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
@@ -67,21 +82,23 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               photoURL: data.photoURL || '',
               joinDate: data.joinDate || '',
               vouchers: data.vouchers || [],
-              profileComplete: data.profileComplete, // 🔥 INCLUDE profileComplete dari Firestore
+              profileComplete: data.profileComplete,
             });
           } else {
-            // Doc belum exist (unlikely dengan delayed creation, tapi handle case ini)
+            // Doc doesn't exist yet (delayed creation pattern)
+            // Do NOT set member here if we expect profile to be incomplete
+            // Let the components handle null member gracefully or show skeletal loading
             setMember({
-              uid: user.uid, 
+              uid: user.uid,
               fullName: user.displayName || 'Member',
-              email: user.email || '', 
-              phoneNumber: '', 
-              points: 0, 
-              tierXp: 0, 
-              tier: 'Silver', 
+              email: user.email || '',
+              phoneNumber: '',
+              points: 0,
+              tierXp: 0,
+              tier: 'Silver',
               joinDate: '',
               vouchers: [],
-              profileComplete: false, // 🔥 Default false jika doc tidak exist
+              profileComplete: false, // Default false until doc created
             });
           }
           setLoading(false);
@@ -96,6 +113,7 @@ export const MemberProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     return () => {
+      authUnsubscribed = true;
       if (unsubscribeDoc) unsubscribeDoc();
       unsubscribeAuth();
     };
