@@ -17,6 +17,7 @@ import RewardsScreen from '../screens/RewardsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import StoreLocatorScreen from '../screens/StoreLocatorScreen';
+import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -24,6 +25,7 @@ export type RootStackParamList = {
   MainApp: undefined;
   StoreLocator: undefined;
   EditProfile: undefined;
+  UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
 };
 
 export type RootTabParamList = {
@@ -66,12 +68,14 @@ export default function AppNavigator() {
           <Stack.Screen name="MainApp" component={MainTabNavigator} />
           <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_right' }} />
         </>
       ) : (
         // Kalau belum login, hanya bisa akses area luar
         <>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_bottom' }} />
         </>
       )}
     </Stack.Navigator>

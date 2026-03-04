@@ -164,7 +164,25 @@ export default function LoginScreen() {
       await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
-      if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))
+      if (message === 'email_not_verified') {
+        Alert.alert(
+          'Email belum diverifikasi 📧',
+          'Klik link verifikasi di email kamu sebelum login. Belum terima email?',
+          [
+            {
+              text: 'Kirim Ulang', onPress: async () => {
+                try {
+                  await AuthService.resendVerificationEmail(loginEmail.trim(), loginPassword);
+                  Alert.alert('Terkirim!', `Link verifikasi dikirim ulang ke ${loginEmail.trim()}.`);
+                } catch (e: any) {
+                  Alert.alert('Gagal', String(e?.message || 'Coba lagi nanti.'));
+                }
+              },
+            },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+      } else if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))
         Alert.alert('Login gagal', 'Email atau password salah. Periksa kembali.');
       else if (message.includes('auth/too-many-requests'))
         Alert.alert('Terlalu banyak percobaan', 'Coba lagi nanti atau reset password.');

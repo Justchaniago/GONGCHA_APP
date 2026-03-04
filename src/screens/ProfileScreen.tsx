@@ -11,7 +11,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User, History as HistoryIcon, ArrowDownCircle, ArrowUpCircle,
-  Settings, LogOut, ChevronRight, MapPin, HelpCircle, X, ShieldCheck,
+  Settings, LogOut, ChevronRight, MapPin, HelpCircle, X, ShieldCheck, Lock,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -169,6 +169,7 @@ export default function ProfileScreen() {
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
             <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Account</Text>
             <MenuItem icon={User} title="Edit Profile" subtitle="Name, Phone, Email & Photo" onPress={() => navigation.navigate('EditProfile')} />
+            <MenuItem icon={Lock} title="Ganti Password" subtitle="Ubah password akun kamu" onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} />
             <MenuItem icon={HistoryIcon} title="Transaction History" subtitle="Check your earned points" onPress={openHistory} />
             <MenuItem icon={MapPin} title="Find a Store" subtitle="Locate nearest Gong Cha" onPress={() => navigation.navigate('StoreLocator')} />
           </View>

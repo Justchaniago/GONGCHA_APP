@@ -47,7 +47,7 @@ export default function WelcomeScreen() {
 
   // ─── View & Method State ──────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState<
-    'initial' | 'login_form' | 'login_otp' | 'signup_form' | 'signup_otp'
+    'initial' | 'login_form' | 'login_otp' | 'signup_form' | 'signup_otp' | 'email_verify_pending'
   >('initial');
   const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
   const [signupMethod, setSignupMethod] = useState<'phone' | 'email'>('phone');
@@ -78,7 +78,9 @@ export default function WelcomeScreen() {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showSignupConfirm, setShowSignupConfirm] = useState(false);
   const [isEmailSignupSubmitting, setIsEmailSignupSubmitting] = useState(false);
-
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
+  const [pendingVerifyPassword, setPendingVerifyPassword] = useState('');
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
   // ─── OTP Auth State ───────────────────────────────────────────────────────
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
@@ -245,7 +247,7 @@ export default function WelcomeScreen() {
 
   const handleCloseSheet = () => {
     Keyboard.dismiss();
-    if (['login_form', 'login_otp', 'signup_form', 'signup_otp'].includes(viewMode)) {
+    if (['login_form', 'login_otp', 'signup_form', 'signup_otp', 'email_verify_pending'].includes(viewMode)) {
       handleBackToSelection();
     } else {
       Animated.parallel([
@@ -308,7 +310,23 @@ export default function WelcomeScreen() {
       navigation.navigate('MainApp');
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
-      if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))
+      if (message === 'email_not_verified') {
+        Alert.alert(
+          'Email belum diverifikasi 📧',
+          'Klik link verifikasi di email kamu sebelum login. Belum dapat email?',
+          [
+            { text: 'Kirim Ulang', onPress: async () => {
+              try {
+                await AuthService.resendVerificationEmail(loginEmail.trim(), loginPassword);
+                Alert.alert('Terkirim!', `Link verifikasi dikirim ulang ke ${loginEmail.trim()}.`);
+              } catch (e: any) {
+                Alert.alert('Gagal', String(e?.message || 'Coba lagi nanti.'));
+              }
+            }},
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+      } else if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))
         Alert.alert('Login gagal', 'Email atau password salah.');
       else if (message.includes('auth/too-many-requests'))
         Alert.alert('Terlalu banyak percobaan', 'Coba lagi nanti atau reset password.');
@@ -399,7 +417,11 @@ export default function WelcomeScreen() {
     try {
       setIsEmailSignupSubmitting(true);
       await AuthService.registerWithEmail(signupEmailAddress.trim(), signupEmailPassword, signupEmailName.trim());
-      navigation.navigate('MainApp');
+      // Simpan untuk keperluan resend verifikasi
+      setPendingVerifyEmail(signupEmailAddress.trim());
+      setPendingVerifyPassword(signupEmailPassword);
+      // Arahkan ke halaman cek email — jangan langsung masuk app
+      animateTransition(() => setViewMode('email_verify_pending'));
     } catch (error: any) {
       const message = String(error?.message || 'Registrasi gagal.');
       if (message.includes('auth/email-already-in-use')) Alert.alert('Email sudah terdaftar', 'Silakan login atau gunakan email lain.');
@@ -407,6 +429,19 @@ export default function WelcomeScreen() {
       else Alert.alert('Registrasi gagal', message);
     } finally {
       setIsEmailSignupSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!pendingVerifyEmail || !pendingVerifyPassword) return;
+    try {
+      setIsResendingVerification(true);
+      await AuthService.resendVerificationEmail(pendingVerifyEmail, pendingVerifyPassword);
+      Alert.alert('Email terkirim! 📧', `Link verifikasi baru dikirim ke ${pendingVerifyEmail}.`);
+    } catch (error: any) {
+      Alert.alert('Gagal kirim ulang', String(error?.message || 'Coba lagi nanti.'));
+    } finally {
+      setIsResendingVerification(false);
     }
   };
 
@@ -714,6 +749,55 @@ export default function WelcomeScreen() {
                     isSubmitting={isAuthSubmitting}
                   />
                 }
+
+                {/* ══ EMAIL VERIFY PENDING ══ */}
+                {viewMode === 'email_verify_pending' && (
+                  <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                    <Text style={{ fontSize: 48, marginBottom: 16 }}>📧</Text>
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 8, textAlign: 'center' }}>
+                      Cek Email Kamu!
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22, marginBottom: 6 }}>
+                      Link verifikasi sudah dikirim ke
+                    </Text>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#B91C2F', textAlign: 'center', marginBottom: 20 }}>
+                      {pendingVerifyEmail}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 28 }}>
+                      Klik link di email tersebut untuk mengaktifkan akun kamu. Setelah klik link, kembali ke app dan login.
+                    </Text>
+
+                    {/* Tombol Login */}
+                    <TouchableOpacity
+                      style={[styles.primaryButton, { width: '100%', marginBottom: 12 }]}
+                      onPress={() => {
+                        setPendingVerifyEmail('');
+                        setPendingVerifyPassword('');
+                        setSignupEmailName('');
+                        setSignupEmailAddress('');
+                        setSignupEmailPassword('');
+                        setSignupEmailConfirm('');
+                        animateTransition(() => {
+                          setLoginMethod('email');
+                          setViewMode('login_form');
+                        });
+                      }}
+                    >
+                      <Text style={styles.primaryButtonText}>Sudah Verifikasi? Login</Text>
+                    </TouchableOpacity>
+
+                    {/* Tombol Kirim Ulang */}
+                    <TouchableOpacity
+                      style={[styles.signUpButton, { width: '100%' }]}
+                      onPress={handleResendVerification}
+                      disabled={isResendingVerification}
+                    >
+                      <Text style={[styles.signUpButtonText, isResendingVerification && { color: '#9CA3AF' }]}>
+                        {isResendingVerification ? 'Mengirim...' : 'Kirim Ulang Link Verifikasi'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
               </Animated.View>
             </ScrollView>

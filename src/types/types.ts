@@ -30,7 +30,10 @@ export interface UserProfile {
   
   // --- UPDATED ROLE ---
   // Menambahkan 'admin' dan 'member' agar logika "God Mode" jalan
-  role?: 'master' | 'trial' | 'admin' | 'member'; 
+  role?: 'master' | 'trial' | 'admin' | 'member';
+
+  // --- EMAIL VERIFICATION ---
+  emailVerified?: boolean;
 }
 
 export interface Transaction {

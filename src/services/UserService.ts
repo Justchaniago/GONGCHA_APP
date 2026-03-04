@@ -97,14 +97,13 @@ export const UserService = {
 
   // --- GENERATE QR PAYLOAD ---
   async getVoucherCheckoutPayload(voucher: UserVoucher) {
-    // Payload bisa diubah sesuai kebutuhan backend kasir
-    return JSON.stringify({
-      code: voucher.code,
-      userId: firebaseAuth.currentUser?.uid,
-      voucherId: voucher.id,
-      rewardId: voucher.rewardId,
-      expiresAt: voucher.expiresAt,
-    });
+    const userId = firebaseAuth.currentUser?.uid;
+    
+    if (!userId) throw new Error("User belum login");
+
+    // Kembalikan format string pendek yang sangat mudah dibaca kamera kasir!
+    // Format: VOUCHER:{uid_pelanggan}:{kode_voucher}
+    return `VOUCHER:${userId}:${voucher.code}`;
   },
 
   // --- MARK VOUCHER AS USED ---

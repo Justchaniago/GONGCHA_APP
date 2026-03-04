@@ -2,8 +2,14 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
+  updatePassword as firebaseUpdatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   updateProfile,
   signOut,
+  applyActionCode,
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { firebaseAuth, firestoreDb } from '../config/firebase';
@@ -69,34 +75,6 @@ export const AuthService = {
     return newProfile;
   },
 
-  // ─── LOGIN VIA EMAIL + PASSWORD (real email) ──────────────────────────────
-  async loginWithEmail(email: string, password: string): Promise<UserProfile> {
-    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-    const user = userCredential.user;
-
-    const profile = await UserService.getUserProfile();
-    if (profile) return profile;
-
-    // Buat profil default jika belum ada di Firestore
-    const newProfile: UserProfile = {
-      id: user.uid,
-      name: user.displayName || email.split('@')[0],
-      email: user.email || email,
-      phoneNumber: '',
-      currentPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      xpHistory: [],
-      vouchers: [],
-      role: 'member',
-    };
-
-    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
-    return newProfile;
-  },
-
   // ─── REGISTER VIA EMAIL + PASSWORD (real email) ───────────────────────────
   async registerWithEmail(
     email: string,
@@ -108,6 +86,12 @@ export const AuthService = {
     const user = userCredential.user;
 
     await updateProfile(user, { displayName: name });
+
+    // 📧 Kirim email verifikasi magic link setelah registrasi
+    await sendEmailVerification(user, {
+      url: `https://gongcha-id-pilot.firebaseapp.com/verified?email=${encodeURIComponent(email)}`,
+      handleCodeInApp: false,
+    });
 
     const newProfile: UserProfile = {
       id: user.uid,
@@ -122,15 +106,96 @@ export const AuthService = {
       xpHistory: [],
       vouchers: [],
       role: 'member',
+      emailVerified: false,
+    };
+
+    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
+
+    // Sign out immediately — user must verify email before using the app
+    await signOut(firebaseAuth);
+
+    return newProfile;
+  },
+
+  // ─── LOGIN VIA EMAIL + PASSWORD — blok jika belum verifikasi ─────────────
+  async loginWithEmail(email: string, password: string): Promise<UserProfile> {
+    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    const user = userCredential.user;
+
+    // Reload untuk mendapatkan status emailVerified terbaru dari Firebase
+    await user.reload();
+
+    if (!user.emailVerified) {
+      await signOut(firebaseAuth);
+      throw new Error('email_not_verified');
+    }
+
+    const profile = await UserService.getUserProfile();
+    if (profile) {
+      // Update emailVerified di Firestore jika belum ter-update
+      if (!(profile as any).emailVerified) {
+        await setDoc(doc(firestoreDb, 'users', user.uid), { emailVerified: true }, { merge: true });
+      }
+      return profile;
+    }
+
+    const newProfile: UserProfile = {
+      id: user.uid,
+      name: user.displayName || email.split('@')[0],
+      email: user.email || email,
+      phoneNumber: '',
+      currentPoints: 0,
+      lifetimePoints: 0,
+      tierXp: 0,
+      tier: 'Silver',
+      joinedDate: new Date().toISOString(),
+      xpHistory: [],
+      vouchers: [],
+      role: 'member',
+      emailVerified: true,
     };
 
     await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
     return newProfile;
   },
 
-  // ─── KIRIM EMAIL RESET PASSWORD ───────────────────────────────────────────
+  // ─── KIRIM ULANG EMAIL VERIFIKASI ─────────────────────────────────────────
+  async resendVerificationEmail(email: string, password: string): Promise<void> {
+    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    await sendEmailVerification(userCredential.user, {
+      url: `https://gongcha-id-pilot.firebaseapp.com/verified?email=${encodeURIComponent(email)}`,
+      handleCodeInApp: false,
+    });
+    await signOut(firebaseAuth);
+  },
+
+  // ─── KIRIM EMAIL RESET PASSWORD (Magic Link) ──────────────────────────────
   async sendPasswordReset(email: string): Promise<void> {
-    await sendPasswordResetEmail(firebaseAuth, email);
+    await sendPasswordResetEmail(firebaseAuth, email, {
+      url: `https://gongcha-id-pilot.firebaseapp.com/reset-done`,
+      handleCodeInApp: false,
+    });
+  },
+
+  // ─── KONFIRMASI RESET PASSWORD via oobCode (dari magic link) ─────────────
+  async confirmPasswordReset(oobCode: string, newPassword: string): Promise<void> {
+    await firebaseConfirmPasswordReset(firebaseAuth, oobCode, newPassword);
+  },
+
+  // ─── APPLY ACTION CODE (verifikasi email in-app) ─────────────────────────
+  async applyEmailVerificationCode(oobCode: string): Promise<void> {
+    await applyActionCode(firebaseAuth, oobCode);
+    await firebaseAuth.currentUser?.reload();
+  },
+
+  // ─── GANTI PASSWORD (untuk user yang sudah login) ─────────────────────────
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const user = firebaseAuth.currentUser;
+    if (!user || !user.email) throw new Error('Tidak ada user yang login.');
+
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    await firebaseUpdatePassword(user, newPassword);
   },
 
   // ─── LOGOUT ───────────────────────────────────────────────────────────────
