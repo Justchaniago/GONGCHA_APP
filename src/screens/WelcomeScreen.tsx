@@ -81,6 +81,7 @@ export default function WelcomeScreen() {
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
   const [pendingVerifyPassword, setPendingVerifyPassword] = useState('');
   const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [isPostEmailVerificationLogin, setIsPostEmailVerificationLogin] = useState(false);
   
   // ─── OTP Auth State ───────────────────────────────────────────────────────
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -126,13 +127,15 @@ export default function WelcomeScreen() {
   // ─── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-      // Jangan navigate ke MainApp jika user masih dalam signup process
-      if (user && !['signup_form', 'signup_otp', 'email_verify_pending'].includes(viewMode)) {
+      // Jangan navigate ke MainApp jika:
+      // 1. User masih dalam signup process
+      // 2. User sedang login setelah email verification (let handleEmailLogin handle it)
+      if (user && !['signup_form', 'signup_otp', 'email_verify_pending'].includes(viewMode) && !isPostEmailVerificationLogin) {
         navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
       }
     });
     return unsubscribe;
-  }, [navigation, viewMode]);
+  }, [navigation, viewMode, isPostEmailVerificationLogin]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -310,9 +313,25 @@ export default function WelcomeScreen() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) { Alert.alert('Email tidak valid', 'Masukkan format email yang benar.'); return; }
     try {
       setIsEmailLoginSubmitting(true);
+      // Check if this is post-email verification login
+      const isAfterVerification = pendingVerifyEmail === loginEmail.trim() && pendingVerifyEmail !== '';
+      
+      // Set flag to prevent onAuthStateChanged from also navigating
+      if (isAfterVerification) {
+        setIsPostEmailVerificationLogin(true);
+      }
+      
       await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
-      navigation.navigate('MainApp');
+      
+      // Explicitly navigate for post-verification login
+      // For regular email login, onAuthStateChanged will handle it
+      if (isAfterVerification) {
+        navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+        // Reset flag after navigation to prevent future issues
+        setIsPostEmailVerificationLogin(false);
+      }
     } catch (error: any) {
+      setIsPostEmailVerificationLogin(false);
       const message = String(error?.message || 'Login gagal.');
       if (message === 'email_not_verified') {
         Alert.alert(
