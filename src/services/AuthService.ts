@@ -87,11 +87,8 @@ export const AuthService = {
 
     await updateProfile(user, { displayName: name });
 
-    // 📧 Kirim email verifikasi magic link setelah registrasi
-    await sendEmailVerification(user, {
-      url: `https://gongcha-id-pilot.firebaseapp.com/verified?email=${encodeURIComponent(email)}`,
-      handleCodeInApp: false,
-    });
+    // 📧 Kirim email verifikasi setelah registrasi
+    await sendEmailVerification(user);
 
     const newProfile: UserProfile = {
       id: user.uid,
@@ -162,19 +159,13 @@ export const AuthService = {
   // ─── KIRIM ULANG EMAIL VERIFIKASI ─────────────────────────────────────────
   async resendVerificationEmail(email: string, password: string): Promise<void> {
     const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-    await sendEmailVerification(userCredential.user, {
-      url: `https://gongcha-id-pilot.firebaseapp.com/verified?email=${encodeURIComponent(email)}`,
-      handleCodeInApp: false,
-    });
+    await sendEmailVerification(userCredential.user);
     await signOut(firebaseAuth);
   },
 
   // ─── KIRIM EMAIL RESET PASSWORD (Magic Link) ──────────────────────────────
   async sendPasswordReset(email: string): Promise<void> {
-    await sendPasswordResetEmail(firebaseAuth, email, {
-      url: `https://gongcha-id-pilot.firebaseapp.com/reset-done`,
-      handleCodeInApp: false,
-    });
+    await sendPasswordResetEmail(firebaseAuth, email);
   },
 
   // ─── KONFIRMASI RESET PASSWORD via oobCode (dari magic link) ─────────────

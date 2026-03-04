@@ -468,10 +468,9 @@ export default function WelcomeScreen() {
           />
         </View>
 
-        <TouchableOpacity
+        <View
           style={[styles.gradientOverlay, { height: height * 0.5 }]}
-          activeOpacity={1}
-          onPress={Keyboard.dismiss}
+          pointerEvents="none"
         >
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
@@ -479,7 +478,7 @@ export default function WelcomeScreen() {
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
           />
-        </TouchableOpacity>
+        </View>
 
         {/* Get Started Button */}
         <Animated.View
@@ -513,8 +512,9 @@ export default function WelcomeScreen() {
               showsVerticalScrollIndicator={false}
               bounces={false}
               contentContainerStyle={styles.sheetScrollContent}
+              scrollEnabled={viewMode !== 'signup_form' || signupMethod === 'phone'}
             >
-              <Animated.View key={viewMode} style={{ opacity: contentOpacity }}>
+              <Animated.View style={{ opacity: contentOpacity }}>
 
                 {/* ══ LOGIN FORM ══ */}
                 {viewMode === 'login_form' && (
@@ -661,7 +661,16 @@ export default function WelcomeScreen() {
                           <TextInput style={styles.phoneInput} placeholder="Full name" placeholderTextColor="#9CA3AF" autoCapitalize="words" value={signupEmailName} onChangeText={setSignupEmailName} />
                         </View>
                         <View style={styles.textInputContainer}>
-                          <TextInput style={styles.phoneInput} placeholder="Email address" placeholderTextColor="#9CA3AF" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} value={signupEmailAddress} onChangeText={setSignupEmailAddress} />
+                          <TextInput
+                            style={styles.phoneInput}
+                            placeholder="Email address"
+                            placeholderTextColor="#9CA3AF"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            value={signupEmailAddress}
+                            onChangeText={setSignupEmailAddress}
+                          />
                         </View>
                         <View style={styles.textInputContainer}>
                           <TextInput
@@ -670,6 +679,8 @@ export default function WelcomeScreen() {
                             placeholderTextColor="#9CA3AF"
                             secureTextEntry={!showSignupPassword}
                             autoCapitalize="none"
+                            textContentType="newPassword"
+                            autoComplete="new-password"
                             value={signupEmailPassword}
                             onChangeText={setSignupEmailPassword}
                           />
@@ -684,6 +695,8 @@ export default function WelcomeScreen() {
                             placeholderTextColor="#9CA3AF"
                             secureTextEntry={!showSignupConfirm}
                             autoCapitalize="none"
+                            textContentType="newPassword"
+                            autoComplete="new-password"
                             value={signupEmailConfirm}
                             onChangeText={setSignupEmailConfirm}
                           />
