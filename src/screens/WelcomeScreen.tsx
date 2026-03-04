@@ -452,10 +452,11 @@ export default function WelcomeScreen() {
     
     try {
       setIsCreatingAccount(true);
-      // Set state BEFORE calling registerWithEmail to prevent auto-navigation
+      // Set ALL state SYNCHRONOUSLY before calling registerWithEmail
       setPendingVerifyEmail(newAccountEmail.trim());
       setPendingVerifyPassword(newAccountPassword);
-      animateTransition(() => setViewMode('email_verify_pending'));
+      // Set viewMode immediately (not via animateTransition) to prevent race condition
+      setViewMode('email_verify_pending');
       
       const defaultName = newAccountEmail.split('@')[0];
       await AuthService.registerWithEmail(newAccountEmail.trim(), newAccountPassword, defaultName);
@@ -464,7 +465,7 @@ export default function WelcomeScreen() {
       // Reset state on error
       setPendingVerifyEmail('');
       setPendingVerifyPassword('');
-      animateTransition(() => setViewMode('signup_form'));
+      setViewMode('signup_form');
       
       if (message.includes('auth/email-already-in-use')) Alert.alert('Email sudah terdaftar', 'Silakan login atau gunakan email lain.');
       else if (message.includes('auth/network-request-failed')) Alert.alert('Registrasi gagal', 'Cek koneksi internet kamu.');
