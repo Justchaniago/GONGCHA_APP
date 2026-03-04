@@ -126,10 +126,13 @@ export default function WelcomeScreen() {
   // ─── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-      if (user) navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+      // Jangan navigate ke MainApp jika user masih dalam signup process
+      if (user && !['signup_form', 'signup_otp', 'email_verify_pending'].includes(viewMode)) {
+        navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+      }
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, viewMode]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -412,17 +415,23 @@ export default function WelcomeScreen() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newAccountEmail.trim())) { Alert.alert('Email tidak valid', 'Masukkan format email yang benar.'); return; }
     if (newAccountPassword.length < 6) { Alert.alert('Password terlalu pendek', 'Password minimal 6 karakter.'); return; }
     if (newAccountPassword !== newAccountPasswordConfirm) { Alert.alert('Password tidak cocok', 'Konfirmasi password tidak sesuai.'); return; }
+    
     try {
       setIsCreatingAccount(true);
-      const defaultName = newAccountEmail.split('@')[0];
-      await AuthService.registerWithEmail(newAccountEmail.trim(), newAccountPassword, defaultName);
-      // Simpan untuk keperluan resend verifikasi
+      // Set state BEFORE calling registerWithEmail to prevent auto-navigation
       setPendingVerifyEmail(newAccountEmail.trim());
       setPendingVerifyPassword(newAccountPassword);
-      // Arahkan ke halaman cek email — jangan langsung masuk app
       animateTransition(() => setViewMode('email_verify_pending'));
+      
+      const defaultName = newAccountEmail.split('@')[0];
+      await AuthService.registerWithEmail(newAccountEmail.trim(), newAccountPassword, defaultName);
     } catch (error: any) {
       const message = String(error?.message || 'Registrasi gagal.');
+      // Reset state on error
+      setPendingVerifyEmail('');
+      setPendingVerifyPassword('');
+      animateTransition(() => setViewMode('signup_form'));
+      
       if (message.includes('auth/email-already-in-use')) Alert.alert('Email sudah terdaftar', 'Silakan login atau gunakan email lain.');
       else if (message.includes('auth/network-request-failed')) Alert.alert('Registrasi gagal', 'Cek koneksi internet kamu.');
       else Alert.alert('Registrasi gagal', message);

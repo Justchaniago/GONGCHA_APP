@@ -18,11 +18,13 @@ import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import StoreLocatorScreen from '../screens/StoreLocatorScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
+import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
   Login: { initialStep?: 'phone' | 'otp' };
   MainApp: undefined;
+  ProfileCompletion: undefined;
   StoreLocator: undefined;
   EditProfile: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
@@ -66,6 +68,7 @@ export default function AppNavigator() {
         // Kalau sudah login, hanya bisa akses area dalam
         <>
           <Stack.Screen name="MainApp" component={MainTabNavigator} />
+          <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} options={{ animationTypeForReplace: isAuthenticated ? 'pop' : 'pop' }} />
           <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_right' }} />
