@@ -91,7 +91,15 @@ export const AuthService = {
     // 📧 Kirim email verifikasi setelah registrasi
     await sendEmailVerification(user);
 
-    const newProfile: UserProfile = {
+    // ✨ TIDAK create Firestore doc di sini
+    // Doc akan dibuat saat first login SETELAH email verified
+    // Ini menghindari orphaned documents dari user yang tidak pernah verify
+
+    // Sign out immediately — user must verify email before using the app
+    await signOut(firebaseAuth);
+
+    // Return temporary profile object (tidak disimpan ke Firestore)
+    const tempProfile: UserProfile = {
       id: user.uid,
       name,
       email,
@@ -107,12 +115,7 @@ export const AuthService = {
       emailVerified: false,
     };
 
-    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
-
-    // Sign out immediately — user must verify email before using the app
-    await signOut(firebaseAuth);
-
-    return newProfile;
+    return tempProfile;
   },
 
   // ─── LOGIN VIA EMAIL + PASSWORD — blok jika belum verifikasi ─────────────
@@ -137,6 +140,8 @@ export const AuthService = {
       return profile;
     }
 
+    // ✨ FIRST LOGIN after email verification
+    // Create Firestore doc now with profileComplete: false
     const newProfile: UserProfile = {
       id: user.uid,
       name: user.displayName || email.split('@')[0],
@@ -151,6 +156,7 @@ export const AuthService = {
       vouchers: [],
       role: 'member',
       emailVerified: true,
+      profileComplete: false,  // Trigger ProfileCompletionScreen
     };
 
     await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
