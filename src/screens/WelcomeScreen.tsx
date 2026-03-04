@@ -131,12 +131,16 @@ export default function WelcomeScreen() {
       // Jangan navigate ke MainApp jika:
       // 1. User masih dalam signup process
       // 2. User sedang login setelah email verification (let handleEmailLogin handle it)
-      if (user && !['signup_form', 'signup_otp', 'email_verify_pending'].includes(viewMode) && !isPostEmailVerificationLogin) {
+      // 3. User sedang membuat akun email baru (tunggu sampai verification flow selesai)
+      if (user && 
+          !['signup_form', 'signup_otp', 'email_verify_pending'].includes(viewMode) && 
+          !isPostEmailVerificationLogin &&
+          !isCreatingAccount) {
         navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
       }
     });
     return unsubscribe;
-  }, [navigation, viewMode, isPostEmailVerificationLogin]);
+  }, [navigation, viewMode, isPostEmailVerificationLogin, isCreatingAccount]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
