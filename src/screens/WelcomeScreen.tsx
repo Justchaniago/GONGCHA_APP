@@ -70,17 +70,18 @@ export default function WelcomeScreen() {
   const [signupOtp, setSignupOtp] = useState(['', '', '', '']);
   const [signupResendTimer, setSignupResendTimer] = useState(30);
 
-  // ─── Email Signup State ───────────────────────────────────────────────────
-  const [signupEmailName, setSignupEmailName] = useState('');
-  const [signupEmailAddress, setSignupEmailAddress] = useState('');
-  const [signupEmailPassword, setSignupEmailPassword] = useState('');
-  const [signupEmailConfirm, setSignupEmailConfirm] = useState('');
-  const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [showSignupConfirm, setShowSignupConfirm] = useState(false);
-  const [isEmailSignupSubmitting, setIsEmailSignupSubmitting] = useState(false);
+  // ─── Email Signup State (FRESH REBUILD) ──────────────────────────────────
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountEmail, setNewAccountEmail] = useState('');
+  const [newAccountPassword, setNewAccountPassword] = useState('');
+  const [newAccountPasswordConfirm, setNewAccountPasswordConfirm] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showNewPasswordConfirm, setShowNewPasswordConfirm] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
   const [pendingVerifyPassword, setPendingVerifyPassword] = useState('');
   const [isResendingVerification, setIsResendingVerification] = useState(false);
+  
   // ─── OTP Auth State ───────────────────────────────────────────────────────
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
@@ -228,8 +229,8 @@ export default function WelcomeScreen() {
       setSignupOtp(['', '', '', '']); setSignupResendTimer(30);
       if (signupTimerRef.current) clearInterval(signupTimerRef.current);
       setLoginEmail(''); setLoginPassword('');
-      setSignupEmailName(''); setSignupEmailAddress('');
-      setSignupEmailPassword(''); setSignupEmailConfirm('');
+      setNewAccountName(''); setNewAccountEmail('');
+      setNewAccountPassword(''); setNewAccountPasswordConfirm('');
       setLoginMethod('phone'); setSignupMethod('phone');
 
       Animated.parallel([
@@ -409,17 +410,17 @@ export default function WelcomeScreen() {
 
   // ─── Email Signup ─────────────────────────────────────────────────────────
   const handleEmailSignup = async () => {
-    if (!signupEmailName.trim()) { Alert.alert('Nama diperlukan', 'Masukkan nama lengkap kamu.'); return; }
-    if (!signupEmailAddress.trim()) { Alert.alert('Email diperlukan', 'Masukkan alamat email kamu.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupEmailAddress.trim())) { Alert.alert('Email tidak valid', 'Masukkan format email yang benar.'); return; }
-    if (signupEmailPassword.length < 6) { Alert.alert('Password terlalu pendek', 'Password minimal 6 karakter.'); return; }
-    if (signupEmailPassword !== signupEmailConfirm) { Alert.alert('Password tidak cocok', 'Konfirmasi password tidak sesuai.'); return; }
+    if (!newAccountName.trim()) { Alert.alert('Nama diperlukan', 'Masukkan nama lengkap kamu.'); return; }
+    if (!newAccountEmail.trim()) { Alert.alert('Email diperlukan', 'Masukkan alamat email kamu.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newAccountEmail.trim())) { Alert.alert('Email tidak valid', 'Masukkan format email yang benar.'); return; }
+    if (newAccountPassword.length < 6) { Alert.alert('Password terlalu pendek', 'Password minimal 6 karakter.'); return; }
+    if (newAccountPassword !== newAccountPasswordConfirm) { Alert.alert('Password tidak cocok', 'Konfirmasi password tidak sesuai.'); return; }
     try {
-      setIsEmailSignupSubmitting(true);
-      await AuthService.registerWithEmail(signupEmailAddress.trim(), signupEmailPassword, signupEmailName.trim());
+      setIsCreatingAccount(true);
+      await AuthService.registerWithEmail(newAccountEmail.trim(), newAccountPassword, newAccountName.trim());
       // Simpan untuk keperluan resend verifikasi
-      setPendingVerifyEmail(signupEmailAddress.trim());
-      setPendingVerifyPassword(signupEmailPassword);
+      setPendingVerifyEmail(newAccountEmail.trim());
+      setPendingVerifyPassword(newAccountPassword);
       // Arahkan ke halaman cek email — jangan langsung masuk app
       animateTransition(() => setViewMode('email_verify_pending'));
     } catch (error: any) {
@@ -428,7 +429,7 @@ export default function WelcomeScreen() {
       else if (message.includes('auth/network-request-failed')) Alert.alert('Registrasi gagal', 'Cek koneksi internet kamu.');
       else Alert.alert('Registrasi gagal', message);
     } finally {
-      setIsEmailSignupSubmitting(false);
+      setIsCreatingAccount(false);
     }
   };
 
@@ -447,38 +448,39 @@ export default function WelcomeScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={styles.container}>
+    <View style={styles.container}>
 
-        {/* Background Image */}
-        <View style={{ flex: 1, position: 'absolute', width: '100%', height: '100%' }}>
+      {/* Background Image - Wrapped with TouchableWithoutFeedback for keyboard dismiss */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={{ flex: 1, position: 'absolute', width: '100%', height: '100%', zIndex: 0 }}>
           <Image
             source={require('../../assets/images/welcome1.webp')}
             style={{ flex: 1, width: undefined, height: undefined }}
             resizeMode="cover"
           />
         </View>
+      </TouchableWithoutFeedback>
 
-        {/* Logo */}
-        <View style={[styles.logoSection, { top: dynamicLogoTop }]}>
-          <Image
-            source={require('../../assets/images/logo1.webp')}
-            style={[styles.logoImage, { width: logoSize, height: logoSize }]}
-            resizeMode="contain"
-          />
-        </View>
+      {/* Logo */}
+      <View style={[styles.logoSection, { top: dynamicLogoTop, zIndex: 10 }]}>
+        <Image
+          source={require('../../assets/images/logo1.webp')}
+          style={[styles.logoImage, { width: logoSize, height: logoSize }]}
+          resizeMode="contain"
+        />
+      </View>
 
-        <View
-          style={[styles.gradientOverlay, { height: height * 0.5 }]}
+      <View
+        style={[styles.gradientOverlay, { height: height * 0.5, zIndex: 5 }]}
+        pointerEvents="none"
+      >
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+          locations={[0, 0.4, 1]}
+          style={StyleSheet.absoluteFill}
           pointerEvents="none"
-        >
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
-            locations={[0, 0.4, 1]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
-        </View>
+        />
+      </View>
 
         {/* Get Started Button */}
         <Animated.View
@@ -512,7 +514,7 @@ export default function WelcomeScreen() {
               showsVerticalScrollIndicator={false}
               bounces={false}
               contentContainerStyle={styles.sheetScrollContent}
-              scrollEnabled={viewMode !== 'signup_form' || signupMethod === 'phone'}
+              scrollEnabled={true}
             >
               <Animated.View style={{ opacity: contentOpacity }}>
 
@@ -657,9 +659,20 @@ export default function WelcomeScreen() {
                       </>
                     ) : (
                       <>
+                        <View style={{ marginTop: 20 }} />
+                        
+                        {/* Full Name Field */}
                         <View style={styles.textInputContainer}>
-                          <TextInput style={styles.phoneInput} placeholder="Full name" placeholderTextColor="#9CA3AF" autoCapitalize="words" value={signupEmailName} onChangeText={setSignupEmailName} />
+                          <TextInput
+                            style={styles.phoneInput}
+                            placeholder="Full name"
+                            placeholderTextColor="#9CA3AF"
+                            value={newAccountName}
+                            onChangeText={setNewAccountName}
+                          />
                         </View>
+                        
+                        {/* Email Field */}
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={styles.phoneInput}
@@ -667,50 +680,59 @@ export default function WelcomeScreen() {
                             placeholderTextColor="#9CA3AF"
                             keyboardType="email-address"
                             autoCapitalize="none"
-                            autoCorrect={false}
-                            value={signupEmailAddress}
-                            onChangeText={setSignupEmailAddress}
+                            value={newAccountEmail}
+                            onChangeText={setNewAccountEmail}
                           />
                         </View>
+                        
+                        {/* Password Field */}
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={[styles.phoneInput, { flex: 1 }]}
                             placeholder="Password (min. 6 characters)"
                             placeholderTextColor="#9CA3AF"
-                            secureTextEntry={!showSignupPassword}
+                            secureTextEntry={!showNewPassword}
                             autoCapitalize="none"
-                            textContentType="newPassword"
-                            autoComplete="new-password"
-                            value={signupEmailPassword}
-                            onChangeText={setSignupEmailPassword}
+                            value={newAccountPassword}
+                            onChangeText={setNewAccountPassword}
                           />
-                          <TouchableOpacity onPress={() => setShowSignupPassword(v => !v)} style={{ paddingHorizontal: 14 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            {showSignupPassword ? <EyeOff size={18} color="#9CA3AF" /> : <Eye size={18} color="#9CA3AF" />}
+                          <TouchableOpacity 
+                            onPress={() => setShowNewPassword(v => !v)} 
+                            style={{ paddingHorizontal: 14 }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            {showNewPassword ? <EyeOff size={18} color="#9CA3AF" /> : <Eye size={18} color="#9CA3AF" />}
                           </TouchableOpacity>
                         </View>
+                        
+                        {/* Confirm Password Field */}
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={[styles.phoneInput, { flex: 1 }]}
                             placeholder="Confirm password"
                             placeholderTextColor="#9CA3AF"
-                            secureTextEntry={!showSignupConfirm}
+                            secureTextEntry={!showNewPasswordConfirm}
                             autoCapitalize="none"
-                            textContentType="newPassword"
-                            autoComplete="new-password"
-                            value={signupEmailConfirm}
-                            onChangeText={setSignupEmailConfirm}
+                            value={newAccountPasswordConfirm}
+                            onChangeText={setNewAccountPasswordConfirm}
                           />
-                          <TouchableOpacity onPress={() => setShowSignupConfirm(v => !v)} style={{ paddingHorizontal: 14 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            {showSignupConfirm ? <EyeOff size={18} color="#9CA3AF" /> : <Eye size={18} color="#9CA3AF" />}
+                          <TouchableOpacity 
+                            onPress={() => setShowNewPasswordConfirm(v => !v)} 
+                            style={{ paddingHorizontal: 14 }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            {showNewPasswordConfirm ? <EyeOff size={18} color="#9CA3AF" /> : <Eye size={18} color="#9CA3AF" />}
                           </TouchableOpacity>
                         </View>
+                        
+                        {/* Submit Button */}
                         <TouchableOpacity
-                          style={[styles.primaryButton, isEmailSignupSubmitting && { backgroundColor: '#E5E7EB' }]}
+                          style={[styles.primaryButton, isCreatingAccount && { backgroundColor: '#E5E7EB' }]}
                           onPress={handleEmailSignup}
-                          disabled={isEmailSignupSubmitting}
+                          disabled={isCreatingAccount}
                         >
-                          <Text style={[styles.primaryButtonText, isEmailSignupSubmitting && { color: '#9CA3AF' }]}>
-                            {isEmailSignupSubmitting ? 'Creating account...' : 'Create Account'}
+                          <Text style={[styles.primaryButtonText, isCreatingAccount && { color: '#9CA3AF' }]}>
+                            {isCreatingAccount ? 'Creating account...' : 'Create Account'}
                           </Text>
                         </TouchableOpacity>
                       </>
@@ -786,10 +808,10 @@ export default function WelcomeScreen() {
                       onPress={() => {
                         setPendingVerifyEmail('');
                         setPendingVerifyPassword('');
-                        setSignupEmailName('');
-                        setSignupEmailAddress('');
-                        setSignupEmailPassword('');
-                        setSignupEmailConfirm('');
+                        setNewAccountName('');
+                        setNewAccountEmail('');
+                        setNewAccountPassword('');
+                        setNewAccountPasswordConfirm('');
                         animateTransition(() => {
                           setLoginMethod('email');
                           setViewMode('login_form');
@@ -818,7 +840,6 @@ export default function WelcomeScreen() {
         </Animated.View>
 
       </View>
-    </TouchableWithoutFeedback>
   );
 }
 
