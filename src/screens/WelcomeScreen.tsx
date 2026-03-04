@@ -125,22 +125,40 @@ export default function WelcomeScreen() {
     return -clamp(rawShift * WELCOME_KEYBOARD_SHIFT_MULTIPLIER, minShift, maxShift);
   };
 
+  // ─── Navigation Guard Ref ─────────────────────────────────────────────────
+  // Use ref to access current state inside onAuthStateChanged callback without dependency issues
+  const navGuardRef = useRef({
+    viewMode,
+    isCreatingAccount,
+    isPostEmailVerificationLogin,
+  });
+
+  useEffect(() => {
+    navGuardRef.current = {
+      viewMode,
+      isCreatingAccount,
+      isPostEmailVerificationLogin,
+    };
+  }, [viewMode, isCreatingAccount, isPostEmailVerificationLogin]);
+
   // ─── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      const current = navGuardRef.current;
+      
       // Jangan navigate ke MainApp jika:
-      // 1. User masih dalam signup process
+      // 1. User masih dalam signup process (signup_form, signup_otp, email_verify_pending)
       // 2. User sedang login setelah email verification (let handleEmailLogin handle it)
       // 3. User sedang membuat akun email baru (tunggu sampai verification flow selesai)
       if (user && 
-          !['signup_form', 'signup_otp', 'email_verify_pending'].includes(viewMode) && 
-          !isPostEmailVerificationLogin &&
-          !isCreatingAccount) {
+          !['signup_form', 'signup_otp', 'email_verify_pending'].includes(current.viewMode) && 
+          !current.isPostEmailVerificationLogin &&
+          !current.isCreatingAccount) {
         navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
       }
     });
     return unsubscribe;
-  }, [navigation, viewMode, isPostEmailVerificationLogin, isCreatingAccount]);
+  }, [navigation]); // Only depend on navigation, internal state is accessed via ref
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
