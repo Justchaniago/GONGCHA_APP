@@ -72,7 +72,7 @@ export default function HomeScreen() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const bellRef = useRef<View>(null);
-  const [bellLayout, setBellLayout] = useState({ x: 0, y: 0, width: 0, height: 0, pageY: 0 });
+  const [bellLayout, setBellLayout] = useState({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
   
   const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
@@ -128,7 +128,7 @@ export default function HomeScreen() {
 
   const openNotifications = () => {
     bellRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      setBellLayout({ x, y, width, height, pageY });
+      setBellLayout({ x, y, width, height, pageX, pageY });
       setShowNotifications(true);
       
       Animated.parallel([
@@ -237,7 +237,14 @@ export default function HomeScreen() {
                 </View>
               </View>
               <View style={styles.headerRight}>
-                <View ref={bellRef} style={{ opacity: showNotifications ? 0 : 1 }}>
+                <View 
+                  ref={bellRef} 
+                  style={{
+                    width: showNotifications ? 0 : headerIconSize,
+                    height: headerIconSize,
+                    overflow: 'hidden'
+                  }}
+                >
                   <TouchableOpacity
                     style={[
                       styles.notificationBtn, 
@@ -412,7 +419,16 @@ export default function HomeScreen() {
                 <Text style={[styles.markReadText, { color: colors.brand.primary }]}>Mark all as read</Text>
              </TouchableOpacity>
           </Animated.View>
-          <Animated.View style={[styles.notificationBtn, { position: 'absolute', top: bellLayout.pageY > 0 ? bellLayout.pageY : (insets.top + 6 + 10), right: 20 + 42 + 10, width: headerIconSize, height: headerIconSize, backgroundColor: buttonBackgroundColor, zIndex: 9999, elevation: 10 }]}>
+          <Animated.View style={[styles.notificationBtn, { 
+            position: 'absolute', 
+            top: bellLayout.pageY,
+            right: width - bellLayout.pageX - headerIconSize,
+            width: headerIconSize, 
+            height: headerIconSize, 
+            backgroundColor: buttonBackgroundColor, 
+            zIndex: 9999, 
+            elevation: 10 
+          }]}>
              <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={0.8} onPress={closeNotifications}>
                 <Animated.View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', transform: [{ rotate: iconRotation }, { scale: iconScale }] }]}>
                    <Animated.View style={{ opacity: bellOpacity, position: 'absolute' }}><Bell size={22} color={colors.brand.primary} strokeWidth={2.5} /></Animated.View>
@@ -434,7 +450,7 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, position: 'relative' },
   avatarWrap: { position: 'relative', marginRight: 12 },
   avatarStatusDot: { position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, backgroundColor: '#4CAF50', borderRadius: 7, borderWidth: 2, borderColor: '#FFF' },
   greeting: { fontSize: 13, fontWeight: '500' },
