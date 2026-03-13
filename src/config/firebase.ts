@@ -16,7 +16,7 @@ const firebaseConfig = {
   apiKey: 'AIzaSyCeSYZdPgERBcf0aKgd0F7wcATkfRt6_iY',
   authDomain: 'gongcha-app-4691f.firebaseapp.com',
   projectId: 'gongcha-app-4691f',
-  storageBucket: 'gongcha-app-4691f.firebasestorage.app',
+  storageBucket: 'gongcha-app-4691f.appspot.com',
   messagingSenderId: '808600152798',
   appId: '1:808600152798:web:97bbdbf4beafc20d27b04f',
   measurementId: 'G-N3HRB86L4N',
@@ -43,7 +43,7 @@ if (Platform.OS !== 'web') {
 export const firebaseAuth = auth;
 
 // 3. Init Service Lain
-export const firestoreDb = getFirestore(firebaseApp);
+export const firestoreDb = getFirestore(firebaseApp, 'gongcha-ver001');
 export const firebaseStorage = getStorage(firebaseApp);
 
 // 4. Analytics
