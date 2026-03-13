@@ -1,259 +1,164 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Animated,
-  Easing,
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  StyleSheet,
-  FlatList,
-  Alert,
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  useWindowDimensions,
+  View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
+  ActivityIndicator, Alert, RefreshControl, useWindowDimensions, Modal, Pressable, Animated
 } from 'react-native';
+import { Trophy, Gift, Star, Ticket, X, ChevronRight } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { Star, Ticket, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
+
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { firestoreDb as db } from '../config/firebase';
+
+import { useMember } from '../context/MemberContext';
+import { UserService } from '../services/UserService';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
-import { UserService } from '../services/UserService';
-import { CatalogService } from '../services/CatalogService';
-import { RewardItem, UserVoucher } from '../types/types';
+import { UserVoucher } from '../types/types';
 
-// 🔥 FASE 2: Import Skeleton dan Context
-import { useMember } from '../context/MemberContext';
-import SkeletonLoader from '../components/SkeletonLoader';
+// --- TYPES ---
+interface RewardItem {
+  id: string;
+  title: string;
+  description: string;
+  pointsCost: number;
+  imageUrl?: string;
+  category?: string;
+  isAvailable?: boolean;
+  isRedeemable?: boolean;
+  updatedAt?: any;
+}
 
 type RewardsTab = 'catalog' | 'vouchers';
+
+const CACHE_KEY = '@gongcha_rewards_data';
+const CACHE_SYNC_TIME_KEY = '@gongcha_rewards_sync_time';
 
 export default function RewardsScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { member } = useMember(); // refreshMember dihapus karena update otomatis via snapshot
   
-  // 🔥 FASE 2: Gunakan CCTV Realtime dari MemberContext
-  const { member, loading: isMemberLoading } = useMember();
-  
-  const [catalog, setCatalog] = useState<RewardItem[]>([]);
-  const [availableVouchers, setAvailableVouchers] = useState<RewardItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<RewardsTab>('catalog');
+  const [rewards, setRewards] = useState<RewardItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [redeemingId, setRedeemingId] = useState<string | null>(null);
+
+  // Modal State
   const [selectedVoucher, setSelectedVoucher] = useState<UserVoucher | null>(null);
   const [voucherQrPayload, setVoucherQrPayload] = useState<string>('');
-  const [useVoucherLoading, setUseVoucherLoading] = useState(false);
   const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
-  const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null);
-  const rewardModalScale = useRef(new Animated.Value(0)).current;
-  const rewardModalOpacity = useRef(new Animated.Value(0)).current;
-  const isCompact = width < 360;
-  const horizontalPadding = isCompact ? 16 : 20;
+  const [useVoucherLoading, setUseVoucherLoading] = useState(false);
 
-  const fetchData = async () => {
+  // 🚀 FUNGSI DELTA SYNC UNTUK KATALOG
+
+  const fetchRewardsData = useCallback(async (forceFull = false) => {
     try {
-      const [catalogData, vouchersData] = await Promise.all([
-        CatalogService.getCatalog(),
-        CatalogService.getAvailableVouchers()
-      ]);
-      setCatalog(catalogData);
-      setAvailableVouchers(vouchersData);
+      const cachedDataStr = await AsyncStorage.getItem(CACHE_KEY);
+      let localRewards: RewardItem[] = cachedDataStr ? JSON.parse(cachedDataStr) : [];
+      const lastSyncStr = await AsyncStorage.getItem(CACHE_SYNC_TIME_KEY);
+      const lastSyncTime = forceFull ? 0 : (lastSyncStr ? parseInt(lastSyncStr, 10) : 0);
+      const lastSyncDate = new Date(lastSyncTime);
+
+      const q = query(collection(db, 'rewards_catalog'), where('updatedAt', '>', lastSyncDate));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const updatedItems: RewardItem[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RewardItem));
+        const localMap = new Map(localRewards.map(r => [r.id, r]));
+        updatedItems.forEach(item => localMap.set(item.id, item));
+        localRewards = Array.from(localMap.values());
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(localRewards));
+      }
+
+      await AsyncStorage.setItem(CACHE_SYNC_TIME_KEY, Date.now().toString());
+      // Filter: hanya tampilkan isRedeemable true di katalog
+      const activeRewards = localRewards
+        .filter(r => r.isAvailable !== false && r.isRedeemable !== false)
+        .sort((a, b) => a.pointsCost - b.pointsCost);
+      setRewards(activeRewards);
     } catch (error) {
-      console.error(error);
+      console.error('Error Sync Rewards:', error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchRewardsData(true);
+  }, [fetchRewardsData]);
+
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    fetchRewardsData(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Real-time listener for available vouchers
-  useEffect(() => {
-    const unsubscribe = CatalogService.onVouchersChange((vouchers) => {
-      setAvailableVouchers(vouchers);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleRedeem = (reward: RewardItem) => {
-    if (!member) return;
-
-    if (member.points < reward.pointsCost) {
-      Alert.alert('Poin Kurang', `Kamu butuh ${reward.pointsCost - member.points} poin lagi!`);
+  // --- LOGIKA REDEEM ---
+  const handleRedeem = async (reward: RewardItem) => {
+    if ((member?.points ?? 0) < reward.pointsCost) {
+      Alert.alert('Poin Kurang', 'Kamu butuh lebih banyak poin untuk menukar reward ini.');
       return;
     }
 
-    Alert.alert('Konfirmasi Redeem', `Tukar ${reward.pointsCost} poin untuk "${reward.title}"?`, [
+    Alert.alert('Tukar Reward?', `Gunakan ${reward.pointsCost} poin untuk "${reward.title}"?`, [
       { text: 'Batal', style: 'cancel' },
       {
-        text: 'Tukar Sekarang',
+        text: 'Tukar',
         onPress: async () => {
+          setRedeemingId(reward.id);
           try {
-            setRedeemingId(reward.id);
             await UserService.redeemVoucher(reward);
-            // Saraf MemberContext akan otomatis mendeteksi voucher baru & poin berkurang via Firestore Listener
-            Alert.alert('Berhasil!', 'Voucher berhasil ditambahkan ke akunmu.');
-          } catch (error: any) {
-            Alert.alert('Gagal', error?.message || 'Terjadi kesalahan saat redeem.');
+            Alert.alert('Berhasil!', 'Voucher telah ditambahkan ke My Vouchers.');
+          } catch (error) {
+            Alert.alert('Gagal', 'Terjadi kesalahan saat menukar poin.');
           } finally {
             setRedeemingId(null);
-            if (selectedReward) closeRewardDetail();
           }
-        },
-      },
+        }
+      }
     ]);
   };
 
-  const getVoucherStatus = (voucher: UserVoucher): { label: string; color: string; bg: string } => {
-    if (voucher.isUsed) {
-      return { label: 'Used', color: '#6B7280', bg: '#E5E7EB' };
-    }
-
-    const isExpired = new Date(voucher.expiresAt).getTime() < Date.now();
-    if (isExpired) {
-      return { label: 'Expired', color: '#991B1B', bg: '#FEE2E2' };
-    }
-
-    return { label: 'Active', color: '#166534', bg: '#DCFCE7' };
-  };
-
-  const formatDate = (isoDate: string) => {
-    const date = new Date(isoDate);
-    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
+  // --- LOGIKA PAKAI VOUCHER ---
   const handleUseVoucher = async (voucher: UserVoucher) => {
-    const status = getVoucherStatus(voucher);
-    if (status.label !== 'Active') {
-      Alert.alert('Voucher tidak bisa digunakan', `Status voucher saat ini: ${status.label}.`);
-      return;
-    }
-
+    if (voucher.isUsed) return;
     try {
       setUseVoucherLoading(true);
-      setSelectedVoucher(voucher);
-      // Generate QR payload
       const payload = await UserService.getVoucherCheckoutPayload(voucher);
       setVoucherQrPayload(payload);
+      setSelectedVoucher(voucher);
       setIsVoucherModalVisible(true);
-    } catch (error: any) {
-      Alert.alert('Gagal', error?.message || 'Tidak dapat menyiapkan voucher QR.');
+    } catch (error) {
+      Alert.alert('Error', 'Gagal memproses voucher.');
     } finally {
       setUseVoucherLoading(false);
     }
   };
 
-  const handleMarkVoucherUsed = async () => {
-    if (!selectedVoucher) return;
-
-    try {
-      setUseVoucherLoading(true);
-      // Fallback manual mark as used
-      await UserService.markVoucherUsed(selectedVoucher.id);
-      setIsVoucherModalVisible(false);
-      setSelectedVoucher(null);
-      setVoucherQrPayload('');
-      Alert.alert('Voucher Used', 'Voucher sudah ditandai sebagai digunakan.');
-    } catch (error: any) {
-      Alert.alert('Gagal', error?.message || 'Tidak dapat mengubah status voucher.');
-    } finally {
-      setUseVoucherLoading(false);
-    }
+  // --- RENDER HELPERS ---
+  const getVoucherStatus = (voucher: UserVoucher) => {
+    if (voucher.isUsed) return { label: 'Used', color: '#6B7280', bg: '#E5E7EB' };
+    // Tambahkan fallback agar tidak error jika expiresAt undefined/null
+    const expDate = new Date(voucher.expiresAt || 0).getTime();
+    const isExpired = expDate < Date.now();
+    return isExpired ? { label: 'Expired', color: '#991B1B', bg: '#FEE2E2' } : { label: 'Active', color: '#166534', bg: '#DCFCE7' };
   };
-
-  const openRewardDetail = (reward: RewardItem) => {
-    setSelectedReward(reward);
-    Animated.parallel([
-      Animated.spring(rewardModalScale, {
-        toValue: 1,
-        friction: 6,
-        tension: 52,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rewardModalOpacity, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const closeRewardDetail = () => {
-    Animated.parallel([
-      Animated.spring(rewardModalScale, {
-        toValue: 0,
-        friction: 8,
-        tension: 90,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rewardModalOpacity, {
-        toValue: 0,
-        duration: 160,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start(() => setSelectedReward(null));
-  };
-
-  // Helper: is voucher available to use
-  const isVoucherAvailable = (voucher: UserVoucher) => {
-    const isUsed = voucher.isUsed;
-    const isExpired = new Date(voucher.expiresAt).getTime() < Date.now();
-    return !isUsed && !isExpired;
-  };
-
-  // Helper: is voucher expiring soon (within 3 days)
-  const isExpiringSoon = (voucher: UserVoucher) => {
-    const now = Date.now();
-    const exp = new Date(voucher.expiresAt).getTime();
-    return !voucher.isUsed && exp > now && exp - now < 3 * 24 * 60 * 60 * 1000;
-  };
-
-  // Sort vouchers: expiring soonest (active), then expired, then used
-  const sortedVouchers = (member?.vouchers || []).slice().sort((a, b) => {
-    // Used always last
-    if (a.isUsed && !b.isUsed) return 1;
-    if (!a.isUsed && b.isUsed) return -1;
-    // Expired after active
-    const aExpired = new Date(a.expiresAt).getTime() < Date.now();
-    const bExpired = new Date(b.expiresAt).getTime() < Date.now();
-    if (aExpired && !bExpired) return 1;
-    if (!aExpired && bExpired) return -1;
-    // Among active, expiring soonest first
-    return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
-  });
-
-  // Badge: only available vouchers
-  const availableVoucherCount = (member?.vouchers || []).filter(isVoucherAvailable).length;
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>{activeTab === 'catalog' ? 'Rewards Catalog' : 'My Vouchers'}</Text>
-      <Text style={styles.headerSubtitle}>
-        {activeTab === 'catalog' ? 'Treat yourself with your points' : 'Track and use your redeemed vouchers'}
-      </Text>
-
+      <Text style={styles.headerTitle}>{activeTab === 'catalog' ? 'Redeem Catalog' : 'My Vouchers'}</Text>
+      
       <LinearGradient colors={['#2A1F1F', '#4A3B32']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
         <View>
           <Text style={styles.balanceLabel}>Your Points Balance</Text>
-          {/* 🔥 SKELETON UNTUK POIN WALLET */}
-          {isMemberLoading ? (
-            <SkeletonLoader width={100} height={35} style={{ marginTop: 4, backgroundColor: 'rgba(255,255,255,0.2)' }} />
-          ) : (
-            <Text style={styles.balanceValue}>{member?.points.toLocaleString() || '0'}</Text>
-          )}
+          <Text style={styles.balanceValue}>{member?.points?.toLocaleString('id-ID') ?? 0}</Text>
         </View>
-        <View style={styles.iconCircle}>
-          <Star size={24} color="#D4A853" fill="#D4A853" />
-        </View>
+        <Star size={24} color="#D4A853" fill="#D4A853" />
       </LinearGradient>
 
       <View style={styles.tabs}>
@@ -262,277 +167,88 @@ export default function RewardsScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tab, activeTab === 'vouchers' && styles.activeTab]} onPress={() => setActiveTab('vouchers')}>
           <Text style={activeTab === 'vouchers' ? styles.activeTabText : styles.tabText}>
-            My Vouchers
-            {availableVoucherCount > 0 && (
-              <Text style={{ color: '#B91C2F', fontWeight: 'bold' }}> ({availableVoucherCount})</Text>
-            )}
+            My Vouchers {(member?.vouchers?.filter(v => !v.isUsed).length ?? 0) > 0 && `(${member?.vouchers?.filter(v => !v.isUsed).length})`}
           </Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  // 🔥 SKELETON UNTUK KATALOG REWARD
-  const renderCatalogSkeleton = () => (
-    <View style={styles.card}>
-      <View style={[styles.imageWrap, { backgroundColor: '#F3E9DC' }]}>
-        <SkeletonLoader width="100%" height="100%" borderRadius={0} />
-      </View>
-      <View style={styles.content}>
-        <SkeletonLoader width="80%" height={14} style={{ marginBottom: 4 }} />
-        <SkeletonLoader width="100%" height={10} style={{ marginBottom: 4 }} />
-        <SkeletonLoader width="60%" height={10} style={{ marginBottom: 12 }} />
-      </View>
-      <View style={{ marginHorizontal: 12, marginBottom: 12 }}>
-        <SkeletonLoader width="100%" height={32} borderRadius={12} />
-      </View>
-    </View>
-  );
-
-  const renderItem = ({ item }: { item: RewardItem | any }) => {
-    // Render skeleton jika item berupa number
-    if (typeof item === 'number') return renderCatalogSkeleton();
-
-    const reward = item as RewardItem;
-    const isAffordable = (member?.points || 0) >= reward.pointsCost;
-    const isProcessing = redeemingId === reward.id;
-
+  const renderRewardItem = ({ item }: { item: RewardItem }) => {
+    const canAfford = (member?.points ?? 0) >= item.pointsCost;
     return (
-      <View style={styles.card}>
-        <TouchableOpacity style={styles.cardTapArea} activeOpacity={0.8} onPress={() => openRewardDetail(reward)}>
-          <View style={styles.imageWrap}>
-            <Image source={reward.image} style={styles.image} resizeMode="contain" />
-            <View style={styles.costBadge}>
-              <Text style={styles.costText}>{reward.pointsCost} Pts</Text>
-            </View>
+      <View style={styles.rewardCard}>
+        <View style={styles.imageContainer}>
+          {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.rewardImage} /> : <View style={styles.placeholderImage}><Gift size={32} color="#8C7B75" /></View>}
+          <View style={styles.categoryBadge}><Text style={styles.categoryText}>{item.category || 'Beverage'}</Text></View>
+        </View>
+        <View style={styles.rewardInfo}>
+          <Text style={styles.rewardTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.rewardDesc} numberOfLines={2}>{item.description}</Text>
+          <View style={styles.priceRow}>
+            <View style={styles.pointsBadge}><Star size={12} color="#B91C2F" fill="#B91C2F" /><Text style={styles.pointsText}>{item.pointsCost} Pts</Text></View>
+            <TouchableOpacity style={[styles.redeemBtn, !canAfford && styles.disabledBtn]} onPress={() => handleRedeem(item)} disabled={redeemingId === item.id || !canAfford}>
+              {redeemingId === item.id ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.redeemBtnText}>{canAfford ? 'Redeem' : 'Insufficient'}</Text>}
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.content}>
-            <Text style={styles.title} numberOfLines={1}>
-              {reward.title}
-            </Text>
-            <Text style={styles.desc} numberOfLines={2}>
-              {reward.description}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.cardRedeemButton, !isAffordable && styles.buttonDisabled, isProcessing && styles.buttonProcessing]}
-          disabled={!isAffordable || isProcessing}
-          onPress={() => handleRedeem(reward)}
-        >
-          {isProcessing ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>{isAffordable ? 'Redeem' : 'Not Enough Pts'}</Text>
-          )}
-        </TouchableOpacity>
+        </View>
       </View>
     );
   };
 
-  // 🔥 SKELETON UNTUK LIST VOUCHER
-  const renderVoucherSkeleton = () => (
-    <View style={styles.voucherCard}>
-      <View style={styles.voucherTopRow}>
-        <SkeletonLoader width="50%" height={16} />
-        <SkeletonLoader width="20%" height={16} borderRadius={12} />
-      </View>
-      <SkeletonLoader width="40%" height={20} style={{ marginTop: 10 }} />
-      <View style={{ marginTop: 8 }}>
-        <SkeletonLoader width="60%" height={11} style={{ marginBottom: 4 }} />
-        <SkeletonLoader width="55%" height={11} />
-      </View>
-      <SkeletonLoader width="100%" height={36} borderRadius={12} style={{ marginTop: 10 }} />
-    </View>
-  );
-
-  const renderVoucherItem = ({ item }: { item: UserVoucher | any }) => {
-    // Render skeleton jika item berupa number
-    if (typeof item === 'number') return renderVoucherSkeleton();
-
-    const voucher = item as UserVoucher;
-    const status = getVoucherStatus(voucher);
-    const canUseVoucher = status.label === 'Active';
-    const expiringSoon = isExpiringSoon(voucher);
-
+  const renderVoucherItem = ({ item }: { item: UserVoucher }) => {
+    const status = getVoucherStatus(item);
     return (
-      <View style={styles.voucherCard}>
-        <View style={styles.voucherTopRow}>
-          <View style={styles.voucherTitleWrap}>
-            <Ticket size={16} color="#B91C2F" />
-            <Text style={styles.voucherTitle}>{voucher.title}</Text>
-          </View>
-          <View style={[styles.voucherStatusBadge, { backgroundColor: status.bg }]}> 
-            <Text style={[styles.voucherStatusText, { color: status.color }]}>{status.label}</Text>
-          </View>
+      <TouchableOpacity style={styles.voucherCard} onPress={() => handleUseVoucher(item)} disabled={item.isUsed}>
+        <View style={styles.voucherTop}>
+          <View style={styles.voucherTitleRow}><Ticket size={18} color="#B91C2F" /><Text style={styles.voucherTitle}>{item.title}</Text></View>
+          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}><Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text></View>
         </View>
-
-        <Text style={styles.voucherCode}>{voucher.code}</Text>
-
-        <View style={styles.voucherMetaRow}>
-          <Text style={styles.voucherMetaLabel}>Redeemed: {formatDate(voucher.redeemedAt)}</Text>
-          <Text style={styles.voucherMetaLabel}>Expire: {formatDate(voucher.expiresAt)}</Text>
-        </View>
-
-        {expiringSoon && !voucher.isUsed && (
-          <Text style={{ color: '#B91C2F', fontWeight: 'bold', marginTop: 4 }}>
-            ⚠️ Voucher akan segera expired!
-          </Text>
-        )}
-
-        <TouchableOpacity
-          style={[styles.useVoucherButton, !canUseVoucher && styles.useVoucherButtonDisabled]}
-          onPress={() => handleUseVoucher(voucher)}
-          disabled={!canUseVoucher || useVoucherLoading}
-        >
-          <Text style={[styles.useVoucherButtonText, !canUseVoucher && styles.useVoucherButtonTextDisabled]}>
-            {canUseVoucher ? 'Use at Cashier' : `Voucher ${status.label}`}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        <Text style={styles.voucherCode}>{item.code}</Text>
+        <View style={styles.voucherFooter}><Text style={styles.voucherExpiry}>Expires: {new Date(item.expiresAt || 0).toLocaleDateString('id-ID')}</Text><ChevronRight size={16} color="#BCC1D3" /></View>
+      </TouchableOpacity>
     );
   };
-
-  const renderVoucherEmptyState = () => (
-    <View style={styles.emptyWrap}>
-      <Text style={styles.emptyTitle}>Belum ada voucher</Text>
-      <Text style={styles.emptySubtitle}>Tukar poin di tab All Rewards untuk mendapatkan voucher pertama kamu.</Text>
-    </View>
-  );
 
   return (
     <ScreenFadeTransition>
-      <View style={styles.root}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <View style={styles.container}>
+        <StatusBar style="dark" />
         <DecorativeBackground />
-
-        <View style={[styles.container, { paddingTop: insets.top + 4 }]}> 
+        <View style={[styles.content, { paddingTop: insets.top }]}>
           {activeTab === 'catalog' ? (
             <FlatList
-              key="catalog-list"
-              // 🔥 Render data Skeleton [1,2,3,4] jika loading, selain itu render data asli
-              data={loading ? [1, 2, 3, 4] : (availableVouchers.length > 0 ? availableVouchers : catalog)}
-              keyExtractor={(item) => typeof item === 'number' ? item.toString() : item.id}
-              renderItem={renderItem}
+              data={rewards}
+              keyExtractor={(item) => item.id}
+              renderItem={renderRewardItem}
               ListHeaderComponent={renderHeader}
-              numColumns={2}
-              contentContainerStyle={[styles.listContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom }]}
-              columnWrapperStyle={styles.columnWrapper}
-              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContainer}
+              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} />}
             />
           ) : (
             <FlatList
-              key="voucher-list"
-              // 🔥 Render data Skeleton [1,2,3] jika profil user belum muncul
-              data={isMemberLoading ? [1, 2, 3] : sortedVouchers}
-              keyExtractor={(item) => typeof item === 'number' ? item.toString() : item.id}
+              data={member?.vouchers?.slice().reverse() ?? []}
+              keyExtractor={(item) => item.id}
               renderItem={renderVoucherItem}
               ListHeaderComponent={renderHeader}
-              ListEmptyComponent={isMemberLoading ? null : renderVoucherEmptyState}
-              contentContainerStyle={[styles.voucherListContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom }]}
-              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContainer}
+              ListEmptyComponent={<View style={styles.center}><Text style={styles.emptyText}>Belum ada voucher. Tukar poin di katalog!</Text></View>}
             />
           )}
         </View>
 
-        <Modal
-          visible={!!selectedReward}
-          transparent
-          animationType="none"
-          presentationStyle="overFullScreen"
-          statusBarTranslucent
-          onRequestClose={closeRewardDetail}
-        >
-          <TouchableWithoutFeedback onPress={closeRewardDetail}>
-            <Animated.View style={[styles.rewardModalOverlay, { opacity: rewardModalOpacity }]}> 
-              <BlurView intensity={20} style={StyleSheet.absoluteFillObject}> 
-                <View style={styles.rewardModalOverlayContent}> 
-                  <TouchableWithoutFeedback>
-                    <Animated.View style={[styles.rewardModalContent, { transform: [{ scale: rewardModalScale }] }]}> 
-                      {selectedReward && (
-                        <>
-                          <TouchableOpacity style={styles.rewardModalClose} onPress={closeRewardDetail}>
-                            <X size={22} color="#2A1F1F" />
-                          </TouchableOpacity>
-
-                          <View style={styles.rewardModalImageWrap}>
-                            <Image source={selectedReward.image} style={styles.rewardModalImage} resizeMode="contain" />
-                            <View style={styles.rewardModalCostBadge}>
-                              <Text style={styles.rewardModalCostText}>{selectedReward.pointsCost} Pts</Text>
-                            </View>
-                          </View>
-
-                          <Text style={styles.rewardModalTitle}>{selectedReward.title}</Text>
-                          <Text style={styles.rewardModalCategory}>{selectedReward.category}</Text>
-                          <Text style={styles.rewardModalDesc}>{selectedReward.description}</Text>
-
-                          <TouchableOpacity
-                            style={[
-                              styles.rewardModalRedeem,
-                              ((member?.points || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id) && styles.buttonDisabled,
-                            ]}
-                            disabled={(member?.points || 0) < selectedReward.pointsCost || redeemingId === selectedReward.id}
-                            onPress={() => handleRedeem(selectedReward)}
-                          >
-                            {redeemingId === selectedReward.id ? (
-                              <ActivityIndicator size="small" color="#FFF" />
-                            ) : (
-                              <Text style={styles.rewardModalRedeemText}>
-                                {(member?.points || 0) >= selectedReward.pointsCost ? 'Redeem Now' : 'Not Enough Pts'}
-                              </Text>
-                            )}
-                          </TouchableOpacity>
-                        </>
-                      )}
-                    </Animated.View>
-                  </TouchableWithoutFeedback>
-                </View>
-              </BlurView>
-            </Animated.View>
-          </TouchableWithoutFeedback>
-        </Modal>
-
-        <Modal
-          visible={isVoucherModalVisible}
-          transparent
-          animationType="fade"
-          presentationStyle="overFullScreen"
-          statusBarTranslucent
-          onRequestClose={() => setIsVoucherModalVisible(false)}
-        >
+        {/* Modal QR Voucher */}
+        <Modal visible={isVoucherModalVisible} transparent animationType="fade" onRequestClose={() => setIsVoucherModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <Pressable style={styles.modalBackdrop} onPress={() => setIsVoucherModalVisible(false)} />
             <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Scan Voucher at Cashier</Text>
-              <Text style={styles.modalSubtitle}>{selectedVoucher?.title || 'Voucher'}</Text>
-
-              <View style={styles.modalQrWrap}>
-                {voucherQrPayload ? (
-                  <QRCode value={voucherQrPayload} size={170} backgroundColor="transparent" color="#2A1F1F" />
-                ) : (
-                  <ActivityIndicator size="large" color="#B91C2F" />
-                )}
+              <Text style={styles.modalTitle}>Scan at Cashier</Text>
+              <Text style={styles.modalSubtitle}>{selectedVoucher?.title}</Text>
+              <View style={styles.qrWrap}>
+                {voucherQrPayload ? <QRCode value={voucherQrPayload} size={180} /> : <ActivityIndicator color="#B91C2F" />}
               </View>
-
-              <Text style={styles.modalCodeLabel}>{selectedVoucher?.code || '-'}</Text>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.modalSecondaryBtn} onPress={() => setIsVoucherModalVisible(false)}>
-                  <Text style={styles.modalSecondaryText}>Close</Text>
-                </TouchableOpacity>
-                {/* Mark as Used fallback, shown only if voucher is not used */}
-                {selectedVoucher && !selectedVoucher.isUsed && (
-                  <TouchableOpacity style={styles.modalPrimaryBtn} onPress={handleMarkVoucherUsed} disabled={useVoucherLoading}>
-                    {useVoucherLoading ? (
-                      <ActivityIndicator size="small" color="#FFF" />
-                    ) : (
-                      <Text style={styles.modalPrimaryText}>Mark as Used</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </View>
+              <Text style={styles.modalCode}>{selectedVoucher?.code}</Text>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setIsVoucherModalVisible(false)}><Text style={styles.closeBtnText}>Close</Text></TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -542,349 +258,52 @@ export default function RewardsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFF8F0', position: 'relative' },
-  container: { flex: 1, backgroundColor: 'transparent', zIndex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { padding: 20, paddingBottom: 10 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#2A1F1F' },
-  headerSubtitle: { fontSize: 14, color: '#8C7B75', marginTop: 4, marginBottom: 20 },
-  balanceCard: {
-    padding: 20,
-    borderRadius: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 15,
-    elevation: 5,
-  },
+  container: { flex: 1, backgroundColor: '#FFF8F0' },
+  content: { flex: 1 },
+  header: { padding: 20 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#2A1F1F', marginBottom: 16 },
+  balanceCard: { padding: 20, borderRadius: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   balanceLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
-  balanceValue: { color: '#FFF', fontSize: 32, fontWeight: 'bold', marginTop: 4 },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tabs: { flexDirection: 'row', marginBottom: 10 },
-  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, marginRight: 10 },
+  balanceValue: { color: '#FFF', fontSize: 32, fontWeight: 'bold' },
+  tabs: { flexDirection: 'row', gap: 10 },
+  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: '#F3E9DC' },
   activeTab: { backgroundColor: '#B91C2F' },
   tabText: { color: '#8C7B75', fontWeight: '600' },
   activeTabText: { color: '#FFF', fontWeight: 'bold' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 120 },
-  voucherListContent: { paddingHorizontal: 20, paddingBottom: 120 },
-  columnWrapper: { justifyContent: 'space-between' },
-  card: {
-    width: '48%',
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#2A1F1F',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardTapArea: {
-    width: '100%',
-  },
-  imageWrap: {
-    height: 140,
-    backgroundColor: '#FFF5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-  },
-  image: { width: '80%', height: '80%' },
-  costBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  costText: { fontSize: 12, fontWeight: 'bold', color: '#B91C2F' },
-  content: { padding: 12 },
-  title: { fontSize: 14, fontWeight: 'bold', color: '#2A1F1F', marginBottom: 4 },
-  desc: { fontSize: 11, color: '#8C7B75', marginBottom: 12, height: 32 },
-  button: {
-    backgroundColor: '#B91C2F',
-    paddingVertical: 8,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: { backgroundColor: '#E5E7EB' },
-  buttonProcessing: { backgroundColor: '#8E1624' },
-  buttonText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-  cardRedeemButton: {
-    marginHorizontal: 12,
-    marginBottom: 12,
-  },
-  rewardModalOverlay: {
-    flex: 1,
-  },
-  rewardModalOverlayContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  rewardModalContent: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#FFF8F0',
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#F3E9DC',
-    alignItems: 'center',
-  },
-  rewardModalClose: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 2,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 999,
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rewardModalImageWrap: {
-    width: '100%',
-    height: 190,
-    borderRadius: 18,
-    backgroundColor: '#FFF5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-  },
-  rewardModalImage: {
-    width: '76%',
-    height: '76%',
-  },
-  rewardModalCostBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  rewardModalCostText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#B91C2F',
-  },
-  rewardModalTitle: {
-    marginTop: 14,
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#2A1F1F',
-    textAlign: 'center',
-  },
-  rewardModalCategory: {
-    marginTop: 4,
-    fontSize: 12,
-    color: '#8C7B75',
-    fontWeight: '600',
-  },
-  rewardModalDesc: {
-    marginTop: 10,
-    fontSize: 13,
-    color: '#6B5B54',
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-  rewardModalRedeem: {
-    marginTop: 16,
-    width: '100%',
-    backgroundColor: '#B91C2F',
-    borderRadius: 12,
-    paddingVertical: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rewardModalRedeemText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  voucherCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F1E6DA',
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#2A1F1F',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  voucherTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  voucherTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    gap: 6,
-  },
-  voucherTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#2A1F1F',
-    flex: 1,
-  },
-  voucherStatusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  voucherStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  voucherCode: {
-    marginTop: 10,
-    fontSize: 18,
-    letterSpacing: 1,
-    fontWeight: '800',
-    color: '#B91C2F',
-  },
-  voucherMetaRow: {
-    marginTop: 8,
-    gap: 2,
-  },
-  voucherMetaLabel: {
-    color: '#8C7B75',
-    fontSize: 11,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 20,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2A1F1F',
-  },
-  emptySubtitle: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#8C7B75',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  useVoucherButton: {
-    marginTop: 10,
-    backgroundColor: '#B91C2F',
-    borderRadius: 12,
-    paddingVertical: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  useVoucherButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-  },
-  useVoucherButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  useVoucherButtonTextDisabled: {
-    color: '#6B7280',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#FFF8F0',
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#F3E9DC',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#2A1F1F',
-  },
-  modalSubtitle: {
-    fontSize: 12,
-    color: '#8C7B75',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  modalQrWrap: {
-    marginTop: 14,
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#EFE8E1',
-  },
-  modalCodeLabel: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#B91C2F',
-    letterSpacing: 1,
-  },
-  modalActions: {
-    marginTop: 16,
-    width: '100%',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalSecondaryBtn: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D6CEC6',
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  modalSecondaryText: {
-    color: '#6B7280',
-    fontWeight: '700',
-  },
-  modalPrimaryBtn: {
-    flex: 1,
-    borderRadius: 12,
-    backgroundColor: '#B91C2F',
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  modalPrimaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
+  listContainer: { paddingHorizontal: 20, paddingBottom: 100 },
+  rewardCard: { backgroundColor: '#FFF', borderRadius: 20, marginBottom: 16, overflow: 'hidden', elevation: 3 },
+  imageContainer: { width: '100%', height: 160, backgroundColor: '#F5F1ED' },
+  rewardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  placeholderImage: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  categoryBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  categoryText: { fontSize: 10, fontWeight: '700', color: '#B91C2F', textTransform: 'uppercase' },
+  rewardInfo: { padding: 16 },
+  rewardTitle: { fontSize: 18, fontWeight: '800', color: '#2A1F1F', marginBottom: 4 },
+  rewardDesc: { fontSize: 13, color: '#8C7B75', lineHeight: 18, marginBottom: 12 },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pointsBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pointsText: { fontSize: 15, fontWeight: '700', color: '#B91C2F' },
+  redeemBtn: { backgroundColor: '#111827', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
+  redeemBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  disabledBtn: { backgroundColor: '#E5E7EB' },
+  voucherCard: { backgroundColor: '#FFF', padding: 16, borderRadius: 20, marginBottom: 12, elevation: 2, borderLeftWidth: 4, borderLeftColor: '#B91C2F' },
+  voucherTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  voucherTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  voucherTitle: { fontSize: 16, fontWeight: '700', color: '#2A1F1F' },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  statusText: { fontSize: 10, fontWeight: 'bold' },
+  voucherCode: { fontSize: 18, fontWeight: '800', color: '#B91C2F', letterSpacing: 1, marginBottom: 8 },
+  voucherFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  voucherExpiry: { fontSize: 11, color: '#8C7B75' },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalCard: { width: '85%', backgroundColor: '#FFF', borderRadius: 30, padding: 24, alignItems: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#2A1F1F', marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, color: '#8C7B75', marginBottom: 20 },
+  qrWrap: { padding: 16, backgroundColor: '#F5F1ED', borderRadius: 20, marginBottom: 16 },
+  modalCode: { fontSize: 20, fontWeight: 'bold', color: '#B91C2F', letterSpacing: 2, marginBottom: 24 },
+  closeBtn: { backgroundColor: '#111827', width: '100%', padding: 14, borderRadius: 16, alignItems: 'center' },
+  closeBtnText: { color: '#FFF', fontWeight: 'bold' },
+  center: { padding: 40, alignItems: 'center' },
+  emptyText: { color: '#8C7B75', textAlign: 'center' },
 });

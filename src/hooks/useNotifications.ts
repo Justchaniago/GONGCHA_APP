@@ -1,23 +1,11 @@
-// src/hooks/useNotifications.ts
-
 import { useState, useEffect, useCallback } from 'react';
-import { NotificationService, NotificationItem } from '../services/NotificationService';
+import { NotificationService } from '../services/NotificationService';
+import { NotificationItem } from '../types/types';
 
-interface UseNotificationsReturn {
-  notifications: NotificationItem[];
-  unreadCount: number;
-  loading: boolean;
-  error: string | null;
-  markAsRead: (id: string) => Promise<void>;
-  markAllAsRead: () => Promise<void>;
-  refresh: () => Promise<void>;
-}
-
-export const useNotifications = (userId: string | null): UseNotificationsReturn => {
+export const useNotifications = (userId: string | null) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) {
@@ -25,39 +13,24 @@ export const useNotifications = (userId: string | null): UseNotificationsReturn 
       return;
     }
     setLoading(true);
-    const unsub = NotificationService.onNotificationsChange(userId, (data) => {
+    const unsub = NotificationService.subscribeToUserNotifications((data) => {
       setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.read).length);
+      setUnreadCount(data.filter((n) => !n.isRead).length);
       setLoading(false);
-      setError(null);
     });
     return () => unsub();
   }, [userId]);
 
   const markAsRead = useCallback(async (id: string) => {
     try { await NotificationService.markAsRead(id); }
-    catch (err) { setError('Failed to mark as read'); }
+    catch (err) { console.error('Failed to mark as read', err); }
   }, []);
 
   const markAllAsRead = useCallback(async () => {
     if (!userId) return;
     try { await NotificationService.markAllAsRead(userId); }
-    catch (err) { setError('Failed to mark all as read'); }
+    catch (err) { console.error('Failed to mark all as read', err); }
   }, [userId]);
 
-  const refresh = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
-      const data = await NotificationService.getNotifications(userId);
-      setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.read).length);
-    } catch (err) {
-      setError('Failed to refresh');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  return { notifications, unreadCount, loading, error, markAsRead, markAllAsRead, refresh };
+  return { notifications, unreadCount, loading, markAsRead, markAllAsRead };
 };

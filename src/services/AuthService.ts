@@ -1,3 +1,5 @@
+// src/services/AuthService.ts
+
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -25,9 +27,9 @@ export const AuthService = {
     const profile = await UserService.getUserProfile();
     if (profile) return profile;
 
-    // Jika belum ada doc Firestore, buat default
+    // Jika belum ada doc Firestore, buat default sesuai God Schema (tanpa xpHistory, pakai uid)
     const newProfile: UserProfile = {
-      id: user.uid,
+      uid: user.uid,
       name: user.displayName || 'Member',
       phoneNumber: email.split('@')[0],
       currentPoints: 0,
@@ -35,7 +37,6 @@ export const AuthService = {
       tierXp: 0,
       tier: 'Silver',
       joinedDate: new Date().toISOString(),
-      xpHistory: [],
       vouchers: [],
       role: 'member',
     };
@@ -58,7 +59,7 @@ export const AuthService = {
     await updateProfile(user, { displayName: name });
 
     const newProfile: UserProfile = {
-      id: user.uid,
+      uid: user.uid,
       name,
       phoneNumber: phone,
       currentPoints: 0,
@@ -66,7 +67,6 @@ export const AuthService = {
       tierXp: 0,
       tier: 'Silver',
       joinedDate: new Date().toISOString(),
-      xpHistory: [],
       vouchers: [],
       role: 'member',
       profileComplete: false,
@@ -93,14 +93,13 @@ export const AuthService = {
 
     // ✨ TIDAK create Firestore doc di sini
     // Doc akan dibuat saat first login SETELAH email verified
-    // Ini menghindari orphaned documents dari user yang tidak pernah verify
 
     // Sign out immediately — user must verify email before using the app
     await signOut(firebaseAuth);
 
     // Return temporary profile object (tidak disimpan ke Firestore)
     const tempProfile: UserProfile = {
-      id: user.uid,
+      uid: user.uid,
       name,
       email,
       phoneNumber: phone || '',
@@ -109,7 +108,6 @@ export const AuthService = {
       tierXp: 0,
       tier: 'Silver',
       joinedDate: new Date().toISOString(),
-      xpHistory: [],
       vouchers: [],
       role: 'member',
       emailVerified: false,
@@ -124,7 +122,6 @@ export const AuthService = {
     const user = userCredential.user;
 
     // 🔥 FIX: Force Refresh Token untuk memastikan status emailVerified terbaru dari server
-    // user.reload() saja kadang mengambil cache, getIdToken(true) memaksa sync dengan server
     await user.getIdToken(true);
     await user.reload();
 
@@ -136,16 +133,15 @@ export const AuthService = {
     const profile = await UserService.getUserProfile();
     if (profile) {
       // Update emailVerified di Firestore jika belum ter-update
-      if (!(profile as any).emailVerified) {
+      if (!profile.emailVerified) {
         await setDoc(doc(firestoreDb, 'users', user.uid), { emailVerified: true }, { merge: true });
       }
       return profile;
     }
 
     // ✨ FIRST LOGIN after email verification
-    // Create Firestore doc now with profileComplete: false
     const newProfile: UserProfile = {
-      id: user.uid,
+      uid: user.uid,
       name: user.displayName || email.split('@')[0],
       email: user.email || email,
       phoneNumber: '',
@@ -154,11 +150,10 @@ export const AuthService = {
       tierXp: 0,
       tier: 'Silver',
       joinedDate: new Date().toISOString(),
-      xpHistory: [],
       vouchers: [],
       role: 'member',
       emailVerified: true,
-      profileComplete: false,  // Trigger ProfileCompletionScreen
+      profileComplete: false,
     };
 
     await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
@@ -193,7 +188,6 @@ export const AuthService = {
     const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
     const user = userCredential.user;
 
-    // Reload untuk mendapatkan status emailVerified terbaru
     await user.reload();
 
     if (!user.emailVerified) {
@@ -203,15 +197,14 @@ export const AuthService = {
 
     const profile = await UserService.getUserProfile();
     if (profile) {
-      // Update profileComplete flag jika belum ada
-      if (!(profile as any).profileComplete) {
+      if (!profile.profileComplete) {
         await setDoc(doc(firestoreDb, 'users', user.uid), { profileComplete: false }, { merge: true });
       }
       return { ...profile, profileComplete: false };
     }
 
     const newProfile: UserProfile = {
-      id: user.uid,
+      uid: user.uid,
       name: user.displayName || email.split('@')[0],
       email: user.email || email,
       phoneNumber: '',
@@ -220,7 +213,6 @@ export const AuthService = {
       tierXp: 0,
       tier: 'Silver',
       joinedDate: new Date().toISOString(),
-      xpHistory: [],
       vouchers: [],
       role: 'member',
       emailVerified: true,
