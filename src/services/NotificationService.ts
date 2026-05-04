@@ -51,7 +51,11 @@ export const NotificationService = {
     return onSnapshot(q, (snapshot) => {
       callback(snapshot.docs.map(mapDoc));
     }, (error) => {
-      console.error('[NotificationService] Listener error:', error);
+      if ((error as any)?.code === 'permission-denied') {
+        callback([]);
+        return;
+      }
+      callback([]);
     });
   },
 

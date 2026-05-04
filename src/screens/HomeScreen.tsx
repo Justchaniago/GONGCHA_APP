@@ -13,9 +13,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMember } from '../context/MemberContext';
 import { firebaseAuth } from '../config/firebase';
-import { NotificationService, NotificationItem } from '../services/NotificationService';
+import { NotificationService } from '../services/NotificationService';
 import type { RootTabParamList } from '../navigation/AppNavigator';
-import { MemberTier } from '../types/types';
+import type { UserTier, NotificationItem } from '../types/types';
 
 import { colors } from '../theme/colorTokens';
 
@@ -37,7 +37,9 @@ function formatNotifTime(iso: string) {
   return date.toLocaleDateString('id-ID');
 }
 
-const TIER_THEME: Record<MemberTier, any> = {
+type HomeTier = Extract<UserTier, 'Silver' | 'Gold' | 'Platinum'>;
+
+const TIER_THEME: Record<HomeTier, any> = {
   Silver: {
     progressGradient: ['#B7C0CC', '#8A93A1'],
     tierBadgeBg: '#E5E7EB', tierText: '#4B5563', percentBadgeBg: '#6B7280',
@@ -71,8 +73,6 @@ export default function HomeScreen() {
   
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const bellRef = useRef<View>(null);
-  const [bellLayout, setBellLayout] = useState({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
   
   const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
@@ -82,12 +82,13 @@ export default function HomeScreen() {
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const iconRotate = useRef(new Animated.Value(0)).current;
-  const buttonBg = useRef(new Animated.Value(0)).current;
   
   const isCompact = width < 360;
   const horizontalPadding = isCompact ? 16 : 20;
   const avatarSize = isCompact ? 46 : 52;
   const headerIconSize = isCompact ? 44 : 48;
+  const headerLogoSize = isCompact ? 50 : 59;
+  const headerActionGap = 10;
 
   useEffect(() => {
     const unsubscribe = NotificationService.subscribeToUserNotifications((notifs) => {
@@ -127,33 +128,29 @@ export default function HomeScreen() {
   */
 
   const openNotifications = () => {
-    bellRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      setBellLayout({ x, y, width, height, pageX, pageY });
-      setShowNotifications(true);
-      
-      Animated.parallel([
-        Animated.timing(backdropAnim, { toValue: 1, duration: 300, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 10, tension: 80 }),
-        Animated.timing(opacityAnim, { toValue: 1, duration: 350, delay: 100, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-        Animated.spring(iconRotate, { toValue: 1, useNativeDriver: true, friction: 8, tension: 100 }),
-        Animated.timing(buttonBg, { toValue: 1, duration: 300, useNativeDriver: false }),
-      ]).start();
-    });
+    setShowNotifications(true);
+
+    Animated.parallel([
+      Animated.timing(backdropAnim, { toValue: 1, duration: 240, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 11, tension: 95 }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 240, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+      Animated.timing(iconRotate, { toValue: 1, duration: 180, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+    ]).start();
   };
 
   const closeNotifications = () => {
     Animated.parallel([
-      Animated.timing(backdropAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 0, duration: 280, useNativeDriver: true, easing: Easing.in(Easing.back(1.2)) }),
-      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.spring(iconRotate, { toValue: 0, useNativeDriver: true, friction: 8, tension: 100 }),
-      Animated.timing(buttonBg, { toValue: 0, duration: 250, useNativeDriver: false }),
+      Animated.timing(backdropAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 0, duration: 220, useNativeDriver: true, easing: Easing.inOut(Easing.cubic) }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(iconRotate, { toValue: 0, duration: 180, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
     ]).start(() => setShowNotifications(false));
   };
 
   const tierXp = member?.tierXp ?? 0;
-  const currentPoints = member?.points ?? 0;
-  const tier = member?.tier ?? 'Silver';
+  const currentPoints = member?.currentPoints ?? member?.points ?? 0;
+  const pendingPoints = member?.pendingPoints ?? 0;
+  const tier = ((member?.tier as HomeTier | undefined) ?? 'Silver');
   const tierTheme = TIER_THEME[tier];
   
   const TIER_LIMITS = { Silver: 0, Gold: 5000, Platinum: 15000 };
@@ -182,23 +179,15 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [promoCardWidth, promos.length]);
 
-  const bellCenterX = (width - horizontalPadding - 42 - 10 - (headerIconSize / 2)); 
   const modalTransform = [
-    { translateX: bellCenterX - width / 2 },
-    { translateY: -(height / 2) + 100 },
-    { scale: scaleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.01, 1] }) },
-    { translateX: -(bellCenterX - width / 2) },
-    { translateY: (height / 2) - 100 },
+    { translateY: scaleAnim.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }) },
+    { scale: scaleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
   ];
 
-  const iconRotation = iconRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
-  const iconScale = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.8, 1] });
-  const bellOpacity = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0, 0] });
-  const xOpacity = iconRotate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
-  const buttonBackgroundColor = buttonBg.interpolate({ 
-    inputRange: [0, 1], 
-    outputRange: [colors.surface.card, colors.brand.primary]
-  });
+  const bellButtonOpacity = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  const bellButtonScale = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] });
+  const closeButtonOpacity = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+  const closeButtonScale = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
 
   return (
     <ScreenFadeTransition>
@@ -219,7 +208,7 @@ export default function HomeScreen() {
               zIndex: 20
             }
           ]}>
-            <View style={styles.headerContent}> 
+              <View style={styles.headerContent}> 
               <View style={styles.headerLeft}>
                 <View style={styles.avatarWrap}>
                   <UserAvatar name={member?.fullName ?? 'Member'} photoURL={member?.photoURL} size={avatarSize} />
@@ -232,36 +221,43 @@ export default function HomeScreen() {
                   {isMemberLoading ? (
                     <SkeletonLoader width={100} height={20} style={{ marginTop: 4 }} />
                   ) : (
-                    <Text style={[styles.name, { color: colors.text.primary }]}>{member?.fullName ?? 'Member'}</Text>
+                    <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                      style={[styles.name, { color: colors.text.primary }]}
+                    >
+                      {member?.fullName ?? 'Member'}
+                    </Text>
                   )}
                 </View>
               </View>
               <View style={styles.headerRight}>
-                <View 
-                  ref={bellRef} 
+                <Animated.View
                   style={{
-                    width: showNotifications ? 0 : headerIconSize,
-                    height: headerIconSize,
-                    overflow: 'hidden'
+                    opacity: bellButtonOpacity,
+                    transform: [{ scale: bellButtonScale }],
                   }}
+                  pointerEvents={showNotifications ? 'none' : 'auto'}
                 >
                   <TouchableOpacity
                     style={[
                       styles.notificationBtn, 
+                      styles.notificationBtnShell,
                       { width: headerIconSize, height: headerIconSize, backgroundColor: colors.surface.card, shadowColor: colors.shadow.color }
                     ]}
                     activeOpacity={0.8}
                     onPress={openNotifications}
                   >
                      <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
-                     {notifications.some((n) => !n.read) && (
+                     {notifications.some((n) => !n.isRead) && (
                        <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}> 
-                          <Text style={styles.notificationBadgeText}>{notifications.filter((n) => !n.read).length}</Text>
+                          <Text style={styles.notificationBadgeText}>{notifications.filter((n) => !n.isRead).length}</Text>
                        </View>
                      )}
                   </TouchableOpacity>
-                </View>
-                <Image source={require('../../assets/images/logo1.webp')} style={styles.logoTopRight} resizeMode="contain" />
+                </Animated.View>
+                <Image source={require('../../assets/images/logo1.webp')} style={[styles.logoTopRight, { width: headerLogoSize, height: headerLogoSize + 4 }]} resizeMode="contain" />
               </View>
             </View>
           </View>
@@ -358,7 +354,10 @@ export default function HomeScreen() {
                   {isMemberLoading ? (
                     <SkeletonLoader width={110} height={32} style={{ marginTop: 2, backgroundColor: 'rgba(255,255,255,0.2)' }} />
                   ) : (
-                    <Text style={styles.walletAmount}>{currentPoints.toLocaleString('id-ID')}</Text>
+                    <>
+                      <Text style={styles.walletAmount}>{currentPoints.toLocaleString('id-ID')}</Text>
+                      <Text style={styles.walletSubLabel}>Available points</Text>
+                    </>
                   )}
                 </View>
                 <View style={[styles.trophyIconBg, { backgroundColor: tierTheme.trophyBg }]}>
@@ -367,9 +366,13 @@ export default function HomeScreen() {
               </View>
               <View style={styles.walletDivider} />
               <View style={styles.walletBottomRow}>
-                <View>
+                <View style={{ flex: 1, paddingRight: 14 }}>
                   <Text style={styles.walletBenefitTitle}>Tier Benefits</Text>
-                  <Text style={styles.walletBenefitDesc}>Free delivery & 10% Birthday Discount</Text>
+                  <Text style={styles.walletBenefitDesc}>
+                    {pendingPoints > 0
+                      ? `${pendingPoints.toLocaleString('id-ID')} pts pending validation. Only available points can be redeemed.`
+                      : 'Only available points can be redeemed. Pending points will appear here while waiting for validation.'}
+                  </Text>
                 </View>
                 <TouchableOpacity
                   style={[styles.redeemButton, { backgroundColor: colors.surface.card }]}
@@ -395,44 +398,48 @@ export default function HomeScreen() {
              <View style={[styles.modalHeader, { borderBottomColor: colors.border.light }]}>
                  <View style={{ flex: 1 }}>
                     <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Notifications</Text>
-                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have {notifications.filter((n) => !n.read).length} unread message{notifications.filter((n) => !n.read).length === 1 ? '' : 's'}</Text>
+                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have {notifications.filter((n) => !n.isRead).length} unread message{notifications.filter((n) => !n.isRead).length === 1 ? '' : 's'}</Text>
                  </View>
              </View>
              <View style={[styles.notifListContainer, { backgroundColor: colors.background.tertiary }]}>
                 <FlatList data={notifications} keyExtractor={item => item.id} contentContainerStyle={{ padding: 20 }} ItemSeparatorComponent={() => <View style={{ height: 16 }} />} renderItem={({ item }) => (
-                    <TouchableOpacity style={[styles.notifItem, { backgroundColor: colors.surface.card, shadowColor: colors.shadow.color }, !item.read && { borderColor: colors.status.errorBg, borderWidth: 1 }]} activeOpacity={0.7}>
-                       <View style={[styles.notifIconCircle, !item.read ? { backgroundColor: colors.brand.primary } : { backgroundColor: colors.background.elevated }]}>
-                          {item.type === 'gift' ? <Gift size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> : item.type === 'points' ? <Trophy size={18} color={!item.read ? '#FFF' : colors.text.secondary} /> : <Bell size={18} color={!item.read ? '#FFF' : colors.text.secondary} />}
+                    <TouchableOpacity style={[styles.notifItem, { backgroundColor: colors.surface.card, shadowColor: colors.shadow.color }, !item.isRead && { borderColor: colors.status.errorBg, borderWidth: 1 }]} activeOpacity={0.7}>
+                       <View style={[styles.notifIconCircle, !item.isRead ? { backgroundColor: colors.brand.primary } : { backgroundColor: colors.background.elevated }]}>
+                          {item.type === 'voucher_injected' ? <Gift size={18} color={!item.isRead ? '#FFF' : colors.text.secondary} /> : item.type === 'tx_verified' ? <Trophy size={18} color={!item.isRead ? '#FFF' : colors.text.secondary} /> : <Bell size={18} color={!item.isRead ? '#FFF' : colors.text.secondary} />}
                        </View>
                        <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                             <Text style={[styles.notifItemTitle, { color: !item.read ? colors.text.primary : colors.text.secondary }]}>{item.title}</Text>
-                             <Text style={[styles.notifTime, { color: colors.text.tertiary }]}>{formatNotifTime(item.time)}</Text>
+                             <Text style={[styles.notifItemTitle, { color: !item.isRead ? colors.text.primary : colors.text.secondary }]}>{item.title}</Text>
+                             <Text style={[styles.notifTime, { color: colors.text.tertiary }]}>{formatNotifTime(item.createdAt)}</Text>
                           </View>
                           <Text style={[styles.notifBody, { color: colors.text.secondary }]}>{item.body}</Text>
                        </View>
-                       {!item.read && <View style={[styles.unreadDot, { backgroundColor: colors.brand.primary }]} />}
+                       {!item.isRead && <View style={[styles.unreadDot, { backgroundColor: colors.brand.primary }]} />}
                     </TouchableOpacity>
                   )} />
              </View>
-             <TouchableOpacity style={[styles.markReadBtn, { backgroundColor: colors.surface.card, borderTopColor: colors.border.light }]} onPress={() => {}}>
+             <TouchableOpacity style={[styles.markReadBtn, { backgroundColor: colors.surface.card, borderTopColor: colors.border.light }]} onPress={() => {
+               const userId = firebaseAuth.currentUser?.uid;
+               if (userId) NotificationService.markAllAsRead(userId);
+             }}>
                 <Text style={[styles.markReadText, { color: colors.brand.primary }]}>Mark all as read</Text>
              </TouchableOpacity>
           </Animated.View>
           <Animated.View style={[styles.notificationBtn, { 
             position: 'absolute', 
-            top: bellLayout.pageY,
-            right: width - bellLayout.pageX - headerIconSize,
+            top: insets.top + 16,
+            right: horizontalPadding + headerLogoSize + headerActionGap,
             width: headerIconSize, 
             height: headerIconSize, 
-            backgroundColor: buttonBackgroundColor, 
+            backgroundColor: colors.brand.primary, 
             zIndex: 9999, 
-            elevation: 10 
+            elevation: 10,
+            opacity: closeButtonOpacity,
+            transform: [{ scale: closeButtonScale }],
           }]}>
              <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={0.8} onPress={closeNotifications}>
-                <Animated.View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', transform: [{ rotate: iconRotation }, { scale: iconScale }] }]}>
-                   <Animated.View style={{ opacity: bellOpacity, position: 'absolute' }}><Bell size={22} color={colors.brand.primary} strokeWidth={2.5} /></Animated.View>
-                   <Animated.View style={{ opacity: xOpacity, position: 'absolute' }}><X size={22} color="#FFF" strokeWidth={2.5} /></Animated.View>
+                <Animated.View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+                   <X size={22} color="#FFF" strokeWidth={2.5} />
                 </Animated.View>
              </TouchableOpacity>
           </Animated.View>
@@ -449,17 +456,18 @@ const styles = StyleSheet.create({
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, position: 'relative' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 12 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, position: 'relative', flexShrink: 0 },
   avatarWrap: { position: 'relative', marginRight: 12 },
   avatarStatusDot: { position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, backgroundColor: '#4CAF50', borderRadius: 7, borderWidth: 2, borderColor: '#FFF' },
   greeting: { fontSize: 13, fontWeight: '500' },
-  headerTextContainer: { justifyContent: 'center' },
+  headerTextContainer: { justifyContent: 'center', flex: 1, minWidth: 0 },
   name: { fontSize: 19, fontWeight: 'bold' },
   notificationBtn: { borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
+  notificationBtnShell: { flexShrink: 0 },
   notificationBadge: { position: 'absolute', top: 12, right: 14, width: 8, height: 8, borderRadius: 4, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   notificationBadgeText: { fontSize: 8, color: '#FFF', fontWeight: 'bold', display: 'none' },
-  logoTopRight: { width: 48, height: 48 },
+  logoTopRight: { flexShrink: 0 },
   modalContainer: { position: 'absolute', left: 10, right: 10, bottom: 20, borderRadius: 32, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 20, maxHeight: '75%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderBottomWidth: 1 },
   modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 2 },
@@ -501,6 +509,7 @@ const styles = StyleSheet.create({
   walletTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   walletLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 3 },
   walletAmount: { color: '#FFF', fontSize: 26, fontWeight: 'bold', letterSpacing: 0.4 },
+  walletSubLabel: { color: 'rgba(255,255,255,0.72)', fontSize: 11, marginTop: 3, fontWeight: '600' },
   trophyIconBg: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   walletDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 10 },
   walletBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },

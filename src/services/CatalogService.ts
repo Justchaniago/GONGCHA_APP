@@ -8,6 +8,7 @@ type FirebaseRewardDoc = {
   title?: string;
   description?: string;
   pointsCost?: number;
+  pointsrequired?: number;  // Firestore actual field name
   imageURL?: string;   // Firebase uses imageURL, not image
   image?: string;      // fallback if already mapped
   category?: string;
@@ -23,6 +24,8 @@ const mapDocToRewardItem = (doc: any): RewardItem => {
   return {
     ...data,
     id: doc.id,
+    // Map pointsrequired → pointsCost (Firestore uses pointsrequired)
+    pointsCost: data.pointsCost ?? data.pointsrequired ?? 0,
     // Firebase stores as imageURL, normalize to image
     image: data.image ?? data.imageURL ?? '',
   } as RewardItem;

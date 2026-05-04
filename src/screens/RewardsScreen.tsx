@@ -14,6 +14,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { firestoreDb as db } from '../config/firebase';
 
 import { useMember } from '../context/MemberContext';
+import { useSecurity } from '../context/SecurityContext';
 import { UserService } from '../services/UserService';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
@@ -41,6 +42,7 @@ export default function RewardsScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { member } = useMember(); // refreshMember dihapus karena update otomatis via snapshot
+  const { ensureVerified } = useSecurity();
   
   const [activeTab, setActiveTab] = useState<RewardsTab>('catalog');
   const [rewards, setRewards] = useState<RewardItem[]>([]);
@@ -53,6 +55,8 @@ export default function RewardsScreen() {
   const [voucherQrPayload, setVoucherQrPayload] = useState<string>('');
   const [isVoucherModalVisible, setIsVoucherModalVisible] = useState(false);
   const [useVoucherLoading, setUseVoucherLoading] = useState(false);
+  const availablePoints = member?.currentPoints ?? member?.points ?? 0;
+  const pendingPoints = member?.pendingPoints ?? 0;
 
   // 🚀 FUNGSI DELTA SYNC UNTUK KATALOG
 
@@ -100,8 +104,18 @@ export default function RewardsScreen() {
 
   // --- LOGIKA REDEEM ---
   const handleRedeem = async (reward: RewardItem) => {
-    if ((member?.points ?? 0) < reward.pointsCost) {
-      Alert.alert('Poin Kurang', 'Kamu butuh lebih banyak poin untuk menukar reward ini.');
+    if (availablePoints < reward.pointsCost) {
+      Alert.alert(
+        'Poin tersedia belum cukup',
+        pendingPoints > 0
+          ? `Kamu punya ${availablePoints} poin tersedia dan ${pendingPoints} poin pending. Hanya poin tersedia yang bisa dipakai untuk redeem.`
+          : 'Kamu butuh lebih banyak poin tersedia untuk menukar reward ini.',
+      );
+      return;
+    }
+
+    const allowed = await ensureVerified('redeem');
+    if (!allowed) {
       return;
     }
 
@@ -127,6 +141,12 @@ export default function RewardsScreen() {
   // --- LOGIKA PAKAI VOUCHER ---
   const handleUseVoucher = async (voucher: UserVoucher) => {
     if (voucher.isUsed) return;
+
+    const allowed = await ensureVerified('voucher');
+    if (!allowed) {
+      return;
+    }
+
     try {
       setUseVoucherLoading(true);
       const payload = await UserService.getVoucherCheckoutPayload(voucher);
@@ -155,11 +175,23 @@ export default function RewardsScreen() {
       
       <LinearGradient colors={['#2A1F1F', '#4A3B32']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
         <View>
-          <Text style={styles.balanceLabel}>Your Points Balance</Text>
-          <Text style={styles.balanceValue}>{member?.points?.toLocaleString('id-ID') ?? 0}</Text>
+          <Text style={styles.balanceLabel}>Available Points</Text>
+          <Text style={styles.balanceValue}>{availablePoints.toLocaleString('id-ID')}</Text>
+          <Text style={styles.pendingBalanceText}>
+            {pendingPoints > 0
+              ? `${pendingPoints.toLocaleString('id-ID')} pts pending validation`
+              : 'No points on hold right now'}
+          </Text>
         </View>
         <Star size={24} color="#D4A853" fill="#D4A853" />
       </LinearGradient>
+
+      <View style={styles.pendingInfoCard}>
+        <Text style={styles.pendingInfoTitle}>Pending points are waiting for admin validation</Text>
+        <Text style={styles.pendingInfoBody}>
+          Only available points can be redeemed. Pending points will move into your balance after the transaction is verified.
+        </Text>
+      </View>
 
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tab, activeTab === 'catalog' && styles.activeTab]} onPress={() => setActiveTab('catalog')}>
@@ -175,7 +207,7 @@ export default function RewardsScreen() {
   );
 
   const renderRewardItem = ({ item }: { item: RewardItem }) => {
-    const canAfford = (member?.points ?? 0) >= item.pointsCost;
+    const canAfford = availablePoints >= item.pointsCost;
     return (
       <View style={styles.rewardCard}>
         <View style={styles.imageContainer}>
@@ -201,11 +233,41 @@ export default function RewardsScreen() {
     return (
       <TouchableOpacity style={styles.voucherCard} onPress={() => handleUseVoucher(item)} disabled={item.isUsed}>
         <View style={styles.voucherTop}>
-          <View style={styles.voucherTitleRow}><Ticket size={18} color="#B91C2F" /><Text style={styles.voucherTitle}>{item.title}</Text></View>
-          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}><Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text></View>
+          <View style={styles.voucherTitleRow}>
+            <View style={styles.voucherIconWrap}>
+              <Ticket size={16} color="#B91C2F" />
+            </View>
+            <View style={styles.voucherTitleContent}>
+              <Text style={styles.voucherLabel}>Voucher</Text>
+              <Text style={styles.voucherTitle} numberOfLines={2}>
+                {item.title}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+          </View>
         </View>
-        <Text style={styles.voucherCode}>{item.code}</Text>
-        <View style={styles.voucherFooter}><Text style={styles.voucherExpiry}>Expires: {new Date(item.expiresAt || 0).toLocaleDateString('id-ID')}</Text><ChevronRight size={16} color="#BCC1D3" /></View>
+
+        <View style={styles.voucherCodePanel}>
+          <Text style={styles.voucherCodeLabel}>Code</Text>
+          <Text style={styles.voucherCode} numberOfLines={1}>
+            {item.code}
+          </Text>
+        </View>
+
+        <View style={styles.voucherFooter}>
+          <View>
+            <Text style={styles.voucherExpiryLabel}>Valid until</Text>
+            <Text style={styles.voucherExpiry}>
+              {new Date(item.expiresAt || 0).toLocaleDateString('id-ID')}
+            </Text>
+          </View>
+          <View style={styles.voucherAction}>
+            <Text style={styles.voucherActionText}>View</Text>
+            <ChevronRight size={16} color="#BCC1D3" />
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -265,6 +327,10 @@ const styles = StyleSheet.create({
   balanceCard: { padding: 20, borderRadius: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   balanceLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
   balanceValue: { color: '#FFF', fontSize: 32, fontWeight: 'bold' },
+  pendingBalanceText: { color: 'rgba(255,255,255,0.82)', fontSize: 12, marginTop: 6, maxWidth: 210 },
+  pendingInfoCard: { backgroundColor: '#FFF4E8', borderColor: '#F3D7B0', borderWidth: 1, padding: 14, borderRadius: 16, marginBottom: 18 },
+  pendingInfoTitle: { fontSize: 13, fontWeight: '800', color: '#7C2D12', marginBottom: 4 },
+  pendingInfoBody: { fontSize: 12, lineHeight: 18, color: '#9A5B2A' },
   tabs: { flexDirection: 'row', gap: 10 },
   tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: '#F3E9DC' },
   activeTab: { backgroundColor: '#B91C2F' },
@@ -286,15 +352,107 @@ const styles = StyleSheet.create({
   redeemBtn: { backgroundColor: '#111827', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
   redeemBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
   disabledBtn: { backgroundColor: '#E5E7EB' },
-  voucherCard: { backgroundColor: '#FFF', padding: 16, borderRadius: 20, marginBottom: 12, elevation: 2, borderLeftWidth: 4, borderLeftColor: '#B91C2F' },
-  voucherTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  voucherTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  voucherTitle: { fontSize: 16, fontWeight: '700', color: '#2A1F1F' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 10, fontWeight: 'bold' },
-  voucherCode: { fontSize: 18, fontWeight: '800', color: '#B91C2F', letterSpacing: 1, marginBottom: 8 },
-  voucherFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  voucherExpiry: { fontSize: 11, color: '#8C7B75' },
+  voucherCard: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 22,
+    marginBottom: 14,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0E8E2',
+    shadowColor: '#2A1F1F',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  voucherTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  voucherTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
+    paddingRight: 12,
+  },
+  voucherIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#FFF1F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  voucherTitleContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  voucherLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B91C2F',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  voucherTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2A1F1F',
+    lineHeight: 22,
+    flexShrink: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    flexShrink: 0,
+  },
+  statusText: { fontSize: 10, fontWeight: '800' },
+  voucherCodePanel: {
+    backgroundColor: '#FCF8F4',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F2EAE3',
+  },
+  voucherCodeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8C7B75',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  voucherCode: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#B91C2F',
+    letterSpacing: 1,
+  },
+  voucherFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  voucherExpiryLabel: {
+    fontSize: 10,
+    color: '#A08F88',
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 2,
+  },
+  voucherExpiry: { fontSize: 12, color: '#6C5F5A', fontWeight: '600' },
+  voucherAction: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  voucherActionText: { fontSize: 12, fontWeight: '700', color: '#A08F88' },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
   modalCard: { width: '85%', backgroundColor: '#FFF', borderRadius: 30, padding: 24, alignItems: 'center' },

@@ -53,7 +53,7 @@ export default function EditProfileScreen() {
       if (user) {
         setProfile(user);
         setName(user.name);
-        setPhone(user.phoneNumber);
+        setPhone(user.phoneNumber || '');
         setEmail(user.email || ''); 
         setPhoto(user.photoURL);
       }

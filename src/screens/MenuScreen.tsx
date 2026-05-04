@@ -113,7 +113,11 @@ export default function MenuScreen() {
       setGongchaMenu(sortedData);
 
     } catch (error) {
-      console.error("Gagal menjalankan Delta Sync:", error);
+      if ((error as any)?.code === 'permission-denied') {
+        console.warn('[MenuScreen] Menu read is blocked by Firestore rules. Using cached menu if available.');
+      } else {
+        console.warn('[MenuScreen] Delta sync fallback triggered:', error);
+      }
       // Fallback: Jika offline (tidak ada sinyal), paksa pakai cache lokal yang ada
       const cachedData = await AsyncStorage.getItem(CACHE_KEY);
       if (cachedData) {

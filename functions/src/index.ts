@@ -1,7 +1,41 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import express from 'express';
 
 admin.initializeApp();
+
+const db = admin.firestore();
+db.settings({ databaseId: 'gongcha-ver001' });
+const app = express();
+app.use(express.json());
+
+// Verify Firebase token from Authorization header
+async function verifyToken(req: express.Request): Promise<string | null> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    return decoded.uid;
+  } catch {
+    return null;
+  }
+}
+
+// CORS middleware
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  next();
+});
 
 /**
  * ═════════════════════════════════════════════════════════════════════════
@@ -179,3 +213,140 @@ export const manualCleanup = functions.https.onCall(async (data, context) => {
     cutoffDate: new Date(cutoffTime).toISOString(),
   };
 });
+
+// POST /vouchers/redeem (mounted at /api in Cloud Functions)
+app.post('/vouchers/redeem', async (req: express.Request, res: express.Response) => {
+  try {
+    const uid = await verifyToken(req);
+    if (!uid) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { rewardId } = req.body;
+    if (!rewardId) {
+      res.status(400).json({ error: 'rewardId required' });
+      return;
+    }
+
+    // Fetch reward
+    const rewardDoc = await db.collection('rewards_catalog').doc(rewardId).get();
+    if (!rewardDoc.exists) {
+      res.status(404).json({ error: 'Reward not found' });
+      return;
+    }
+
+    const reward = rewardDoc.data();
+    const pointsCost = reward?.pointsrequired || 0;
+    const rewardTitle = reward?.title || 'Voucher';
+
+    // Fetch user
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (!userDoc.exists) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const userData = userDoc.data();
+    const currentPoints = userData?.currentPoints || 0;
+
+    // Check points balance
+    if (currentPoints < pointsCost) {
+      res.status(402).json({ error: 'Insufficient points', currentPoints, required: pointsCost });
+      return;
+    }
+
+    // Create voucher object
+    const voucherId = `v_${Date.now()}`;
+    const newVoucher = {
+      id: voucherId,
+      rewardId,
+      title: rewardTitle,
+      code: `GC-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      isUsed: false,
+      redeemedAt: new Date().toISOString(),
+    };
+
+    // Atomic: deduct points + add voucher
+    const batch = db.batch();
+    const userRef = db.collection('users').doc(uid);
+
+    batch.update(userRef, {
+      currentPoints: currentPoints - pointsCost,
+      vouchers: admin.firestore.FieldValue.arrayUnion(newVoucher),
+    });
+
+    await batch.commit();
+
+    const newBalance = currentPoints - pointsCost;
+    res.status(200).json({
+      success: true,
+      voucher: newVoucher,
+      newBalance,
+      newTier: userData?.tier || 'Silver',
+    });
+  } catch (error: any) {
+    console.error('Error POST /api/vouchers/redeem:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /members/me/transactions (mounted at /api in Cloud Functions)
+app.get('/members/me/transactions', async (req: express.Request, res: express.Response) => {
+  try {
+    const uid = await verifyToken(req);
+    if (!uid) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const status = req.query.status as string | undefined;
+    const limitStr = req.query.limit as string | undefined;
+    const limit = Math.min(parseInt(limitStr || '50', 10), 100);
+
+    // Simple query — no compound filter, no orderBy (avoids composite index requirement)
+    const q = db.collection('transactions')
+      .where('uid', '==', uid)
+      .limit(200);
+
+    const snapshot = await q.get();
+
+    // Map + filter + sort in-memory
+    let filtered = snapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toISOString?.() || data.createdAt,
+      };
+    });
+
+    if (status && ['pending', 'verified', 'rejected'].includes(status)) {
+      const statusUpper = status.toUpperCase();
+      filtered = filtered.filter((tx: any) => tx.status === statusUpper);
+    }
+
+    // Sort by createdAt descending in-memory
+    filtered.sort((a: any, b: any) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
+
+    const hasMore = filtered.length > limit;
+    const transactions = filtered.slice(0, limit);
+
+    res.status(200).json({
+      transactions,
+      hasMore,
+      count: transactions.length,
+    });
+  } catch (error: any) {
+    console.error('Error GET /api/members/me/transactions:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Export Express app as Cloud Function
+export const api = functions.https.onRequest(app);

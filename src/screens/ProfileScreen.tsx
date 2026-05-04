@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Alert, FlatList, Platform, useWindowDimensions,
@@ -19,10 +19,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DecorativeBackground from '../components/DecorativeBackground';
 import UserAvatar from '../components/UserAvatar';
 import { AuthService } from '../services/AuthService';
+import { TransactionService, type MemberTransactionHistoryItem } from '../services/TransactionService';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 // 🔥 IMPORT SYARAF BARU & SKELETON
 import { useMember } from '../context/MemberContext';
+import { useSecurity } from '../context/SecurityContext';
 import { colors } from '../theme/colorTokens';
 import SkeletonLoader from '../components/SkeletonLoader';
 
@@ -51,6 +53,43 @@ const formatDate = (isoString: string) => {
   });
 };
 
+const formatHistoryDayLabel = (isoString: string) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const sameDay = (first: Date, second: Date) =>
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate();
+
+  if (sameDay(date, today)) return 'Today';
+  if (sameDay(date, yesterday)) return 'Yesterday';
+
+  return date.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const formatHistoryTime = (isoString: string) => {
+  if (!isoString) return '-';
+  return new Date(isoString).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const startOfDay = (isoString: string) => {
+  const date = new Date(isoString);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
+
 // ==========================================
 // 2. KOMPONEN UTAMA
 // ==========================================
@@ -61,6 +100,10 @@ export default function ProfileScreen() {
   
   // 🔥 AMBIL DATA DARI CONTEXT (CCTV REALTIME)
   const { member, loading: isMemberLoading } = useMember();
+  const { openSecuritySettings, pinEnabled, biometricEnabled, appLockEnabled } = useSecurity();
+  const [todayTransactionItems, setTodayTransactionItems] = useState<MemberTransactionHistoryItem[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [visibleDayCount, setVisibleDayCount] = useState(1);
 
   // Animation State
   const [showHistory, setShowHistory] = useState(false);
@@ -71,6 +114,60 @@ export default function ProfileScreen() {
   const isCompact = screenWidth < 360;
   const horizontalPadding = isCompact ? 14 : 20;
   const avatarSize = isCompact ? 88 : 100;
+  const availablePoints = member?.currentPoints ?? member?.points ?? 0;
+  const pendingPoints = member?.pendingPoints ?? 0;
+  const groupedTransactionItems = useMemo(() => {
+    const groups = new Map<number, MemberTransactionHistoryItem[]>();
+
+    todayTransactionItems.forEach((item) => {
+      const dayKey = startOfDay(item.createdAtIso);
+      if (!groups.has(dayKey)) {
+        groups.set(dayKey, []);
+      }
+      groups.get(dayKey)?.push(item);
+    });
+
+    return Array.from(groups.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([dayKey, items]) => ({
+        dayKey,
+        label: formatHistoryDayLabel(items[0]?.createdAtIso ?? new Date(dayKey).toISOString()),
+        items,
+      }));
+  }, [todayTransactionItems]);
+
+  const transactionItems = useMemo(
+    () => groupedTransactionItems.slice(0, visibleDayCount).flatMap((group) => group.items),
+    [groupedTransactionItems, visibleDayCount],
+  );
+  const hasAnyHistory = transactionItems.length > 0;
+  const hasMoreHistory = groupedTransactionItems.length > visibleDayCount;
+
+  useEffect(() => {
+    if (!member?.uid) {
+      setTodayTransactionItems([]);
+      setIsHistoryLoading(false);
+      setVisibleDayCount(1);
+      return;
+    }
+
+    setIsHistoryLoading(true);
+    setVisibleDayCount(1);
+
+    const unsubscribe = TransactionService.subscribeToUserTransactions(member.uid, (items) => {
+      setTodayTransactionItems(items);
+      setIsHistoryLoading(false);
+    });
+
+    return unsubscribe;
+  }, [member?.uid]);
+
+  const loadOlderHistory = async () => {
+    if (!hasMoreHistory) {
+      return;
+    }
+    setVisibleDayCount((current) => current + 1);
+  };
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -165,11 +262,44 @@ export default function ProfileScreen() {
             )}
           </View>
 
+          <View style={[styles.pointsSummaryRow, { paddingHorizontal: horizontalPadding }]}>
+            <View style={[styles.pointsSummaryCard, { backgroundColor: '#FFFFFF', borderColor: colors.border.light }]}>
+              <Text style={[styles.pointsSummaryLabel, { color: colors.text.secondary }]}>Available Points</Text>
+              <Text style={[styles.pointsSummaryValue, { color: colors.text.primary }]}>
+                {availablePoints.toLocaleString('id-ID')}
+              </Text>
+              <Text style={[styles.pointsSummaryHint, { color: colors.text.secondary }]}>Ready to redeem</Text>
+            </View>
+            <View style={[styles.pointsSummaryCard, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+              <Text style={[styles.pointsSummaryLabel, { color: '#9A3412' }]}>Pending Points</Text>
+              <Text style={[styles.pointsSummaryValue, { color: '#9A3412' }]}>
+                {pendingPoints.toLocaleString('id-ID')}
+              </Text>
+              <Text style={[styles.pointsSummaryHint, { color: '#C2410C' }]}>Awaiting validation</Text>
+            </View>
+          </View>
+
           {/* MENU SECTIONS */}
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
             <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Account</Text>
             <MenuItem icon={User} title="Edit Profile" subtitle="Name, Phone, Email & Photo" onPress={() => navigation.navigate('EditProfile')} />
-            <MenuItem icon={Lock} title="Ganti Password" subtitle="Ubah password akun kamu" onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} />
+            <MenuItem icon={Lock} title="Change Password" subtitle="Update your account password" onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} />
+            <MenuItem
+              icon={ShieldCheck}
+              title="Security PIN"
+              subtitle={
+                pinEnabled
+                  ? biometricEnabled
+                    ? appLockEnabled
+                      ? 'PIN and biometrics enabled, with app relock active'
+                      : 'PIN and biometrics enabled'
+                    : appLockEnabled
+                      ? 'PIN enabled, with app relock active'
+                      : 'PIN enabled for sensitive actions'
+                  : 'Protect redemption, vouchers, and your member QR'
+              }
+              onPress={openSecuritySettings}
+            />
             <MenuItem icon={HistoryIcon} title="Transaction History" subtitle="Check your earned points" onPress={openHistory} />
             <MenuItem icon={MapPin} title="Find a Store" subtitle="Locate nearest Gong Cha" onPress={() => navigation.navigate('StoreLocator')} />
           </View>
@@ -195,7 +325,17 @@ export default function ProfileScreen() {
               <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={closeHistory} />
             </Animated.View>
             
-            <Animated.View style={[styles.bottomSheetCard, { minHeight: Math.max(320, screenHeight * 0.5), opacity: historyCardOpacity, transform: [{ translateY: historyTranslateY }] }]}>
+            <Animated.View
+              style={[
+                styles.bottomSheetCard,
+                {
+                  maxHeight: Math.min(screenHeight * 0.78, 720),
+                  minHeight: Math.max(320, screenHeight * 0.48),
+                  opacity: historyCardOpacity,
+                  transform: [{ translateY: historyTranslateY }],
+                },
+              ]}
+            >
               <View style={[styles.modalGrip, { backgroundColor: colors.border.medium }]} />
               <View style={[styles.modalHeader, { borderBottomColor: colors.border.light }]}>
                 <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Transaction History</Text>
@@ -205,28 +345,80 @@ export default function ProfileScreen() {
               </View>
 
               {/* 🔥 SKELETON: List History (Contoh Jika Sedang Loading) */}
-              {isMemberLoading ? (
+              {isMemberLoading || isHistoryLoading ? (
                  <View style={{ padding: 20 }}>
                     {[1, 2, 3].map(i => <SkeletonLoader key={i} height={60} style={{ marginBottom: 16 }} />)}
                  </View>
               ) : (
                 <FlatList
-                  data={[]} // Nanti disambung ke data transaksi realtime di Fase 3
-                  keyExtractor={(item, index) => String(index)}
+                  data={transactionItems}
+                  keyExtractor={(item) => item.id}
                   contentContainerStyle={styles.historyListContent}
+                  style={styles.historyList}
+                  onEndReached={hasAnyHistory ? loadOlderHistory : undefined}
+                  onEndReachedThreshold={0.35}
+                  ListFooterComponent={
+                    hasAnyHistory && hasMoreHistory ? (
+                      <View style={styles.historyFooter}>
+                        <Text style={[styles.historyFooterText, { color: colors.text.secondary }]}>Scroll up to reveal earlier dates</Text>
+                      </View>
+                    ) : null
+                  }
                   ListEmptyComponent={<View style={{ padding: 40, alignItems: 'center' }}><Text style={[styles.emptyText, { color: colors.text.secondary }]}>No transaction history yet.</Text></View>}
-                  renderItem={({ item }: any) => {
+                  renderItem={({ item, index }) => {
                     const isRedeem = item.type === 'redeem';
+                    const previousItem = transactionItems[index - 1];
+                    const currentDay = formatHistoryDayLabel(item.createdAtIso);
+                    const previousDay = previousItem ? formatHistoryDayLabel(previousItem.createdAtIso) : null;
+                    const showDateDivider = index === 0 || currentDay !== previousDay;
                     return (
-                      <View style={[styles.historyItem, { borderBottomColor: colors.border.light }]}>
-                        <View style={[styles.historyIconBg, { backgroundColor: isRedeem ? colors.status.warningBg : colors.status.successBg }]}>
-                          {isRedeem ? <ArrowDownCircle size={18} color={colors.status.warningText} /> : <ArrowUpCircle size={18} color={colors.status.successText} />}
+                      <View>
+                        {showDateDivider && (
+                          <View style={styles.dateSection}>
+                            <View style={[styles.dateSectionLine, { backgroundColor: colors.border.light }]} />
+                            <Text style={[styles.dateSectionLabel, { color: colors.text.secondary }]}>{currentDay}</Text>
+                          </View>
+                        )}
+                        <View style={[styles.historyItem, { borderBottomColor: colors.border.light }]}>
+                          <View style={[styles.historyIconBg, { backgroundColor: isRedeem ? colors.status.warningBg : colors.status.successBg }]}>
+                            {isRedeem ? <ArrowDownCircle size={18} color={colors.status.warningText} /> : <ArrowUpCircle size={18} color={colors.status.successText} />}
+                          </View>
+                          <View style={styles.historyMain}>
+                            <View style={styles.historyTopRow}>
+                              <Text style={[styles.historyTitle, { color: colors.text.primary }]}>{item.title}</Text>
+                              <Text style={[styles.historyAmount, { color: isRedeem ? colors.status.errorText : item.isPending ? colors.status.warningText : item.status === 'rejected' ? colors.status.errorText : colors.status.successText }]}>
+                                {item.pointsAmount > 0 ? '+' : ''}{item.pointsAmount} XP
+                              </Text>
+                            </View>
+
+                            <Text style={[styles.historyDate, { color: colors.text.secondary }]}>
+                              {formatHistoryTime(item.createdAtIso)}
+                            </Text>
+
+                            {!!item.storeLabel && (
+                              <Text style={[styles.historyMetaLine, { color: colors.text.secondary }]} numberOfLines={1}>
+                                {item.storeLabel}
+                              </Text>
+                            )}
+
+                            {!!item.referenceLabel && (
+                              <Text style={[styles.historyReference, { color: colors.text.tertiary }]} numberOfLines={1}>
+                                Ref {item.referenceLabel}
+                              </Text>
+                            )}
+
+                            {item.isPending && (
+                              <View style={[styles.pendingBadge, { backgroundColor: colors.status.warningBg }]}>
+                                <Text style={[styles.pendingBadgeText, { color: colors.status.warningText }]}>Pending validation</Text>
+                              </View>
+                            )}
+                            {item.status === 'rejected' && (
+                              <View style={[styles.pendingBadge, { backgroundColor: colors.status.errorBg }]}>
+                                <Text style={[styles.pendingBadgeText, { color: colors.status.errorText }]}>Rejected</Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.historyTitle, { color: colors.text.primary }]}>{isRedeem ? 'Points Redeemed' : 'Points Earned'}</Text>
-                          <Text style={[styles.historyDate, { color: colors.text.secondary }]}>{formatDate(item.date)}</Text>
-                        </View>
-                        <Text style={[styles.historyAmount, { color: isRedeem ? colors.status.errorText : colors.status.successText }]}>{isRedeem ? '-' : '+'}{item.amount} XP</Text>
                       </View>
                     );
                   }}
@@ -251,6 +443,11 @@ const styles = StyleSheet.create({
   userPhone: { fontSize: 14, marginTop: 4 },
   adminBadge: { marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   adminBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+  pointsSummaryRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  pointsSummaryCard: { flex: 1, borderRadius: 18, borderWidth: 1, padding: 16 },
+  pointsSummaryLabel: { fontSize: 12, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  pointsSummaryValue: { fontSize: 24, fontWeight: '800' },
+  pointsSummaryHint: { fontSize: 12, marginTop: 6 },
   menuSection: { marginBottom: 24 },
   sectionHeader: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, marginLeft: 4 },
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 16, marginBottom: 10, elevation: 1 },
@@ -263,16 +460,38 @@ const styles = StyleSheet.create({
   inlineOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 60 },
   modalBackdrop: { ...StyleSheet.absoluteFillObject },
   modalBackdropTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(21,17,17,0.3)' },
-  bottomSheetCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 20, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, elevation: 20 },
+  bottomSheetCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 20,
+    overflow: 'hidden',
+  },
   modalGrip: { alignSelf: 'center', width: 44, height: 5, borderRadius: 999, marginTop: 10, marginBottom: 4 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, borderBottomWidth: 1 },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
   closeBtn: { padding: 8, borderRadius: 20 },
+  historyList: { flex: 1 },
   historyListContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 },
+  historyFooter: { alignItems: 'center', justifyContent: 'center', paddingTop: 8, paddingBottom: 10, gap: 8 },
+  historyFooterText: { fontSize: 12 },
+  dateSection: { paddingTop: 12, paddingBottom: 6 },
+  dateSectionLine: { height: 1, marginBottom: 10 },
+  dateSectionLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3, textTransform: 'uppercase' },
   emptyText: { textAlign: 'center', fontSize: 14 },
   historyItem: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 14, borderBottomWidth: 1 },
   historyIconBg: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  historyMain: { flex: 1 },
+  historyTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   historyTitle: { fontSize: 16, fontWeight: '600' },
   historyDate: { fontSize: 12, marginTop: 2 },
-  historyAmount: { fontSize: 15, fontWeight: '700', marginTop: 2 },
+  historyMetaLine: { fontSize: 13, marginTop: 4 },
+  historyReference: { fontSize: 11, marginTop: 2 },
+  historyAmount: { fontSize: 15, fontWeight: '700', marginTop: 1 },
+  pendingBadge: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  pendingBadgeText: { fontSize: 11, fontWeight: '700' },
 });

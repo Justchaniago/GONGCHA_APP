@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   Image,
   TextInput,
   KeyboardAvoidingView,
@@ -22,6 +21,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Eye, EyeOff } from 'lucide-react-native';
+import BouncyPressable from '../components/BouncyPressable';
 
 // 🔥 PENGGANTI THEME CONTEXT
 import { colors } from '../theme/colorTokens';
@@ -68,6 +68,7 @@ export default function LoginScreen() {
 
   // ─── Animation ────────────────────────────────────────────────────────────
   const contentOpacity = useRef(new Animated.Value(1)).current;
+  const contentTranslateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (step === 'otp') startResendTimer();
@@ -86,12 +87,18 @@ export default function LoginScreen() {
   };
 
   const animateFade = (callback: () => void) => {
-    Animated.timing(contentOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+    Animated.parallel([
+      Animated.timing(contentOpacity, { toValue: 0, duration: 140, useNativeDriver: true }),
+      Animated.timing(contentTranslateY, { toValue: 10, duration: 140, useNativeDriver: true }),
+    ]).start(() => {
       callback();
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setTimeout(() => {
-        Animated.timing(contentOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-      }, 50);
+      contentOpacity.setValue(0);
+      contentTranslateY.setValue(12);
+      Animated.parallel([
+        Animated.timing(contentOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.spring(contentTranslateY, { toValue: 0, speed: 18, bounciness: 6, useNativeDriver: true }),
+      ]).start();
     });
   };
 
@@ -167,7 +174,7 @@ export default function LoginScreen() {
       if (message === 'email_not_verified') {
         Alert.alert(
           'Email belum diverifikasi 📧',
-          'Klik link verifikasi di email kamu sebelum login. Belum terima email?',
+          'Klik link verifikasi di email kamu sebelum login. Belum menerima email?',
           [
             {
               text: 'Kirim Ulang', onPress: async () => {
@@ -182,12 +189,13 @@ export default function LoginScreen() {
             { text: 'OK', style: 'cancel' },
           ]
         );
-      } else if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))
+      } else if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found')) {
         Alert.alert('Login gagal', 'Email atau password salah. Periksa kembali.');
+      }
       else if (message.includes('auth/too-many-requests'))
-        Alert.alert('Terlalu banyak percobaan', 'Coba lagi nanti atau reset password.');
+        Alert.alert('Terlalu banyak percobaan', 'Coba lagi nanti atau reset password kamu.');
       else if (message.includes('auth/network-request-failed'))
-        Alert.alert('Login gagal', 'Tidak bisa terhubung ke Firebase. Cek koneksi internet kamu.');
+        Alert.alert('Login gagal', 'Tidak bisa terhubung ke server. Cek koneksi internet kamu.');
       else Alert.alert('Login gagal', message);
     } finally {
       setIsEmailSubmitting(false);
@@ -200,7 +208,7 @@ export default function LoginScreen() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { Alert.alert('Email tidak valid', 'Masukkan format email yang benar.'); return; }
     try {
       await AuthService.sendPasswordReset(email);
-      Alert.alert('Email terkirim! 📧', `Link reset password dikirim ke ${email}. Cek inbox atau spam.`);
+      Alert.alert('Email terkirim! 📧', `Link reset password dikirim ke ${email}. Cek inbox atau folder spam.`);
     } catch (error: any) {
       const message = String(error?.message || '');
       if (message.includes('auth/user-not-found')) Alert.alert('Email tidak terdaftar', 'Tidak ada akun dengan email ini.');
@@ -210,7 +218,6 @@ export default function LoginScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <StatusBar style="light" />
 
@@ -253,13 +260,13 @@ export default function LoginScreen() {
             </View>
 
             <ScrollView
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
               keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
               showsVerticalScrollIndicator={false}
               bounces={false}
               contentContainerStyle={styles.sheetScrollContent}
             >
-              <Animated.View style={{ opacity: contentOpacity }}>
+              <Animated.View style={{ opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
 
                 {/* ── OTP step ── */}
                 {step === 'otp' ? (
@@ -297,7 +304,7 @@ export default function LoginScreen() {
                       ))}
                     </View>
 
-                    <TouchableOpacity
+                    <BouncyPressable
                       style={[
                         styles.primaryButton,
                         { backgroundColor: otp.join('').length < 4 || verifying ? '#FCA5A5' : colors.brand.primary }, // Hardcode warna merah redup kalau disabled
@@ -305,10 +312,12 @@ export default function LoginScreen() {
                       onPress={handleVerify}
                       disabled={otp.join('').length < 4 || verifying}
                     >
-                      <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
-                        {verifying ? 'Verifying...' : 'Verify & Login'}
-                      </Text>
-                    </TouchableOpacity>
+                      <View style={styles.buttonInner}>
+                        <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
+                          {verifying ? 'Verifying...' : 'Verify & Login'}
+                        </Text>
+                      </View>
+                    </BouncyPressable>
 
                     <View style={{ alignItems: 'center', marginTop: 16 }}>
                       {resendTimer > 0 ? (
@@ -353,7 +362,7 @@ export default function LoginScreen() {
                             onChangeText={setPhoneNumber}
                           />
                         </View>
-                        <TouchableOpacity
+                        <BouncyPressable
                           style={[
                             styles.primaryButton,
                             { backgroundColor: phoneNumber.length < 9 ? '#FCA5A5' : colors.brand.primary },
@@ -361,8 +370,10 @@ export default function LoginScreen() {
                           onPress={handleGetOtp}
                           disabled={phoneNumber.length < 9}
                         >
-                          <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>Get OTP</Text>
-                        </TouchableOpacity>
+                          <View style={styles.buttonInner}>
+                            <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>Get OTP</Text>
+                          </View>
+                        </BouncyPressable>
                       </>
                     )}
 
@@ -404,7 +415,7 @@ export default function LoginScreen() {
                         <TouchableOpacity onPress={handleForgotPassword} style={{ alignSelf: 'flex-end', marginBottom: 16 }}>
                           <Text style={{ color: colors.brand.primary, fontSize: 13, fontWeight: '500' }}>Forgot password?</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
+                        <BouncyPressable
                           style={[
                             styles.primaryButton,
                             { backgroundColor: isEmailSubmitting ? '#FCA5A5' : colors.brand.primary },
@@ -412,10 +423,12 @@ export default function LoginScreen() {
                           onPress={handleEmailLogin}
                           disabled={isEmailSubmitting}
                         >
-                          <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
-                            {isEmailSubmitting ? 'Signing in...' : 'Login'}
-                          </Text>
-                        </TouchableOpacity>
+                          <View style={styles.buttonInner}>
+                            <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
+                              {isEmailSubmitting ? 'Signing in...' : 'Login'}
+                            </Text>
+                          </View>
+                        </BouncyPressable>
                       </>
                     )}
 
@@ -425,14 +438,16 @@ export default function LoginScreen() {
                       <Text style={[styles.dividerText, { color: colors.text.tertiary }]}>or</Text>
                       <View style={[styles.dividerLine, { backgroundColor: colors.border.light }]} />
                     </View>
-                    <TouchableOpacity
+                    <BouncyPressable
                       style={styles.methodToggleButton}
                       onPress={() => animateFade(() => setLoginMethod(m => m === 'phone' ? 'email' : 'phone'))}
                     >
-                      <Text style={[styles.methodToggleText, { color: colors.text.secondary }]}>
-                        {loginMethod === 'phone' ? 'Continue with email instead' : 'Continue with phone instead'}
-                      </Text>
-                    </TouchableOpacity>
+                      <View style={styles.buttonInner}>
+                        <Text style={[styles.methodToggleText, { color: colors.text.secondary }]}>
+                          {loginMethod === 'phone' ? 'Continue with email instead' : 'Continue with phone instead'}
+                        </Text>
+                      </View>
+                    </BouncyPressable>
                   </>
                 )}
 
@@ -441,7 +456,6 @@ export default function LoginScreen() {
           </View>
         </KeyboardAvoidingView>
       </View>
-    </TouchableWithoutFeedback>
   );
 }
 
@@ -478,12 +492,13 @@ const styles = StyleSheet.create({
   otpBox: { borderRadius: 12, borderWidth: 1, textAlign: 'center', fontSize: 24, fontWeight: 'bold' },
 
   primaryButton: { height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  buttonInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { fontWeight: '600', fontSize: 16 },
 
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { marginHorizontal: 12, fontSize: 13 },
 
-  methodToggleButton: { alignItems: 'center', paddingVertical: 2 },
+  methodToggleButton: { minHeight: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
   methodToggleText: { fontSize: 14, fontWeight: '500' },
 });

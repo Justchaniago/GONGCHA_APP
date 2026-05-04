@@ -31,6 +31,33 @@ export interface UserVoucher {
   type?: VoucherType;
 }
 
+export interface XpHistoryEntry {
+  id: string;
+  date?: string;
+  createdAt?: any;
+  amount: number;
+  type: "earn" | "redeem";
+  status?: "pending" | "verified" | "rejected";
+  context?: string;
+  location?: string;
+  transactionId?: string;
+}
+
+export interface RewardItem {
+  id: string;
+  title: string;
+  description?: string;
+  pointsCost?: number;
+  image?: string;
+  imageURL?: string;
+  category?: string;
+  isActive?: boolean;
+  isAvailable?: boolean;
+  isRedeemable?: boolean;
+  stock?: number;
+  updatedAt?: any;
+}
+
 export interface UserProfile {
   uid: string; 
   name: string;
@@ -40,11 +67,13 @@ export interface UserProfile {
   photoURL?: string; 
   points?: number;
   currentPoints?: number;
+  pendingPoints?: number;
   lifetimePoints?: number;
   tierXp?: number;
   xp?: number;
   tier: UserTier;
   joinedDate?: string;
+  xpHistory?: XpHistoryEntry[];
   vouchers?: UserVoucher[]; 
   activeVouchers?: UserVoucher[];
   role?: string; 
@@ -75,6 +104,7 @@ export type TransactionStatus = "PENDING" | "COMPLETED" | "CANCELLED" | "REFUNDE
 
 export interface TransactionRecord {
   id?: string;
+  uid?: string | null;
   receiptNumber: string;
   storeId: string;
   storeName: string;
@@ -85,6 +115,10 @@ export interface TransactionRecord {
   memberId?: string;      
   memberName?: string;    
   staffId?: string;       
+  transactionId?: string;
+  amount?: number;
+  storeLocation?: string;
+  pointsEarned?: number;
   potentialPoints?: number;
   type?: "earn" | "redeem";
   verifiedAt?: any;

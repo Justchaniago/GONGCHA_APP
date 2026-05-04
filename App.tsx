@@ -7,6 +7,7 @@ import './global.css';
 
 import AppNavigator from './src/navigation/AppNavigator';
 import { MemberProvider } from './src/context/MemberContext';
+import { SecurityProvider } from './src/context/SecurityContext';
 import MemberCardModal from './src/components/MemberCardModal';
 
 // 🔥 PERBAIKAN IMPORT: Hapus kurung kurawal karena ini export default
@@ -52,11 +53,12 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <MemberProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-        {/* 🔥 TAMBAHKAN MODAL INI DI SINI (Di luar NavigationContainer tapi di dalam MemberProvider) */}
-        <MemberCardModal />
+        <SecurityProvider>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+          <MemberCardModal />
+        </SecurityProvider>
       </MemberProvider>
     </SafeAreaProvider>
   );

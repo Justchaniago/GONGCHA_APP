@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator } from 'react-native';
@@ -10,6 +10,8 @@ import CustomTabBar from '../components/CustomTabBar';
 // Import Screens
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
+import LocationPermissionScreen from '../screens/LocationPermissionScreen';
+import NotificationPermissionScreen from '../screens/NotificationPermissionScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MenuScreen from '../screens/MenuScreen';
 import QrPlaceholderScreen from '../screens/QrPlaceholderScreen';
@@ -19,8 +21,11 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import StoreLocatorScreen from '../screens/StoreLocatorScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
 import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
+import { hasCompletedGuestOnboarding } from '../utils/guestOnboarding';
 
 export type RootStackParamList = {
+  LocationPermission: undefined;
+  NotificationPermission: undefined;
   Welcome: undefined;
   Login: { initialStep?: 'phone' | 'otp' };
   MainApp: undefined;
@@ -51,9 +56,34 @@ function MainTabNavigator() {
 
 export default function AppNavigator() {
   const { isAuthenticated, loading, member } = useMember();
+  const [guestOnboardingReady, setGuestOnboardingReady] = useState(false);
+  const [guestOnboardingComplete, setGuestOnboardingComplete] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadGuestOnboarding() {
+      try {
+        const completed = await hasCompletedGuestOnboarding();
+        if (isMounted) {
+          setGuestOnboardingComplete(completed);
+        }
+      } finally {
+        if (isMounted) {
+          setGuestOnboardingReady(true);
+        }
+      }
+    }
+
+    loadGuestOnboarding();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   // Jika sedang mengecek sesi ke server Firebase, tahan dengan loading
-  if (loading) {
+  if (loading || !guestOnboardingReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8F0' }}>
         <ActivityIndicator size="large" color="#C8102E" />
@@ -86,6 +116,8 @@ export default function AppNavigator() {
       ) : (
         // Kalau belum login, hanya bisa akses area luar
         <>
+          {!guestOnboardingComplete && <Stack.Screen name="LocationPermission" component={LocationPermissionScreen} />}
+          {!guestOnboardingComplete && <Stack.Screen name="NotificationPermission" component={NotificationPermissionScreen} />}
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_bottom' }} />

@@ -31,12 +31,14 @@ export default function MemberCardModal() {
   const { width, height } = useWindowDimensions();
   const [mounted, setMounted] = useState(false);
   const gestureDismissRef = useRef(false);
+  const pendingPoints = member?.pendingPoints ?? 0;
   
   // Perhitungan UI dari code lama dipertahankan 100%
-  const cardWidth = Math.min(Math.max(width * 0.78, 270), 340);
-  const cardHeight = cardWidth * 1.58;
-  const qrSize = Math.round(Math.min(Math.max(cardWidth * 0.45, 132), 156));
-  const pointsFontSize = width < 360 ? 26 : 30;
+  const isShortScreen = height < 760;
+  const cardWidth = Math.min(Math.max(width * 0.78, 270), 342);
+  const cardHeight = Math.min(Math.max(cardWidth * (isShortScreen ? 1.36 : 1.44), 430), height * 0.78);
+  const qrSize = Math.round(Math.min(Math.max(cardWidth * (isShortScreen ? 0.34 : 0.38), 118), 150));
+  const pointsFontSize = width < 360 ? 42 : 50;
 
   // Animasi dari code lama dipertahankan 100%
   const entranceProgress = useRef(new Animated.Value(0)).current;
@@ -275,16 +277,16 @@ export default function MemberCardModal() {
             <View style={[styles.cardContent, {
               paddingHorizontal: Math.max(22, cardWidth * 0.068),
               paddingTop: Math.max(20, cardWidth * 0.062),
-              paddingBottom: Math.max(54, cardWidth * 0.16), // Lebih besar agar tidak mepet bawah
+              paddingBottom: Math.max(22, cardWidth * 0.072),
             }]}>
               {/* Header with logo */}
               <View style={[styles.cardHeader, {
-                marginBottom: Math.max(12, cardWidth * 0.038),
+                marginBottom: Math.max(8, cardWidth * 0.026),
               }]}>
                 <View style={{ flex: 1 }} />
                 <Image
                   source={require('../../assets/images/logowhite.webp')}
-                  style={[styles.logoImage, { width: Math.round(cardWidth * 0.28), height: Math.round(cardWidth * 0.28) }]}
+                  style={[styles.logoImage, { width: Math.round(cardWidth * 0.28), height: Math.round(cardWidth * 0.22) }]}
                   resizeMode="contain"
                 />
                 <View style={{ flex: 1 }} />
@@ -292,8 +294,8 @@ export default function MemberCardModal() {
 
               {/* QR Code Container with glassmorphism */}
               <View style={[styles.qrSection, {
-                marginTop: Math.max(18, cardWidth * 0.055),
-                marginBottom: Math.max(18, cardWidth * 0.055),
+                marginTop: Math.max(4, cardWidth * 0.018),
+                marginBottom: Math.max(14, cardWidth * 0.04),
               }]}>
                 <BlurView intensity={20} tint="light" style={styles.qrBlurContainer}>
                   <View style={styles.qrInnerContainer}>
@@ -308,18 +310,33 @@ export default function MemberCardModal() {
 
               {/* Points section */}
               <View style={[styles.pointsBlock, {
-                marginTop: Math.max(14, cardWidth * 0.042),
-                marginBottom: Math.max(22, cardWidth * 0.065),
+                marginTop: Math.max(2, cardWidth * 0.01),
+                marginBottom: Math.max(14, cardWidth * 0.04),
               }]}>
-                <Text style={styles.pointsLabel}>WALLET POINTS</Text>
+                <Text style={styles.pointsLabel}>AVAILABLE POINTS</Text>
                 <Text style={[styles.pointsValue, { fontSize: pointsFontSize }]}>
-                  {(member?.points ?? 0).toLocaleString('id-ID')}
+                  {(member?.currentPoints ?? member?.points ?? 0).toLocaleString('id-ID')}
+                </Text>
+                <View style={styles.pointsMetaRow}>
+                  <View style={[styles.pointsMetaChip, pendingPoints > 0 && styles.pointsMetaChipWarm]}>
+                    <Text style={[styles.pointsMetaText, pendingPoints > 0 && styles.pointsMetaTextWarm]}>
+                      {pendingPoints.toLocaleString('id-ID')} pending
+                    </Text>
+                  </View>
+                  <View style={styles.pointsMetaChip}>
+                    <Text style={styles.pointsMetaText}>Redeemable now</Text>
+                  </View>
+                </View>
+                <Text style={styles.pendingPointsText}>
+                  {pendingPoints > 0
+                    ? 'Pending points stay on hold until admin validation is completed.'
+                    : 'New earn points will appear here while waiting for validation.'}
                 </Text>
               </View>
 
               {/* Footer with user info and tier */}
               <View style={[styles.footerRow, {
-                marginTop: Math.max(12, cardWidth * 0.036),
+                marginTop: 'auto',
               }]}>
                 <View style={styles.userInfoBlock}>
                   <Text style={styles.memberName}>{member?.fullName ?? 'Guest'}</Text>
@@ -374,7 +391,7 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -403,7 +420,7 @@ const styles = StyleSheet.create({
   },
   qrInnerContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    padding: 16,
+    padding: 14,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
@@ -413,7 +430,7 @@ const styles = StyleSheet.create({
   },
   pointsLabel: {
     color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.5,
     fontWeight: '700',
   },
@@ -427,6 +444,43 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
+  pendingPointsText: {
+    color: 'rgba(255, 255, 255, 0.78)',
+    marginTop: 10,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: '92%',
+  },
+  pointsMetaRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  pointsMetaChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  pointsMetaChipWarm: {
+    backgroundColor: 'rgba(245, 158, 11, 0.16)',
+    borderColor: 'rgba(251, 191, 36, 0.28)',
+  },
+  pointsMetaText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  pointsMetaTextWarm: {
+    color: '#FCD34D',
+  },
   loadingText: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.6)',
@@ -439,11 +493,12 @@ const styles = StyleSheet.create({
   },
   userInfoBlock: {
     flex: 1,
+    paddingRight: 12,
   },
   memberName: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 20,
     letterSpacing: -0.3,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
@@ -452,7 +507,7 @@ const styles = StyleSheet.create({
   memberId: {
     color: 'rgba(255, 255, 255, 0.7)',
     marginTop: 4,
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
     fontSize: 12,
     fontWeight: '500',
   },

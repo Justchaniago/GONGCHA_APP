@@ -20,6 +20,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Eye, EyeOff } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
+import BouncyPressable from '../components/BouncyPressable';
 import OtpVerificationSection from '../components/OtpVerificationSection';
 import { AuthService } from '../services/AuthService';
 import { firebaseAuth } from '../config/firebase';
@@ -36,6 +38,48 @@ type WelcomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList,
 
 const WELCOME_KEYBOARD_SHIFT_MULTIPLIER = 1.0;
 const OTP_AUTH_PASSWORD = 'GongCha@123';
+const AUTH_ACTION_SIZE = 64;
+
+function PhoneIcon({ size = 28, color = '#B91C2F' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C9.61 21 3 14.39 3 6c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57-.11.35-.03.74-.25 1.02l-2.2 2.2z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
+function EmailIcon({ size = 28, color = '#B91C2F' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M20 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
+function GoogleIcon({ size = 28 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+      <Path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+      <Path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+      <Path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+    </Svg>
+  );
+}
+
+function AppleIcon({ size = 28, color = '#000' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+    </Svg>
+  );
+}
 
 export default function WelcomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -51,6 +95,7 @@ export default function WelcomeScreen() {
     'initial' | 'login_form' | 'login_otp' | 'signup_form' | 'signup_otp' | 'email_verify_pending'
   >('initial');
   const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
+  const [loginEntryMode, setLoginEntryMode] = useState<'select' | 'phone' | 'email'>('select');
   const [signupMethod, setSignupMethod] = useState<'phone' | 'email'>('phone');
 
   // ─── Phone Login State ────────────────────────────────────────────────────
@@ -94,6 +139,7 @@ export default function WelcomeScreen() {
   const getStartedTranslateY = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(sheetHiddenOffset)).current;
   const contentOpacity = useRef(new Animated.Value(1)).current;
+  const contentTranslateY = useRef(new Animated.Value(0)).current;
   const keyboardShift = useRef(new Animated.Value(0)).current;
   const loginOtpRefs = useRef<Array<TextInput | null>>([null, null, null, null]);
   const loginTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -196,9 +242,35 @@ export default function WelcomeScreen() {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   const animateTransition = (callback: () => void) => {
-    contentOpacity.stopAnimation();
-    contentOpacity.setValue(1);
-    requestAnimationFrame(() => { callback(); });
+    Animated.parallel([
+      Animated.timing(contentOpacity, {
+        toValue: 0,
+        duration: 130,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentTranslateY, {
+        toValue: 6,
+        duration: 130,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      callback();
+      contentOpacity.setValue(0);
+      contentTranslateY.setValue(8);
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 170,
+          useNativeDriver: true,
+        }),
+        Animated.spring(contentTranslateY, {
+          toValue: 0,
+          speed: 20,
+          bounciness: 3,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
   };
 
   const generateDemoOtp = () => `${Math.floor(1000 + Math.random() * 9000)}`;
@@ -246,10 +318,11 @@ export default function WelcomeScreen() {
   // ─── Navigation ───────────────────────────────────────────────────────────
   const handleGetStarted = () => {
     Animated.parallel([
-      Animated.timing(getStartedOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-      Animated.timing(getStartedTranslateY, { toValue: -30, duration: 250, useNativeDriver: true }),
-      Animated.spring(sheetTranslateY, { toValue: 0, friction: 9, tension: 65, useNativeDriver: true }),
+      Animated.timing(getStartedOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(getStartedTranslateY, { toValue: -18, duration: 200, useNativeDriver: true }),
+      Animated.spring(sheetTranslateY, { toValue: 0, speed: 20, bounciness: 2, useNativeDriver: true }),
     ]).start();
+    setLoginEntryMode('select');
     setTimeout(() => setViewMode('login_form'), 50);
   };
 
@@ -264,12 +337,13 @@ export default function WelcomeScreen() {
       setLoginEmail(''); setLoginPassword('');
       setNewAccountName(''); setNewAccountEmail('');
       setNewAccountPassword(''); setNewAccountPasswordConfirm('');
+      setLoginEntryMode('select');
       setLoginMethod('phone'); setSignupMethod('phone');
 
       Animated.parallel([
-        Animated.timing(getStartedOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-        Animated.timing(getStartedTranslateY, { toValue: 0, duration: 250, useNativeDriver: true }),
-        Animated.timing(sheetTranslateY, { toValue: sheetHiddenOffset, duration: 250, useNativeDriver: true }),
+        Animated.timing(getStartedOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(getStartedTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.spring(sheetTranslateY, { toValue: sheetHiddenOffset, speed: 20, bounciness: 1, useNativeDriver: true }),
       ]).start(() => {
         setViewMode('initial');
         sheetTranslateY.setValue(sheetHiddenOffset);
@@ -285,9 +359,9 @@ export default function WelcomeScreen() {
       handleBackToSelection();
     } else {
       Animated.parallel([
-        Animated.timing(getStartedOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(getStartedTranslateY, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(sheetTranslateY, { toValue: sheetHiddenOffset, duration: 300, useNativeDriver: true }),
+        Animated.timing(getStartedOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(getStartedTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.spring(sheetTranslateY, { toValue: sheetHiddenOffset, speed: 20, bounciness: 1, useNativeDriver: true }),
       ]).start(() => setViewMode('initial'));
     }
   };
@@ -306,7 +380,11 @@ export default function WelcomeScreen() {
   const handleLoginOtpBack = () => {
     Keyboard.dismiss();
     if (loginTimerRef.current) clearInterval(loginTimerRef.current);
-    animateTransition(() => setViewMode('login_form'));
+    animateTransition(() => {
+      setLoginMethod('phone');
+      setLoginEntryMode('phone');
+      setViewMode('login_form');
+    });
   };
 
   const handleLoginOtpVerify = async () => {
@@ -384,7 +462,7 @@ export default function WelcomeScreen() {
       if (message === 'email_not_verified') {
         Alert.alert(
           'Email belum diverifikasi 📧',
-          'Klik link verifikasi di email kamu sebelum login. Belum dapat email?',
+          'Klik link verifikasi di email kamu sebelum login. Belum menerima email?',
           [
             { text: 'Kirim Ulang', onPress: async () => {
               try {
@@ -397,12 +475,13 @@ export default function WelcomeScreen() {
             { text: 'OK', style: 'cancel' },
           ]
         );
-      } else if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found'))
+      } else if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password') || message.includes('auth/user-not-found')) {
         Alert.alert('Login gagal', 'Email atau password salah.');
+      }
       else if (message.includes('auth/too-many-requests'))
-        Alert.alert('Terlalu banyak percobaan', 'Coba lagi nanti atau reset password.');
+        Alert.alert('Terlalu banyak percobaan', 'Coba lagi nanti atau reset password kamu.');
       else if (message.includes('auth/network-request-failed'))
-        Alert.alert('Login gagal', 'Cek koneksi internet kamu.');
+        Alert.alert('Login gagal', 'Tidak bisa terhubung ke server. Cek koneksi internet kamu.');
       else Alert.alert('Login gagal', message);
     } finally {
       setIsEmailLoginSubmitting(false);
@@ -415,7 +494,7 @@ export default function WelcomeScreen() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { Alert.alert('Email tidak valid', 'Masukkan format email yang benar.'); return; }
     try {
       await AuthService.sendPasswordReset(email);
-      Alert.alert('Email terkirim! 📧', `Link reset dikirim ke ${email}. Cek inbox atau spam.`);
+      Alert.alert('Email terkirim! 📧', `Link reset dikirim ke ${email}. Cek inbox atau folder spam.`);
     } catch (error: any) {
       const message = String(error?.message || '');
       if (message.includes('auth/user-not-found')) Alert.alert('Email tidak terdaftar', 'Tidak ada akun dengan email ini.');
@@ -425,7 +504,56 @@ export default function WelcomeScreen() {
 
   // ─── Signup Navigation ────────────────────────────────────────────────────
   const handleOpenSignUp = () => { Keyboard.dismiss(); animateTransition(() => setViewMode('signup_form')); };
-  const handleBackToLoginForm = () => { Keyboard.dismiss(); animateTransition(() => setViewMode('login_form')); };
+  const handleBackToLoginForm = () => {
+    Keyboard.dismiss();
+    animateTransition(() => {
+      setLoginEntryMode('select');
+      setViewMode('login_form');
+    });
+  };
+
+  const handleOpenPhoneLogin = () => {
+    Keyboard.dismiss();
+    animateTransition(() => {
+      setLoginMethod('phone');
+      setLoginEntryMode('phone');
+      setViewMode('login_form');
+    });
+  };
+
+  const handleOpenEmailLogin = () => {
+    Keyboard.dismiss();
+    animateTransition(() => {
+      setLoginMethod('email');
+      setLoginEntryMode('email');
+      setViewMode('login_form');
+    });
+  };
+
+  const handleBackToLoginSelector = () => {
+    Keyboard.dismiss();
+    animateTransition(() => {
+      setLoginEntryMode('select');
+      setLoginMethod('phone');
+      setPhoneNumber('');
+      setLoginEmail('');
+      setLoginPassword('');
+      setShowLoginPassword(false);
+      setViewMode('login_form');
+    });
+  };
+
+  const handleGoogleLogin = () => {
+    Alert.alert('Coming soon', 'Google sign in will be available in a future update.');
+  };
+
+  const handleAppleLogin = () => {
+    Alert.alert('Coming soon', 'Apple sign in will be available in a future update.');
+  };
+
+  const handleOpenTerms = () => {
+    Alert.alert('Terms & Conditions', 'The full terms page will be added in a future update.');
+  };
 
   // ─── Phone Signup ─────────────────────────────────────────────────────────
   const handleSignUpGetOtp = () => {
@@ -576,9 +704,11 @@ export default function WelcomeScreen() {
           ]}
           pointerEvents={viewMode === 'initial' ? 'auto' : 'none'}
         >
-          <TouchableOpacity style={styles.getStartedButton} onPress={handleGetStarted} activeOpacity={0.8}>
-            <Text style={styles.getStartedText}>Get started</Text>
-          </TouchableOpacity>
+          <BouncyPressable style={styles.getStartedButton} onPress={handleGetStarted} pressScale={0.97}>
+            <View style={styles.buttonInner}>
+              <Text style={styles.getStartedText}>Get started</Text>
+            </View>
+          </BouncyPressable>
         </Animated.View>
 
         {/* Bottom Sheet */}
@@ -603,25 +733,75 @@ export default function WelcomeScreen() {
               style={{ width: '100%' }}
               scrollEnabled={true}
             >
-              <Animated.View style={{ opacity: contentOpacity }}>
+              <Animated.View style={{ opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
 
                 {/* ══ LOGIN FORM ══ */}
                 {viewMode === 'login_form' && (
                   <View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-                      <TouchableOpacity onPress={handleBackToSelection} style={{ padding: 4, marginRight: 8 }}>
-                        <Text style={{ fontSize: 20, color: '#1A1A1A' }}>←</Text>
-                      </TouchableOpacity>
-                      <View>
-                        <Text style={styles.formTitle}>{getGreeting()}</Text>
-                        <Text style={styles.formSubtext}>
-                          {loginMethod === 'phone' ? 'Enter mobile number to continue' : 'Sign in with your email'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {loginMethod === 'phone' ? (
+                    {loginEntryMode === 'select' ? (
                       <>
+                        <View style={styles.loginHeaderRow}>
+                          <TouchableOpacity onPress={handleBackToSelection} style={styles.headerBackButton}>
+                            <Text style={styles.headerBackText}>←</Text>
+                          </TouchableOpacity>
+                          <View>
+                            <Text style={styles.formTitle}>{getGreeting()}</Text>
+                            <Text style={styles.formSubtext}>Choose how you want to sign in</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.authMethodRow}>
+                          <BouncyPressable style={styles.authMethodButton} onPress={handleOpenPhoneLogin}>
+                            <View style={styles.authMethodButtonInner}>
+                              <PhoneIcon size={28} color="#B91C2F" />
+                            </View>
+                          </BouncyPressable>
+
+                          <BouncyPressable style={styles.authMethodButton} onPress={handleOpenEmailLogin}>
+                            <View style={styles.authMethodButtonInner}>
+                              <EmailIcon size={28} color="#B91C2F" />
+                            </View>
+                          </BouncyPressable>
+
+                          <BouncyPressable style={styles.authMethodButton} onPress={handleGoogleLogin}>
+                            <View style={styles.authMethodButtonInner}>
+                              <GoogleIcon size={26} />
+                            </View>
+                          </BouncyPressable>
+
+                          {Platform.OS === 'ios' && (
+                            <BouncyPressable style={styles.authMethodButton} onPress={handleAppleLogin}>
+                              <View style={styles.authMethodButtonInner}>
+                                <AppleIcon size={26} color="#111111" />
+                              </View>
+                            </BouncyPressable>
+                          )}
+                        </View>
+
+                        <BouncyPressable style={[styles.signUpButton, { marginTop: 8 }]} onPress={handleOpenSignUp}>
+                          <View style={styles.buttonInner}>
+                            <Text style={styles.signUpButtonText}>Sign Up</Text>
+                          </View>
+                        </BouncyPressable>
+
+                        <BouncyPressable style={styles.termsButton} onPress={handleOpenTerms} pressScale={0.98}>
+                          <View style={styles.buttonInner}>
+                            <Text style={styles.termsButtonText}>Terms & Conditions</Text>
+                          </View>
+                        </BouncyPressable>
+                      </>
+                    ) : loginEntryMode === 'phone' ? (
+                      <>
+                        <View style={styles.loginHeaderRow}>
+                          <TouchableOpacity onPress={handleBackToLoginSelector} style={styles.headerBackButton}>
+                            <Text style={styles.headerBackText}>←</Text>
+                          </TouchableOpacity>
+                          <View style={styles.headerCopy}>
+                            <Text style={styles.formTitle}>{getGreeting()}</Text>
+                            <Text style={styles.formSubtext}>Enter your phone number to continue</Text>
+                          </View>
+                        </View>
+
                         <View style={styles.phoneInputContainer}>
                           <View style={styles.countryCodeBox}>
                             <Text style={{ fontSize: 18 }}>🇮🇩</Text>
@@ -636,12 +816,24 @@ export default function WelcomeScreen() {
                             onChangeText={setPhoneNumber}
                           />
                         </View>
-                        <TouchableOpacity style={styles.primaryButton} onPress={handleGetOtp}>
-                          <Text style={styles.primaryButtonText}>Get OTP</Text>
-                        </TouchableOpacity>
+                        <BouncyPressable style={styles.primaryButton} onPress={handleGetOtp}>
+                          <View style={styles.buttonInner}>
+                            <Text style={styles.primaryButtonText}>Get OTP</Text>
+                          </View>
+                        </BouncyPressable>
                       </>
                     ) : (
                       <>
+                        <View style={styles.loginHeaderRow}>
+                          <TouchableOpacity onPress={handleBackToLoginSelector} style={styles.headerBackButton}>
+                            <Text style={styles.headerBackText}>←</Text>
+                          </TouchableOpacity>
+                          <View style={styles.headerCopy}>
+                            <Text style={styles.formTitle}>{getGreeting()}</Text>
+                            <Text style={styles.formSubtext}>Continue with your email</Text>
+                          </View>
+                        </View>
+
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={styles.phoneInput}
@@ -677,36 +869,19 @@ export default function WelcomeScreen() {
                         <TouchableOpacity onPress={handleForgotPassword} style={{ alignSelf: 'flex-end', marginBottom: 16 }}>
                           <Text style={{ color: '#B91C2F', fontSize: 13, fontWeight: '500' }}>Forgot password?</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
+                        <BouncyPressable
                           style={[styles.primaryButton, isEmailLoginSubmitting && { backgroundColor: '#E5E7EB' }]}
                           onPress={handleEmailLogin}
                           disabled={isEmailLoginSubmitting}
                         >
-                          <Text style={[styles.primaryButtonText, isEmailLoginSubmitting && { color: '#9CA3AF' }]}>
-                            {isEmailLoginSubmitting ? 'Signing in...' : 'Login'}
-                          </Text>
-                        </TouchableOpacity>
+                          <View style={styles.buttonInner}>
+                            <Text style={[styles.primaryButtonText, isEmailLoginSubmitting && { color: '#9CA3AF' }]}>
+                              {isEmailLoginSubmitting ? 'Signing in...' : 'Login'}
+                            </Text>
+                          </View>
+                        </BouncyPressable>
                       </>
                     )}
-
-                    {/* Method toggle */}
-                    <View style={styles.dividerRow}>
-                      <View style={styles.dividerLine} />
-                      <Text style={styles.dividerText}>or</Text>
-                      <View style={styles.dividerLine} />
-                    </View>
-                    <TouchableOpacity
-                      style={styles.methodToggleButton}
-                      onPress={() => setLoginMethod(m => m === 'phone' ? 'email' : 'phone')}
-                    >
-                      <Text style={styles.methodToggleText}>
-                        {loginMethod === 'phone' ? 'Continue with email instead' : 'Continue with phone instead'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.signUpButton, { marginTop: 10 }]} onPress={handleOpenSignUp}>
-                      <Text style={styles.signUpButtonText}>Sign Up</Text>
-                    </TouchableOpacity>
                   </View>
                 )}
 
@@ -884,6 +1059,7 @@ export default function WelcomeScreen() {
                         setNewAccountPasswordConfirm('');
                         animateTransition(() => {
                           setLoginMethod('email');
+                          setLoginEntryMode('email');
                           setViewMode('login_form');
                         });
                       }}
@@ -925,6 +1101,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
   },
+  buttonInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   getStartedText: { fontSize: 17, fontWeight: '600', color: '#FFF' },
 
   bottomSheetContainer: {
@@ -934,12 +1111,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, shadowRadius: 20, elevation: 25, zIndex: 999,
   },
   bottomSheetContent: {},
-  sheetScrollContent: { paddingBottom: 10 },
-  sheetHeader: { alignItems: 'center', paddingVertical: 10, marginBottom: 10, width: '100%' },
+  sheetScrollContent: { paddingBottom: 8 },
+  sheetHeader: { alignItems: 'center', paddingVertical: 8, marginBottom: 8, width: '100%' },
   dragIndicator: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#E5E7EB' },
 
+  loginHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  headerBackButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  headerBackText: { fontSize: 20, color: '#1A1A1A' },
+  headerCopy: { flex: 1, paddingTop: 1 },
   formTitle: { fontSize: 20, fontWeight: 'bold', color: '#1A1A1A' },
-  formSubtext: { fontSize: 13, color: '#6B7280' },
+  formSubtext: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
+
+  authMethodRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
+    flexWrap: 'nowrap',
+  },
+  authMethodButton: {
+    width: AUTH_ACTION_SIZE,
+    height: AUTH_ACTION_SIZE,
+    borderRadius: AUTH_ACTION_SIZE / 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  authMethodButtonInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   phoneInputContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
@@ -966,10 +1172,13 @@ const styles = StyleSheet.create({
   },
   signUpButtonText: { color: '#B91C2F', fontWeight: '600', fontSize: 16 },
 
+  termsButton: { minHeight: 32, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
+  termsButtonText: { fontSize: 13, color: '#8B8B8B', textDecorationLine: 'underline' },
+
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
   dividerText: { marginHorizontal: 12, fontSize: 13, color: '#9CA3AF' },
 
-  methodToggleButton: { alignItems: 'center', paddingVertical: 2 },
+  methodToggleButton: { minHeight: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
   methodToggleText: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
 });

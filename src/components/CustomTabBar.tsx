@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // 🔥 IMPORT BARU: Menggunakan useMember & Token Warna Statis
 import { useMember } from '../context/MemberContext';
+import { useSecurity } from '../context/SecurityContext';
 import { colors } from '../theme/colorTokens';
 
 const BAR_HORIZONTAL_PADDING = 10;
@@ -31,6 +32,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 
   // 🔥 PERBAIKAN: Gunakan useMember sebagai gantinya useMemberCard
   const { showCard } = useMember();
+  const { ensureVerified } = useSecurity();
   
   // 🔥 PERBAIKAN: Hapus pengecekan Dark Mode
   const isDark = false; 
@@ -47,8 +49,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   };
 
   const activeIndex = useRef(new Animated.Value(state.index)).current;
+  const activePillTranslateX = useRef(new Animated.Value(0)).current;
   const activePillScale = useRef(new Animated.Value(1)).current;
   const [barWidth, setBarWidth] = useState(0);
+  const [tabLayouts, setTabLayouts] = useState<Record<string, { x: number; width: number }>>({});
   const pressScales = useRef(state.routes.map(() => new Animated.Value(1)));
   const insets = useSafeAreaInsets();
   const isCompact = screenWidth < 370;
@@ -91,9 +95,23 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 
   useEffect(() => {
     activePillScale.setValue(0.92);
+    const routeCount = state.routes.length || 1;
+    const availableWidth = Math.max(barWidth - dynamicBarPadding * 2, 0);
+    const fallbackSlotWidth = availableWidth > 0 ? availableWidth / routeCount : 0;
+    const activeRoute = state.routes[state.index];
+    const measuredLayout = activeRoute ? tabLayouts[activeRoute.key] : undefined;
+    const fallbackCenter = dynamicBarPadding + (state.index * fallbackSlotWidth) + (fallbackSlotWidth / 2);
+    const targetTranslateX = (measuredLayout ? measuredLayout.x + (measuredLayout.width / 2) : fallbackCenter) - (activePillSize / 2);
+
     Animated.parallel([
       Animated.spring(activeIndex, {
         toValue: state.index,
+        tension: 160,
+        friction: 18,
+        useNativeDriver: true,
+      }),
+      Animated.spring(activePillTranslateX, {
+        toValue: targetTranslateX,
         tension: 160,
         friction: 18,
         useNativeDriver: true,
@@ -105,7 +123,17 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
         useNativeDriver: true,
       }),
     ]).start();
-  }, [activeIndex, activePillScale, state.index]);
+  }, [
+    activeIndex,
+    activePillScale,
+    activePillTranslateX,
+    activePillSize,
+    barWidth,
+    dynamicBarPadding,
+    state.index,
+    state.routes,
+    tabLayouts,
+  ]);
 
   const onBarLayout = (event: LayoutChangeEvent) => {
     setBarWidth(event.nativeEvent.layout.width);
@@ -113,18 +141,17 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 
   const tabCount = state.routes.length || 1;
   const innerWidth = Math.max(barWidth - dynamicBarPadding * 2, 0);
-  const slotWidth = innerWidth > 0 ? innerWidth / tabCount : 0;
   const bottomOffset = Math.max(insets.bottom + (isCompact ? 2 : 4), isCompact ? 8 : 10);
   const hideTranslateY = barHeight + bottomOffset + 60; 
 
-  const pillTranslateX = activeIndex.interpolate({
-    inputRange: state.routes.map((_, idx) => idx),
-    outputRange: state.routes.map((_, idx) => {
-      const slotCenter = dynamicBarPadding + (idx * slotWidth) + (slotWidth / 2);
-      return slotCenter - (activePillSize / 2);
-    }),
-    extrapolate: 'clamp',
-  });
+  const handleTabLayout = (routeKey: string, event: LayoutChangeEvent) => {
+    const { x, width } = event.nativeEvent.layout;
+    setTabLayouts((prev) => {
+      const current = prev[routeKey];
+      if (current && current.x === x && current.width === width) return prev;
+      return { ...prev, [routeKey]: { x, width } };
+    });
+  };
 
   return (
     <Animated.View
@@ -176,7 +203,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
               shadowOpacity: 0.28,
               shadowRadius: 12,
               elevation: 6,
-              transform: [{ translateX: pillTranslateX }, { scale: activePillScale }],
+              transform: [{ translateX: activePillTranslateX }, { scale: activePillScale }],
             },
           ]}
         />
@@ -213,8 +240,13 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           Animated.spring(pressScales.current[index], { toValue: 1, friction: 5, useNativeDriver: true }).start();
         };
 
-        const onPress = () => {
+        const onPress = async () => {
           if (isMemberCardTrigger) {
+            const allowed = await ensureVerified('member_card');
+            if (!allowed) {
+              return;
+            }
+
             if (memberTriggerRef.current) {
               memberTriggerRef.current.measureInWindow((x, y, width, height) => {
                 showCard({ x: x + width / 2, y: y + height / 2, size: Math.max(width, height) });
@@ -239,6 +271,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
             onPress={onPress}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
+            onLayout={(event) => handleTabLayout(route.key, event)}
             style={isMemberCardTrigger ? [styles.memberTriggerSlot, { height: barHeight }] : [styles.navButton, { height: navButtonHeight }]}
             activeOpacity={0.92}
           >

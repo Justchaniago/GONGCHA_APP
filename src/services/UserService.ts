@@ -1,6 +1,7 @@
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { firebaseAuth, firestoreDb } from '../config/firebase';
 import { UserProfile, UserVoucher } from '../types/types';
+import { BackendApi } from './BackendApi';
 
 export const UserService = {
   // --- AMBIL DATA PROFILE ---
@@ -27,31 +28,17 @@ export const UserService = {
     await updateDoc(docRef, updates);
   },
 
-  // --- REDEEM VOUCHER (Request) ---
-  // Catatan God Schema: Pengurangan poin idealnya dilakukan via Cloud Functions backend
-  // Untuk saat ini, kita hanya memasukkan voucher ke array (diizinkan oleh rules)
+  // --- REDEEM VOUCHER (via Backend API) ---
+  // Points deduction + voucher creation now atomic on backend
   async redeemVoucher(reward: any) {
     const user = firebaseAuth.currentUser;
     if (!user) throw new Error('User not found');
 
-    const newVoucher: UserVoucher = {
-      id: `v_${Date.now()}`,
-      rewardId: reward.id,
-      title: reward.title,
-      code: `GC-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      isUsed: false,
-    };
+    // Call backend API (atomic: deduct points + create voucher)
+    const response = await BackendApi.redeemVoucher(reward.id);
 
-    const userRef = doc(firestoreDb, 'users', user.uid);
-    
-    // PERBAIKAN: Kita hapus currentPoints: increment(-reward.pointsCost) 
-    // karena rules memblokir customer mengubah poinnya sendiri.
-    await updateDoc(userRef, {
-      vouchers: arrayUnion(newVoucher)
-    });
-    
-    return newVoucher;
+    // Backend returns created voucher
+    return response.voucher as UserVoucher;
   },
 
   // --- GENERATE QR PAYLOAD ---

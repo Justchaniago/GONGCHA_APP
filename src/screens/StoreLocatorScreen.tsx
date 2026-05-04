@@ -17,6 +17,7 @@ import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import DecorativeBackground from '../components/DecorativeBackground';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMember } from '../context/MemberContext';
 
 // --- TYPES ---
 type StoreType = {
@@ -44,6 +45,7 @@ const CACHE_SYNC_TIME_KEY = '@gongcha_stores_sync_time';
 export default function StoreLocatorScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, loading: memberLoading } = useMember();
   
   const [stores, setStores] = useState<StoreType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,14 +63,18 @@ export default function StoreLocatorScreen() {
 
   const fetchStoresAndLocation = useCallback(async (forceFullRefresh = false) => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      setPermissionStatus(status);
-
       let currentUserLoc: Location.LocationObject | null = null;
-      if (status === 'granted') {
-        currentUserLoc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        setPermissionStatus(status);
+
+        if (status === 'granted') {
+          currentUserLoc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+        }
+      } catch {
+        setPermissionStatus(Location.PermissionStatus.UNDETERMINED);
       }
 
       const cachedDataStr = await AsyncStorage.getItem(CACHE_KEY);
@@ -82,15 +88,20 @@ export default function StoreLocatorScreen() {
 
       console.log(`[SYNC STORES] Mengecek perubahan toko sejak: ${lastSyncDate.toISOString()}`);
 
-      const q = query(
-        collection(firestoreDb, 'stores'),
-        where('updatedAt', '>', lastSyncDate)
-      );
+      const storesRef = collection(firestoreDb, 'stores');
+      const q =
+        forceFullRefresh || localStores.length === 0
+          ? query(storesRef)
+          : query(storesRef, where('updatedAt', '>', lastSyncDate));
 
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        console.log(`[DELTA SYNC] Ada ${snapshot.size} data toko baru/berubah.`);
+        console.log(
+          forceFullRefresh || localStores.length === 0
+            ? `[FULL STORE SYNC] Loaded ${snapshot.size} stores.`
+            : `[DELTA SYNC] Ada ${snapshot.size} data toko baru/berubah.`,
+        );
         
         const updatedStores: StoreType[] = [];
         snapshot.forEach((doc) => {
@@ -131,15 +142,18 @@ export default function StoreLocatorScreen() {
           });
         });
 
-        const localStoresMap = new Map(localStores.map(store => [store.id, store]));
-        updatedStores.forEach(store => {
-          localStoresMap.set(store.id, store);
-        });
-
-        localStores = Array.from(localStoresMap.values());
+        if (forceFullRefresh || localStores.length === 0) {
+          localStores = updatedStores;
+        } else {
+          const localStoresMap = new Map(localStores.map(store => [store.id, store]));
+          updatedStores.forEach(store => {
+            localStoresMap.set(store.id, store);
+          });
+          localStores = Array.from(localStoresMap.values());
+        }
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(localStores));
       } else {
-        console.log("[DELTA SYNC] 0 Perubahan Store. Pakai Cache Lokal.");
+        console.log("[STORE SYNC] 0 perubahan. Pakai cache lokal.");
       }
 
       await AsyncStorage.setItem(CACHE_SYNC_TIME_KEY, currentSyncTime.toString());
@@ -164,8 +178,8 @@ export default function StoreLocatorScreen() {
 
       setStores(activeStores);
 
-    } catch (error) {
-      console.error('Error fetching stores:', error);
+    } catch {
+      console.warn('[StoreLocator] Unable to refresh store list. Showing cached stores if available.');
       const cachedDataStr = await AsyncStorage.getItem(CACHE_KEY);
       if (cachedDataStr) {
         let fallbackStores: StoreType[] = JSON.parse(cachedDataStr);
@@ -178,12 +192,19 @@ export default function StoreLocatorScreen() {
   }, []);
 
   useEffect(() => {
+    if (memberLoading || !isAuthenticated) {
+      return;
+    }
+
     // Jalankan force refresh true saat pertama kali me-load layar ini setelah perbaikan code
     // agar data koordinat yang salah di cache lama ketimpa dengan yang baru
-    fetchStoresAndLocation(true); 
-  }, [fetchStoresAndLocation]);
+    fetchStoresAndLocation(true);
+  }, [fetchStoresAndLocation, isAuthenticated, memberLoading]);
 
   const onRefresh = () => {
+    if (memberLoading || !isAuthenticated) {
+      return;
+    }
     setIsRefreshing(true);
     fetchStoresAndLocation(false); // Kalau dipull manual, pakai Delta Sync biasa
   };
