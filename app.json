@@ -50,7 +50,10 @@
       "expo-font",
       "expo-asset",
       "expo-location",
-      "expo-secure-store"
+      "expo-secure-store",
+      ["@react-native-google-signin/google-signin", {
+        "iosUrlScheme": "com.googleusercontent.apps.808600152798-92q0798lo4f49plfniu99bor57108uqd"
+      }]
     ],
     "extra": {
       "eas": {

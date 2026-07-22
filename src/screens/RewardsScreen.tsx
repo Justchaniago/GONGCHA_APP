@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
+  View, Text, StyleSheet, Image, TouchableOpacity,
   ActivityIndicator, Alert, RefreshControl, useWindowDimensions, Modal, Pressable, Animated
 } from 'react-native';
+
+const AnimatedFlatList = Animated.FlatList as typeof Animated.FlatList;
 import { Trophy, Gift, Star, Ticket, X, ChevronRight } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,10 +27,10 @@ interface RewardItem {
   id: string;
   title: string;
   description: string;
-  pointsCost: number;
+  pointsrequired: number;
   imageUrl?: string;
   category?: string;
-  isAvailable?: boolean;
+  isActive?: boolean;
   isRedeemable?: boolean;
   updatedAt?: any;
 }
@@ -50,6 +52,8 @@ export default function RewardsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
 
+  const [showUsedVouchers, setShowUsedVouchers] = useState(false);
+
   // Modal State
   const [selectedVoucher, setSelectedVoucher] = useState<UserVoucher | null>(null);
   const [voucherQrPayload, setVoucherQrPayload] = useState<string>('');
@@ -57,6 +61,24 @@ export default function RewardsScreen() {
   const [useVoucherLoading, setUseVoucherLoading] = useState(false);
   const availablePoints = member?.currentPoints ?? member?.points ?? 0;
   const pendingPoints = member?.pendingPoints ?? 0;
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const MINI_THRESHOLD = 155;
+  const miniOpacity = scrollY.interpolate({
+    inputRange: [MINI_THRESHOLD, MINI_THRESHOLD + 48],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const miniTranslateY = scrollY.interpolate({
+    inputRange: [MINI_THRESHOLD, MINI_THRESHOLD + 48],
+    outputRange: [-22, 0],
+    extrapolate: 'clamp',
+  });
+
+  const handleTabSwitch = (tab: RewardsTab) => {
+    setActiveTab(tab);
+    scrollY.setValue(0);
+  };
 
   // 🚀 FUNGSI DELTA SYNC UNTUK KATALOG
 
@@ -80,10 +102,10 @@ export default function RewardsScreen() {
       }
 
       await AsyncStorage.setItem(CACHE_SYNC_TIME_KEY, Date.now().toString());
-      // Filter: hanya tampilkan isRedeemable true di katalog
+      // Filter: hanya tampilkan isActive + isRedeemable true di katalog
       const activeRewards = localRewards
-        .filter(r => r.isAvailable !== false && r.isRedeemable !== false)
-        .sort((a, b) => a.pointsCost - b.pointsCost);
+        .filter(r => r.isActive !== false && r.isRedeemable !== false)
+        .sort((a, b) => (a.pointsrequired ?? 0) - (b.pointsrequired ?? 0));
       setRewards(activeRewards);
     } catch (error) {
       console.error('Error Sync Rewards:', error);
@@ -104,7 +126,7 @@ export default function RewardsScreen() {
 
   // --- LOGIKA REDEEM ---
   const handleRedeem = async (reward: RewardItem) => {
-    if (availablePoints < reward.pointsCost) {
+    if (availablePoints < reward.pointsrequired) {
       Alert.alert(
         'Poin tersedia belum cukup',
         pendingPoints > 0
@@ -119,7 +141,7 @@ export default function RewardsScreen() {
       return;
     }
 
-    Alert.alert('Tukar Reward?', `Gunakan ${reward.pointsCost} poin untuk "${reward.title}"?`, [
+    Alert.alert('Tukar Reward?', `Gunakan ${reward.pointsrequired} poin untuk "${reward.title}"?`, [
       { text: 'Batal', style: 'cancel' },
       {
         text: 'Tukar',
@@ -186,18 +208,12 @@ export default function RewardsScreen() {
         <Star size={24} color="#D4A853" fill="#D4A853" />
       </LinearGradient>
 
-      <View style={styles.pendingInfoCard}>
-        <Text style={styles.pendingInfoTitle}>Pending points are waiting for admin validation</Text>
-        <Text style={styles.pendingInfoBody}>
-          Only available points can be redeemed. Pending points will move into your balance after the transaction is verified.
-        </Text>
-      </View>
 
       <View style={styles.tabs}>
-        <TouchableOpacity style={[styles.tab, activeTab === 'catalog' && styles.activeTab]} onPress={() => setActiveTab('catalog')}>
+        <TouchableOpacity style={[styles.tab, activeTab === 'catalog' && styles.activeTab]} onPress={() => handleTabSwitch('catalog')}>
           <Text style={activeTab === 'catalog' ? styles.activeTabText : styles.tabText}>All Rewards</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, activeTab === 'vouchers' && styles.activeTab]} onPress={() => setActiveTab('vouchers')}>
+        <TouchableOpacity style={[styles.tab, activeTab === 'vouchers' && styles.activeTab]} onPress={() => handleTabSwitch('vouchers')}>
           <Text style={activeTab === 'vouchers' ? styles.activeTabText : styles.tabText}>
             My Vouchers {(member?.vouchers?.filter(v => !v.isUsed).length ?? 0) > 0 && `(${member?.vouchers?.filter(v => !v.isUsed).length})`}
           </Text>
@@ -207,7 +223,7 @@ export default function RewardsScreen() {
   );
 
   const renderRewardItem = ({ item }: { item: RewardItem }) => {
-    const canAfford = availablePoints >= item.pointsCost;
+    const canAfford = availablePoints >= (item.pointsrequired ?? 0);
     return (
       <View style={styles.rewardCard}>
         <View style={styles.imageContainer}>
@@ -218,7 +234,7 @@ export default function RewardsScreen() {
           <Text style={styles.rewardTitle} numberOfLines={1}>{item.title}</Text>
           <Text style={styles.rewardDesc} numberOfLines={2}>{item.description}</Text>
           <View style={styles.priceRow}>
-            <View style={styles.pointsBadge}><Star size={12} color="#B91C2F" fill="#B91C2F" /><Text style={styles.pointsText}>{item.pointsCost} Pts</Text></View>
+            <View style={styles.pointsBadge}><Star size={12} color="#B91C2F" fill="#B91C2F" /><Text style={styles.pointsText}>{item.pointsrequired} Pts</Text></View>
             <TouchableOpacity style={[styles.redeemBtn, !canAfford && styles.disabledBtn]} onPress={() => handleRedeem(item)} disabled={redeemingId === item.id || !canAfford}>
               {redeemingId === item.id ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.redeemBtnText}>{canAfford ? 'Redeem' : 'Insufficient'}</Text>}
             </TouchableOpacity>
@@ -279,25 +295,86 @@ export default function RewardsScreen() {
         <DecorativeBackground />
         <View style={[styles.content, { paddingTop: insets.top }]}>
           {activeTab === 'catalog' ? (
-            <FlatList
+            <AnimatedFlatList
               data={rewards}
               keyExtractor={(item) => item.id}
               renderItem={renderRewardItem}
               ListHeaderComponent={renderHeader}
               contentContainerStyle={styles.listContainer}
               refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} />}
+              onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+              scrollEventThrottle={16}
             />
           ) : (
-            <FlatList
-              data={member?.vouchers?.slice().reverse() ?? []}
-              keyExtractor={(item) => item.id}
+            <AnimatedFlatList
+              data={member?.vouchers?.slice().reverse().filter(v => !v.isUsed) ?? []}
+              onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+              scrollEventThrottle={16}
+              keyExtractor={(item) => item.id ?? item.code}
               renderItem={renderVoucherItem}
               ListHeaderComponent={renderHeader}
               contentContainerStyle={styles.listContainer}
               ListEmptyComponent={<View style={styles.center}><Text style={styles.emptyText}>Belum ada voucher. Tukar poin di katalog!</Text></View>}
+              ListFooterComponent={() => {
+                const usedVouchers = member?.vouchers?.filter(v => v.isUsed) ?? [];
+                if (usedVouchers.length === 0) return null;
+                return (
+                  <View style={styles.usedSection}>
+                    <TouchableOpacity style={styles.usedToggle} onPress={() => setShowUsedVouchers(p => !p)}>
+                      <Text style={styles.usedToggleText}>Used Vouchers ({usedVouchers.length})</Text>
+                      <ChevronRight size={16} color="#8C7B75" style={{ transform: [{ rotate: showUsedVouchers ? '90deg' : '0deg' }] }} />
+                    </TouchableOpacity>
+                    {showUsedVouchers && usedVouchers.slice().reverse().map(v => (
+                      <View key={v.id ?? v.code} style={styles.usedVoucherCard}>
+                        <View style={styles.usedVoucherRow}>
+                          <View style={styles.usedVoucherIconWrap}>
+                            <Ticket size={14} color="#8C7B75" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.usedVoucherTitle} numberOfLines={1}>{v.title}</Text>
+                            <Text style={styles.usedVoucherCode}>{v.code}</Text>
+                          </View>
+                          <View style={styles.usedBadge}>
+                            <Text style={styles.usedBadgeText}>Used</Text>
+                          </View>
+                        </View>
+                        <View style={styles.usedVoucherMeta}>
+                          {v.redeemedAt ? (
+                            <Text style={styles.usedVoucherMetaText}>
+                              {new Date(v.redeemedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {' · '}
+                              {new Date(v.redeemedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                          ) : null}
+                          {v.usedAtStore ? (
+                            <Text style={styles.usedVoucherMetaText}>{v.usedAtStore}</Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                );
+              }}
             />
           )}
         </View>
+
+        {/* Mini sticky points header — morphs in when balance card scrolls off screen */}
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.miniHeader, { top: insets.top + 6, opacity: miniOpacity, transform: [{ translateY: miniTranslateY }] }]}
+        >
+          <LinearGradient colors={['#2A1F1F', '#4A3B32']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.miniHeaderGradient}>
+            <Star size={11} color="#D4A853" fill="#D4A853" />
+            <Text style={styles.miniHeaderPts}>{availablePoints.toLocaleString('id-ID')} pts</Text>
+            {pendingPoints > 0 && (
+              <>
+                <View style={styles.miniHeaderSep} />
+                <Text style={styles.miniHeaderPending}>+{pendingPoints.toLocaleString('id-ID')} pending</Text>
+              </>
+            )}
+          </LinearGradient>
+        </Animated.View>
 
         {/* Modal QR Voucher */}
         <Modal visible={isVoucherModalVisible} transparent animationType="fade" onRequestClose={() => setIsVoucherModalVisible(false)}>
@@ -328,9 +405,15 @@ const styles = StyleSheet.create({
   balanceLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
   balanceValue: { color: '#FFF', fontSize: 32, fontWeight: 'bold' },
   pendingBalanceText: { color: 'rgba(255,255,255,0.82)', fontSize: 12, marginTop: 6, maxWidth: 210 },
-  pendingInfoCard: { backgroundColor: '#FFF4E8', borderColor: '#F3D7B0', borderWidth: 1, padding: 14, borderRadius: 16, marginBottom: 18 },
-  pendingInfoTitle: { fontSize: 13, fontWeight: '800', color: '#7C2D12', marginBottom: 4 },
-  pendingInfoBody: { fontSize: 12, lineHeight: 18, color: '#9A5B2A' },
+  pendingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF4E8', borderColor: '#F3D7B0', borderWidth: 1, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, marginBottom: 14, alignSelf: 'flex-start' },
+  pendingChipDot: { fontSize: 13 },
+  pendingChipText: { fontSize: 12, color: '#9A5B2A' },
+  pendingChipPts: { fontWeight: '800', color: '#7C2D12' },
+  miniHeader: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 100 },
+  miniHeaderGradient: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 18, borderRadius: 999, elevation: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  miniHeaderPts: { fontSize: 13, fontWeight: '800', color: '#FFF' },
+  miniHeaderSep: { width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 2 },
+  miniHeaderPending: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
   tabs: { flexDirection: 'row', gap: 10 },
   tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: '#F3E9DC' },
   activeTab: { backgroundColor: '#B91C2F' },
@@ -463,5 +546,17 @@ const styles = StyleSheet.create({
   closeBtn: { backgroundColor: '#111827', width: '100%', padding: 14, borderRadius: 16, alignItems: 'center' },
   closeBtnText: { color: '#FFF', fontWeight: 'bold' },
   center: { padding: 40, alignItems: 'center' },
+  usedSection: { marginTop: 8, marginBottom: 8 },
+  usedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderTopWidth: 1, borderTopColor: '#F0E8E2' },
+  usedToggleText: { fontSize: 13, fontWeight: '700', color: '#8C7B75' },
+  usedVoucherCard: { backgroundColor: '#F9F7F5', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#EDE8E3' },
+  usedVoucherRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  usedVoucherIconWrap: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#EDE8E3', alignItems: 'center', justifyContent: 'center' },
+  usedVoucherTitle: { fontSize: 13, fontWeight: '700', color: '#6C5F5A' },
+  usedVoucherCode: { fontSize: 11, color: '#A08F88', letterSpacing: 0.5, marginTop: 1 },
+  usedBadge: { backgroundColor: '#E5E7EB', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  usedBadgeText: { fontSize: 10, fontWeight: '700', color: '#6B7280' },
+  usedVoucherMeta: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EDE8E3', flexWrap: 'wrap' },
+  usedVoucherMetaText: { fontSize: 11, color: '#A08F88' },
   emptyText: { color: '#8C7B75', textAlign: 'center' },
 });

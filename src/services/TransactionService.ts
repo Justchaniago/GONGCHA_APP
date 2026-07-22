@@ -26,6 +26,9 @@ export interface MemberTransactionHistoryItem {
   storeLabel: string;
   referenceLabel: string;
   isPending: boolean;
+  totalAmount?: number;
+  voucherTitle?: string;
+  voucherCode?: string;
 }
 
 export interface PendingTransactionSummary {
@@ -135,6 +138,9 @@ const normalizeTransactionDoc = (docSnap: QueryDocumentSnapshot): MemberTransact
     storeLabel,
     referenceLabel,
     isPending: normalizedStatus === 'pending',
+    totalAmount: typeof data.totalAmount === 'number' ? data.totalAmount : undefined,
+    voucherTitle: typeof data.voucherTitle === 'string' ? data.voucherTitle : undefined,
+    voucherCode: typeof data.voucherCode === 'string' ? data.voucherCode : undefined,
   };
 };
 
@@ -205,7 +211,7 @@ export const TransactionService = {
             pointsAmount,
             title:
               type === 'redeem'
-                ? 'Reward redemption'
+                ? 'Voucher redeemed'
                 : status === 'pending'
                   ? 'Points pending validation'
                   : status === 'verified'
@@ -215,6 +221,9 @@ export const TransactionService = {
             storeLabel: formatStoreLabel(tx.storeId),
             referenceLabel: String(tx.reference ?? '').trim(),
             isPending: status === 'pending',
+            totalAmount: typeof (tx as any).totalAmount === 'number' ? (tx as any).totalAmount : undefined,
+            voucherTitle: typeof (tx as any).voucherTitle === 'string' ? (tx as any).voucherTitle : undefined,
+            voucherCode: typeof (tx as any).voucherCode === 'string' ? (tx as any).voucherCode : undefined,
           };
         });
 

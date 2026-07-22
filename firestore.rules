@@ -136,7 +136,8 @@ service cloud.firestore {
         allow update: if isSelf(userId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']) &&
           request.resource.data.isRead == true;
-        allow create, delete: if false;
+        allow create: if false;
+        allow delete: if isSelf(userId);
       }
     }
 

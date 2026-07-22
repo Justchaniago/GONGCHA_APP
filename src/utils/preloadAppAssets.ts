@@ -2,7 +2,7 @@ import { Asset } from 'expo-asset';
 import { Image } from 'react-native';
 
 const LOCAL_ASSETS = [
-  require('../../assets/images/logo1.webp'),
+  require('../../assets/images/logo1.png'),
   require('../../assets/images/logowhite.webp'),
   require('../../assets/images/welcome1.webp'),
   require('../../assets/images/card1.webp'),

@@ -20,8 +20,10 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { Eye, EyeOff, ScanFace } from 'lucide-react-native';
 import BouncyPressable from '../components/BouncyPressable';
+import { BiometricLoginStorage } from '../services/BiometricLoginStorage';
+import { signInWithGoogle, statusCodes } from '../services/GoogleSignInService';
 
 // 🔥 PENGGANTI THEME CONTEXT
 import { colors } from '../theme/colorTokens';
@@ -66,6 +68,14 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isEmailSubmitting, setIsEmailSubmitting] = useState(false);
 
+  // ─── Google ───────────────────────────────────────────────────────────────
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // ─── Biometric ────────────────────────────────────────────────────────────
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricHasCreds, setBiometricHasCreds] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
   // ─── Animation ────────────────────────────────────────────────────────────
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
@@ -73,6 +83,17 @@ export default function LoginScreen() {
   useEffect(() => {
     if (step === 'otp') startResendTimer();
   }, [step]);
+
+  useEffect(() => {
+    async function checkBiometric() {
+      const available = await BiometricLoginStorage.isAvailable();
+      setBiometricAvailable(available);
+      if (!available) return;
+      const hasCreds = await BiometricLoginStorage.hasSavedCredentials();
+      setBiometricHasCreds(hasCreds);
+    }
+    checkBiometric();
+  }, []);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   const startResendTimer = () => {
@@ -156,6 +177,68 @@ export default function LoginScreen() {
     }
   };
 
+  // ─── Biometric Handlers ───────────────────────────────────────────────────
+  const handleBiometricLogin = async () => {
+    if (!biometricHasCreds) {
+      animateFade(() => setLoginMethod('email'));
+      Alert.alert(
+        'Setup Face ID',
+        'Login dengan email sekali, lalu Face ID akan aktif otomatis untuk login berikutnya.',
+      );
+      return;
+    }
+    setBiometricLoading(true);
+    try {
+      const success = await BiometricLoginStorage.authenticate();
+      if (!success) return;
+      const creds = await BiometricLoginStorage.getCredentials();
+      if (!creds) {
+        setBiometricHasCreds(false);
+        return;
+      }
+      await AuthService.loginWithEmail(creds.email, creds.password);
+    } catch {
+      Alert.alert('Login gagal', 'Coba masuk dengan email dan password.');
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  const offerSaveBiometric = async (email: string, password: string) => {
+    const available = await BiometricLoginStorage.isAvailable();
+    if (!available) return;
+    const hasCreds = await BiometricLoginStorage.hasSavedCredentials();
+    if (hasCreds) return;
+    Alert.alert(
+      'Aktifkan Face ID?',
+      'Login lebih cepat dengan Face ID di lain waktu.',
+      [
+        { text: 'Nanti saja', style: 'cancel' },
+        {
+          text: 'Aktifkan',
+          onPress: async () => {
+            await BiometricLoginStorage.saveCredentials(email, password);
+            setBiometricHasCreds(true);
+          },
+        },
+      ]
+    );
+  };
+
+  // ─── Google Handler ───────────────────────────────────────────────────────
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) return;
+      if (error.code === statusCodes.IN_PROGRESS) return;
+      Alert.alert('Google login gagal', error.message || 'Coba lagi nanti.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   // ─── Email Handlers ───────────────────────────────────────────────────────
   const handleEmailLogin = async () => {
     if (!loginEmail.trim() || !loginPassword.trim()) {
@@ -169,6 +252,7 @@ export default function LoginScreen() {
     try {
       setIsEmailSubmitting(true);
       await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
+      offerSaveBiometric(loginEmail.trim(), loginPassword);
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
       if (message === 'email_not_verified') {
@@ -234,7 +318,7 @@ export default function LoginScreen() {
 
         <View style={[styles.logoSection, { top: dynamicLogoTop }]}>
           <Image
-            source={require('../../assets/images/logo1.webp')}
+            source={require('../../assets/images/logo1.png')}
             style={[styles.logoImage, { width: logoSize, height: logoSize }]}
             resizeMode="contain"
           />
@@ -438,6 +522,53 @@ export default function LoginScreen() {
                       <Text style={[styles.dividerText, { color: colors.text.tertiary }]}>or</Text>
                       <View style={[styles.dividerLine, { backgroundColor: colors.border.light }]} />
                     </View>
+
+                    {/* ── Face ID button ── */}
+                    {biometricAvailable && (
+                      <BouncyPressable
+                        style={[
+                          styles.biometricButton,
+                          {
+                            borderColor: biometricHasCreds ? colors.brand.primary + '60' : colors.border.medium,
+                            backgroundColor: biometricHasCreds ? '#FFF1F2' : colors.background.tertiary,
+                          },
+                        ]}
+                        onPress={handleBiometricLogin}
+                        disabled={biometricLoading}
+                      >
+                        <View style={styles.buttonInner}>
+                          <ScanFace size={20} color={biometricLoading ? colors.text.tertiary : colors.brand.primary} />
+                          <Text style={[styles.biometricText, { color: biometricLoading ? colors.text.tertiary : colors.text.primary }]}>
+                            {biometricLoading
+                              ? 'Memverifikasi...'
+                              : biometricHasCreds
+                                ? 'Masuk dengan Face ID'
+                                : 'Aktifkan Face ID'}
+                          </Text>
+                        </View>
+                      </BouncyPressable>
+                    )}
+
+                    <BouncyPressable
+                      style={[
+                        styles.biometricButton,
+                        {
+                          borderColor: colors.border.medium,
+                          backgroundColor: colors.background.tertiary,
+                          opacity: googleLoading ? 0.6 : 1,
+                        },
+                      ]}
+                      onPress={handleGoogleLogin}
+                      disabled={googleLoading}
+                    >
+                      <View style={styles.buttonInner}>
+                        <Text style={styles.googleG}>G</Text>
+                        <Text style={[styles.biometricText, { color: colors.text.primary }]}>
+                          {googleLoading ? 'Menghubungkan...' : 'Masuk dengan Google'}
+                        </Text>
+                      </View>
+                    </BouncyPressable>
+
                     <BouncyPressable
                       style={styles.methodToggleButton}
                       onPress={() => animateFade(() => setLoginMethod(m => m === 'phone' ? 'email' : 'phone'))}
@@ -501,4 +632,12 @@ const styles = StyleSheet.create({
 
   methodToggleButton: { minHeight: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
   methodToggleText: { fontSize: 14, fontWeight: '500' },
+
+  biometricButton: {
+    height: 50, borderRadius: 25, borderWidth: 1.5,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+    flexDirection: 'row', gap: 10,
+  },
+  biometricText: { fontSize: 15, fontWeight: '600' },
+  googleG: { fontSize: 16, fontWeight: '700', color: '#4285F4', marginRight: 2 },
 });

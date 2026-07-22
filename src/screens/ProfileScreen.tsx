@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Alert, FlatList, Platform, useWindowDimensions,
-  DeviceEventEmitter,
+  DeviceEventEmitter, RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -11,8 +11,11 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User, History as HistoryIcon, ArrowDownCircle, ArrowUpCircle,
-  Settings, LogOut, ChevronRight, MapPin, HelpCircle, X, ShieldCheck, Lock,
+  Settings, LogOut, ChevronRight, MapPin, HelpCircle, X, ShieldCheck, Lock, Link,
 } from 'lucide-react-native';
+import { getAuth } from 'firebase/auth';
+import { linkGoogleToAccount, statusCodes } from '../services/GoogleSignInService';
+import GoogleIcon from '../components/GoogleIcon';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -105,6 +108,18 @@ export default function ProfileScreen() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [visibleDayCount, setVisibleDayCount] = useState(1);
 
+  // Auth provider detection
+  const authProviders = getAuth().currentUser?.providerData.map(p => p.providerId) ?? [];
+  const hasPasswordProvider = authProviders.includes('password');
+  const hasGoogleProvider = authProviders.includes('google.com');
+  const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setVisibleDayCount(1);
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, []);
+
   // Animation State
   const [showHistory, setShowHistory] = useState(false);
   const historyTranslateY = useRef(new Animated.Value(screenHeight)).current;
@@ -187,6 +202,24 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleLinkGoogle = async () => {
+    setIsLinkingGoogle(true);
+    try {
+      await linkGoogleToAccount();
+      Alert.alert('Berhasil!', 'Akun Google kamu sudah terhubung. Sekarang bisa login dengan keduanya.');
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) return;
+      if (error.code === statusCodes.IN_PROGRESS) return;
+      if (error.code === 'auth/credential-already-in-use') {
+        Alert.alert('Akun sudah dipakai', 'Google account ini sudah terhubung ke akun lain.');
+        return;
+      }
+      Alert.alert('Gagal menghubungkan', error.message || 'Coba lagi nanti.');
+    } finally {
+      setIsLinkingGoogle(false);
+    }
+  };
+
   const handleTestNotification = async () => {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -230,7 +263,7 @@ export default function ProfileScreen() {
       <DecorativeBackground />
 
       <View style={[styles.container, { paddingTop: insets.top + 4 }]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor="#B91C2F" />}>
           
           {/* HEADER PROFILE */}
           <View style={styles.header}>
@@ -283,7 +316,9 @@ export default function ProfileScreen() {
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
             <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Account</Text>
             <MenuItem icon={User} title="Edit Profile" subtitle="Name, Phone, Email & Photo" onPress={() => navigation.navigate('EditProfile')} />
-            <MenuItem icon={Lock} title="Change Password" subtitle="Update your account password" onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} />
+            {hasPasswordProvider && (
+              <MenuItem icon={Lock} title="Change Password" subtitle="Update your account password" onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} />
+            )}
             <MenuItem
               icon={ShieldCheck}
               title="Security PIN"
@@ -304,10 +339,47 @@ export default function ProfileScreen() {
             <MenuItem icon={MapPin} title="Find a Store" subtitle="Locate nearest Gong Cha" onPress={() => navigation.navigate('StoreLocator')} />
           </View>
 
+          {/* CONNECTED ACCOUNTS */}
+          <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
+            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Connected Accounts</Text>
+            {hasGoogleProvider ? (
+              <View style={styles.menuItem}>
+                <View style={[styles.menuIcon, { backgroundColor: '#F8F9FA' }]}>
+                  <GoogleIcon size={20} />
+                </View>
+                <View style={styles.menuTextContainer}>
+                  <Text style={[styles.menuTitle, { color: colors.text.primary }]}>Google</Text>
+                  <Text style={styles.menuSubtitle}>Terhubung</Text>
+                </View>
+                <View style={{ backgroundColor: '#D1FAE5', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#065F46' }}>✓ Aktif</Text>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.menuItem, isLinkingGoogle && { opacity: 0.6 }]}
+                onPress={handleLinkGoogle}
+                activeOpacity={0.7}
+                disabled={isLinkingGoogle}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: '#F8F9FA' }]}>
+                  <GoogleIcon size={20} />
+                </View>
+                <View style={styles.menuTextContainer}>
+                  <Text style={[styles.menuTitle, { color: colors.text.primary }]}>
+                    {isLinkingGoogle ? 'Menghubungkan...' : 'Hubungkan Google'}
+                  </Text>
+                  <Text style={styles.menuSubtitle}>Login lebih mudah dengan akun Google</Text>
+                </View>
+                <Link size={16} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* SUPPORT */}
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
             <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Support</Text>
-            <MenuItem icon={HelpCircle} title="Help Center" onPress={() => {}} />
+            <MenuItem icon={HelpCircle} title="Help Center" onPress={() => navigation.navigate('HelpCenter')} />
             <MenuItem icon={LogOut} title="Log Out" isDestructive onPress={handleLogout} />
           </View>
 
@@ -385,11 +457,19 @@ export default function ProfileScreen() {
                           </View>
                           <View style={styles.historyMain}>
                             <View style={styles.historyTopRow}>
-                              <Text style={[styles.historyTitle, { color: colors.text.primary }]}>{item.title}</Text>
+                              <Text style={[styles.historyTitle, { color: colors.text.primary }]} numberOfLines={2}>
+                                {isRedeem && item.voucherTitle ? item.voucherTitle : item.title}
+                              </Text>
                               <Text style={[styles.historyAmount, { color: isRedeem ? colors.status.errorText : item.isPending ? colors.status.warningText : item.status === 'rejected' ? colors.status.errorText : colors.status.successText }]}>
-                                {item.pointsAmount > 0 ? '+' : ''}{item.pointsAmount} XP
+                                {item.pointsAmount > 0 ? '+' : ''}{item.pointsAmount} pts
                               </Text>
                             </View>
+
+                            {!isRedeem && item.totalAmount != null && (
+                              <Text style={[styles.historyTxAmount, { color: colors.text.secondary }]}>
+                                Rp {item.totalAmount.toLocaleString('id-ID')}
+                              </Text>
+                            )}
 
                             <Text style={[styles.historyDate, { color: colors.text.secondary }]}>
                               {formatHistoryTime(item.createdAtIso)}
@@ -401,7 +481,7 @@ export default function ProfileScreen() {
                               </Text>
                             )}
 
-                            {!!item.referenceLabel && (
+                            {!isRedeem && !!item.referenceLabel && (
                               <Text style={[styles.historyReference, { color: colors.text.tertiary }]} numberOfLines={1}>
                                 Ref {item.referenceLabel}
                               </Text>
@@ -488,6 +568,7 @@ const styles = StyleSheet.create({
   historyMain: { flex: 1 },
   historyTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   historyTitle: { fontSize: 16, fontWeight: '600' },
+  historyTxAmount: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   historyDate: { fontSize: 12, marginTop: 2 },
   historyMetaLine: { fontSize: 13, marginTop: 4 },
   historyReference: { fontSize: 11, marginTop: 2 },

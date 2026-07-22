@@ -1,9 +1,9 @@
-// This file loads custom fonts for Expo and React Native
 import { useFonts } from 'expo-font';
 
 export default function useCustomFonts() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, error] = useFonts({
     Coolvetica: require('../../assets/fonts/Coolvetica Hv Comp.otf'),
   });
-  return fontsLoaded;
+  // Font error = still proceed, just without custom font
+  return fontsLoaded || !!error;
 }

@@ -1,20 +1,22 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, Image, TouchableOpacity,
-  useWindowDimensions, StyleSheet, Animated, Easing, Platform, FlatList, Modal,
+  useWindowDimensions, StyleSheet, RefreshControl,
 } from 'react-native';
-import { Trophy, Gift, ChevronRight, Bell, X } from 'lucide-react-native';
+import { Trophy, Gift, ChevronRight, Bell } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMember } from '../context/MemberContext';
 import { firebaseAuth } from '../config/firebase';
 import { NotificationService } from '../services/NotificationService';
-import type { RootTabParamList } from '../navigation/AppNavigator';
+import { PromotionService, PromotionItem } from '../services/PromotionService';
+import type { RootTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import type { UserTier, NotificationItem } from '../types/types';
 
 import { colors } from '../theme/colorTokens';
@@ -22,20 +24,9 @@ import { colors } from '../theme/colorTokens';
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import UserAvatar from '../components/UserAvatar';
-// 🔥 IMPORT SKELETON KITA
 import SkeletonLoader from '../components/SkeletonLoader';
+import NotificationSheet from '../components/NotificationSheet';
 import { getGreeting } from '../utils/greetingHelper';
-
-function formatNotifTime(iso: string) {
-  const now = new Date();
-  const date = new Date(iso);
-  const diff = (now.getTime() - date.getTime()) / 1000;
-  if (diff < 60) return 'Baru saja';
-  if (diff < 3600) return `${Math.floor(diff/60)} menit lalu`;
-  if (diff < 86400) return `${Math.floor(diff/3600)} jam lalu`;
-  if (diff < 604800) return `${Math.floor(diff/86400)} hari lalu`;
-  return date.toLocaleDateString('id-ID');
-}
 
 type HomeTier = Extract<UserTier, 'Silver' | 'Gold' | 'Platinum'>;
 
@@ -43,52 +34,58 @@ const TIER_THEME: Record<HomeTier, any> = {
   Silver: {
     progressGradient: ['#B7C0CC', '#8A93A1'],
     tierBadgeBg: '#E5E7EB', tierText: '#4B5563', percentBadgeBg: '#6B7280',
-    progressTrackBg: '#ECEFF3', rewardsBorder: '#E5E7EB', rewardsShadow: '#9CA3AF',
+    progressTrackBg: '#ECEFF3', rewardsBorder: '#CBD5E1', rewardsShadow: '#94A3B8',
     footerIcon: '#6B7280', walletGradient: ['#5B6470', '#2F3742'],
     trophyBg: 'rgba(191, 199, 209, 0.92)', redeemAccent: '#4B5563',
   },
   Gold: {
     progressGradient: ['#D4A853', '#F3C677'],
     tierBadgeBg: '#D4A853', tierText: '#2A1F1F', percentBadgeBg: '#B91C2F',
-    progressTrackBg: '#F0E6DA', rewardsBorder: '#F3E9DC', rewardsShadow: '#3A2E2A',
+    progressTrackBg: '#F0E6DA', rewardsBorder: '#E8C97A', rewardsShadow: '#C8960A',
     footerIcon: '#B91C2F', walletGradient: ['#8E0E00', '#1F1C18'],
     trophyBg: 'rgba(212, 168, 83, 0.88)', redeemAccent: '#B91C2F',
   },
   Platinum: {
     progressGradient: ['#A78BFA', '#7C3AED'],
     tierBadgeBg: '#DDD6FE', tierText: '#5B21B6', percentBadgeBg: '#6D28D9',
-    progressTrackBg: '#EDE9FE', rewardsBorder: '#E9D5FF', rewardsShadow: '#7C3AED',
+    progressTrackBg: '#EDE9FE', rewardsBorder: '#C4B5FD', rewardsShadow: '#7C3AED',
     footerIcon: '#6D28D9', walletGradient: ['#4C1D95', '#111827'],
     trophyBg: 'rgba(196, 181, 253, 0.9)', redeemAccent: '#5B21B6',
   },
 };
 
+type HomeNav = CompositeNavigationProp<
+  BottomTabNavigationProp<RootTabParamList>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 export default function HomeScreen() {
-  const isDark = false; 
-  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const isDark = false;
+  const navigation = useNavigation<HomeNav>();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  
+  const { width } = useWindowDimensions();
+
   const { member, loading: isMemberLoading } = useMember();
-  
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, []);
+
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  
+
   const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
-  const hasRedirectedToProfileCompletion = useRef(false); // 🔥 Prevent double redirect
+  const [carouselPromos, setCarouselPromos] = useState<PromotionItem[]>([]);
+  const hasRedirectedToProfileCompletion = useRef(false);
 
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-  const iconRotate = useRef(new Animated.Value(0)).current;
-  
   const isCompact = width < 360;
   const horizontalPadding = isCompact ? 16 : 20;
   const avatarSize = isCompact ? 46 : 52;
   const headerIconSize = isCompact ? 44 : 48;
   const headerLogoSize = isCompact ? 50 : 59;
-  const headerActionGap = 10;
 
   useEffect(() => {
     const unsubscribe = NotificationService.subscribeToUserNotifications((notifs) => {
@@ -97,62 +94,40 @@ export default function HomeScreen() {
     return unsubscribe;
   }, []);
 
-  // Redirect to ProfileCompletion if first-time user
-  // BLOCKED: Logic dipindah ke AppNavigator (Satpam Routing)
-  /*
   useEffect(() => {
-    // Early return jika sudah pernah redirect
-    if (hasRedirectedToProfileCompletion.current) return;
-    
-    // Check jika member loaded DAN profileComplete adalah false atau undefined
-    if (!isMemberLoading && member) {
-      const needsProfileCompletion = member.profileComplete === false || member.profileComplete === undefined;
-      
-      if (needsProfileCompletion) {
-        console.log('[HomeScreen] Profile incomplete, redirecting to ProfileCompletion', {
-          profileComplete: member.profileComplete,
-          memberUid: member.uid,
-        });
-        
-        // Set flag untuk prevent double redirect
-        hasRedirectedToProfileCompletion.current = true;
-        
-        // Immediate redirect dengan reset stack
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'ProfileCompletion' as never }],
-        });
-      }
+    const unsubscribe = PromotionService.subscribeByType('carousel', (items) => {
+      setCarouselPromos(items);
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleMarkAllRead = useCallback(async () => {
+    const userId = firebaseAuth.currentUser?.uid;
+    if (userId) await NotificationService.markAllAsRead(userId);
+  }, []);
+
+  const handleMarkRead = useCallback(async (id: string) => {
+    await NotificationService.markAsRead(id);
+  }, []);
+
+  const handleDeleteNotification = useCallback(async (id: string): Promise<boolean> => {
+    return NotificationService.deleteNotification(id);
+  }, []);
+
+  const handleNotificationPress = useCallback((item: NotificationItem) => {
+    setShowNotifications(false);
+    const DEEP_LINK_TYPES: Array<typeof item.type> = ['tx_verified', 'tx_rejected', 'points_pending', 'voucher_injected'];
+    if (DEEP_LINK_TYPES.includes(item.type)) {
+      setTimeout(() => navigation.navigate('Rewards'), 300);
     }
-  }, [isMemberLoading, member, navigation]);
-  */
-
-  const openNotifications = () => {
-    setShowNotifications(true);
-
-    Animated.parallel([
-      Animated.timing(backdropAnim, { toValue: 1, duration: 240, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 11, tension: 95 }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 240, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-      Animated.timing(iconRotate, { toValue: 1, duration: 180, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-    ]).start();
-  };
-
-  const closeNotifications = () => {
-    Animated.parallel([
-      Animated.timing(backdropAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 0, duration: 220, useNativeDriver: true, easing: Easing.inOut(Easing.cubic) }),
-      Animated.timing(opacityAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(iconRotate, { toValue: 0, duration: 180, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-    ]).start(() => setShowNotifications(false));
-  };
+  }, [navigation]);
 
   const tierXp = member?.tierXp ?? 0;
   const currentPoints = member?.currentPoints ?? member?.points ?? 0;
   const pendingPoints = member?.pendingPoints ?? 0;
   const tier = ((member?.tier as HomeTier | undefined) ?? 'Silver');
   const tierTheme = TIER_THEME[tier];
-  
+
   const TIER_LIMITS = { Silver: 0, Gold: 5000, Platinum: 15000 };
   const target = tier === 'Silver' ? TIER_LIMITS.Gold : tier === 'Gold' ? TIER_LIMITS.Platinum : TIER_LIMITS.Platinum;
   const isPlatinum = tier === 'Platinum';
@@ -161,33 +136,65 @@ export default function HomeScreen() {
   const footerMessage = isPlatinum ? 'You are Top Tier!' : `${remainingToNextTier} XP to reach next Tier!`;
   const promoCardWidth = width - 40;
 
-  const promos = useMemo(() => [
-    { color: '#FFD1DC', image: require('../../assets/images/promo1.webp') },
-    { color: '#FFF5E1', image: null },
-    { color: '#E0F7FA', image: null },
-  ], []);
+  const promos = useMemo(() => {
+    if (carouselPromos.length > 0) {
+      return carouselPromos.map((p) => ({ color: '#F3F4F6', image: null, uri: p.imageUrl }));
+    }
+    return [
+      { color: '#FFD1DC', image: require('../../assets/images/promo1.webp'), uri: null },
+      { color: '#FFF5E1', image: require('../../assets/images/promo2.webp'), uri: null },
+      { color: '#E0F7FA', image: require('../../assets/images/promo3.webp'), uri: null },
+    ];
+  }, [carouselPromos]);
 
+  // Infinite carousel: [clone-of-last, ...real, clone-of-first]
+  const extendedPromos = useMemo(() => [
+    promos[promos.length - 1],
+    ...promos,
+    promos[0],
+  ], [promos]);
+
+  const extendedIdxRef = useRef(1);
+
+  // On mount: silently jump to real first item (skip leading clone)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      promoScrollRef.current?.scrollTo({ x: promoCardWidth, animated: false });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [promoCardWidth]);
+
+  // Auto-scroll — always moves forward
   useEffect(() => {
     if (!promos.length) return;
     const interval = setInterval(() => {
-      setActivePromo((prev) => {
-        const next = (prev + 1) % promos.length;
-        promoScrollRef.current?.scrollTo({ x: next * promoCardWidth, animated: true });
-        return next;
-      });
+      const next = extendedIdxRef.current + 1;
+      extendedIdxRef.current = next;
+      promoScrollRef.current?.scrollTo({ x: next * promoCardWidth, animated: true });
+      setActivePromo((next - 1 + promos.length) % promos.length);
     }, 3500);
     return () => clearInterval(interval);
   }, [promoCardWidth, promos.length]);
 
-  const modalTransform = [
-    { translateY: scaleAnim.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }) },
-    { scale: scaleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
-  ];
-
-  const bellButtonOpacity = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-  const bellButtonScale = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] });
-  const closeButtonOpacity = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-  const closeButtonScale = iconRotate.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
+  const handlePromoScrollEnd = (e: any) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / promoCardWidth);
+    if (idx === 0) {
+      // Landed on clone-of-last → teleport to real last
+      const realLast = promos.length;
+      promoScrollRef.current?.scrollTo({ x: realLast * promoCardWidth, animated: false });
+      extendedIdxRef.current = realLast;
+      setActivePromo(promos.length - 1);
+    } else if (idx === promos.length + 1) {
+      // Landed on clone-of-first → teleport to real first
+      promoScrollRef.current?.scrollTo({ x: promoCardWidth, animated: false });
+      extendedIdxRef.current = 1;
+      setActivePromo(0);
+    } else {
+      extendedIdxRef.current = idx;
+      setActivePromo(idx - 1);
+    }
+  };
 
   return (
     <ScreenFadeTransition>
@@ -198,17 +205,17 @@ export default function HomeScreen() {
         <View style={styles.mainLayout}>
           {/* HEADER */}
           <View style={[
-            styles.fixedHeaderContainer, 
-            { 
+            styles.fixedHeaderContainer,
+            {
               paddingTop: insets.top + 6,
               paddingHorizontal: horizontalPadding,
               backgroundColor: colors.background.primary,
               borderBottomColor: isDark ? colors.border.light : 'transparent',
               borderBottomWidth: isDark ? 1 : 0,
-              zIndex: 20
-            }
+              zIndex: 20,
+            },
           ]}>
-              <View style={styles.headerContent}> 
+            <View style={styles.headerContent}>
               <View style={styles.headerLeft}>
                 <View style={styles.avatarWrap}>
                   <UserAvatar name={member?.fullName ?? 'Member'} photoURL={member?.photoURL} size={avatarSize} />
@@ -216,8 +223,6 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.headerTextContainer}>
                   <Text style={[styles.greeting, { color: colors.text.secondary }]}>{getGreeting()},</Text>
-                  
-                  {/* 🔥 SKELETON: Nama User */}
                   {isMemberLoading ? (
                     <SkeletonLoader width={100} height={20} style={{ marginTop: 4 }} />
                   ) : (
@@ -233,48 +238,49 @@ export default function HomeScreen() {
                 </View>
               </View>
               <View style={styles.headerRight}>
-                <Animated.View
-                  style={{
-                    opacity: bellButtonOpacity,
-                    transform: [{ scale: bellButtonScale }],
-                  }}
-                  pointerEvents={showNotifications ? 'none' : 'auto'}
+                <TouchableOpacity
+                  style={[
+                    styles.notificationBtn,
+                    styles.notificationBtnShell,
+                    { width: headerIconSize, height: headerIconSize, backgroundColor: colors.surface.card, shadowColor: colors.shadow.color },
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => setShowNotifications(true)}
                 >
-                  <TouchableOpacity
-                    style={[
-                      styles.notificationBtn, 
-                      styles.notificationBtnShell,
-                      { width: headerIconSize, height: headerIconSize, backgroundColor: colors.surface.card, shadowColor: colors.shadow.color }
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={openNotifications}
-                  >
-                     <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
-                     {notifications.some((n) => !n.isRead) && (
-                       <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}> 
-                          <Text style={styles.notificationBadgeText}>{notifications.filter((n) => !n.isRead).length}</Text>
-                       </View>
-                     )}
-                  </TouchableOpacity>
-                </Animated.View>
-                <Image source={require('../../assets/images/logo1.webp')} style={[styles.logoTopRight, { width: headerLogoSize, height: headerLogoSize + 4 }]} resizeMode="contain" />
+                  <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
+                  {notifications.some((n) => !n.isRead) && (
+                    <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}>
+                      <Text style={styles.notificationBadgeText}>
+                        {notifications.filter((n) => !n.isRead).length}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <Image
+                  source={require('../../assets/images/logo1.png')}
+                  style={[styles.logoTopRight, { width: headerLogoSize, height: headerLogoSize + 4 }]}
+                  resizeMode="contain"
+                />
               </View>
             </View>
           </View>
 
           {/* SCROLLABLE CONTENT */}
-          <ScrollView 
-            showsVerticalScrollIndicator={false} 
-            style={styles.scrollView} 
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={styles.scrollView}
             contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom, paddingTop: 10 }]}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor="#B91C2F" />}
           >
             {/* MEMBERSHIP STATUS CARD */}
-            <View style={[styles.rewardsCard, { backgroundColor: colors.surface.card, borderColor: tierTheme.rewardsBorder, shadowColor: tierTheme.rewardsShadow }]}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => navigation.navigate('MembershipStatus')}
+              style={[styles.rewardsCard, { backgroundColor: colors.surface.card, borderColor: tierTheme.rewardsBorder, shadowColor: tierTheme.rewardsShadow }]}
+            >
               <View style={styles.rewardsHeader}>
                 <View>
                   <Text style={[styles.rewardsLabel, { color: colors.text.secondary }]}>MEMBERSHIP STATUS</Text>
-                  
-                  {/* 🔥 SKELETON: Poin Tier */}
                   {isMemberLoading ? (
                     <SkeletonLoader width={90} height={18} style={{ marginTop: 2 }} />
                   ) : (
@@ -294,20 +300,18 @@ export default function HomeScreen() {
                 <LinearGradient
                   colors={tierTheme.progressGradient}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={[styles.progressBarFill, { width: `${progress}%` }]} 
+                  style={[styles.progressBarFill, { width: `${progress}%` }]}
                 />
               </View>
               <View style={styles.rewardsFooter}>
                 <Gift size={14} color={tierTheme.footerIcon} />
-                
-                {/* 🔥 SKELETON: Pesan Bawah Tier */}
                 {isMemberLoading ? (
                   <SkeletonLoader width={140} height={12} />
                 ) : (
                   <Text style={[styles.rewardsFooterText, { color: colors.text.secondary }]}>{footerMessage}</Text>
                 )}
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* SPECIAL OFFERS */}
             <View style={styles.sectionHeader}>
@@ -320,15 +324,18 @@ export default function HomeScreen() {
               ref={promoScrollRef}
               horizontal pagingEnabled showsHorizontalScrollIndicator={false}
               style={styles.promoScroll} contentContainerStyle={{ paddingRight: 20 }}
-              onMomentumScrollEnd={(e) => setActivePromo(Math.round(e.nativeEvent.contentOffset.x / promoCardWidth))}
+              onMomentumScrollEnd={handlePromoScrollEnd}
+              scrollEventThrottle={16}
             >
-              {promos.map((promo, idx) => (
-                <View key={idx} style={[styles.promoCard, { width: promoCardWidth, backgroundColor: colors.surface.card }]}> 
-                  {promo.image ? (
+              {extendedPromos.map((promo, idx) => (
+                <View key={idx} style={[styles.promoCard, { width: promoCardWidth, backgroundColor: colors.surface.card }]}>
+                  {promo.uri ? (
+                    <Image source={{ uri: promo.uri }} style={styles.promoImage} resizeMode="cover" />
+                  ) : promo.image ? (
                     <Image source={promo.image} style={styles.promoImage} resizeMode="cover" />
                   ) : (
                     <View style={[styles.promoPlaceholder, { backgroundColor: promo.color }]}>
-                       <Text style={{color: '#8C7B75', fontWeight: 'bold'}}>Promo {idx+1}</Text>
+                      <Text style={{ color: '#8C7B75', fontWeight: 'bold' }}>Promo</Text>
                     </View>
                   )}
                 </View>
@@ -349,8 +356,6 @@ export default function HomeScreen() {
               <View style={styles.walletTopRow}>
                 <View>
                   <Text style={styles.walletLabel}>Gong Cha Wallet</Text>
-                  
-                  {/* 🔥 SKELETON: Saldo Wallet */}
                   {isMemberLoading ? (
                     <SkeletonLoader width={110} height={32} style={{ marginTop: 2, backgroundColor: 'rgba(255,255,255,0.2)' }} />
                   ) : (
@@ -383,67 +388,18 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             </LinearGradient>
-
           </ScrollView>
         </View>
 
-        {/* MODAL (NOTIFICATIONS OVERLAY) ... */}
-        {/* Konten modal notifikasi persis seperti sebelumnya, tidak dirubah */}
-        <Modal visible={showNotifications} transparent animationType="none" statusBarTranslucent onRequestClose={closeNotifications}>
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropAnim }]}>
-             {Platform.OS === 'ios' ? <BlurView intensity={30} style={StyleSheet.absoluteFill} tint={isDark ? 'light' : 'dark'} /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />}
-             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeNotifications} activeOpacity={1} />
-          </Animated.View>
-          <Animated.View style={[styles.modalContainer, { backgroundColor: colors.surface.card, top: insets.top + 6 + headerIconSize + 20, opacity: opacityAnim, transform: modalTransform }]}>
-             <View style={[styles.modalHeader, { borderBottomColor: colors.border.light }]}>
-                 <View style={{ flex: 1 }}>
-                    <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Notifications</Text>
-                    <Text style={[styles.modalSubtitle, { color: colors.text.secondary }]}>You have {notifications.filter((n) => !n.isRead).length} unread message{notifications.filter((n) => !n.isRead).length === 1 ? '' : 's'}</Text>
-                 </View>
-             </View>
-             <View style={[styles.notifListContainer, { backgroundColor: colors.background.tertiary }]}>
-                <FlatList data={notifications} keyExtractor={item => item.id} contentContainerStyle={{ padding: 20 }} ItemSeparatorComponent={() => <View style={{ height: 16 }} />} renderItem={({ item }) => (
-                    <TouchableOpacity style={[styles.notifItem, { backgroundColor: colors.surface.card, shadowColor: colors.shadow.color }, !item.isRead && { borderColor: colors.status.errorBg, borderWidth: 1 }]} activeOpacity={0.7}>
-                       <View style={[styles.notifIconCircle, !item.isRead ? { backgroundColor: colors.brand.primary } : { backgroundColor: colors.background.elevated }]}>
-                          {item.type === 'voucher_injected' ? <Gift size={18} color={!item.isRead ? '#FFF' : colors.text.secondary} /> : item.type === 'tx_verified' ? <Trophy size={18} color={!item.isRead ? '#FFF' : colors.text.secondary} /> : <Bell size={18} color={!item.isRead ? '#FFF' : colors.text.secondary} />}
-                       </View>
-                       <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                             <Text style={[styles.notifItemTitle, { color: !item.isRead ? colors.text.primary : colors.text.secondary }]}>{item.title}</Text>
-                             <Text style={[styles.notifTime, { color: colors.text.tertiary }]}>{formatNotifTime(item.createdAt)}</Text>
-                          </View>
-                          <Text style={[styles.notifBody, { color: colors.text.secondary }]}>{item.body}</Text>
-                       </View>
-                       {!item.isRead && <View style={[styles.unreadDot, { backgroundColor: colors.brand.primary }]} />}
-                    </TouchableOpacity>
-                  )} />
-             </View>
-             <TouchableOpacity style={[styles.markReadBtn, { backgroundColor: colors.surface.card, borderTopColor: colors.border.light }]} onPress={() => {
-               const userId = firebaseAuth.currentUser?.uid;
-               if (userId) NotificationService.markAllAsRead(userId);
-             }}>
-                <Text style={[styles.markReadText, { color: colors.brand.primary }]}>Mark all as read</Text>
-             </TouchableOpacity>
-          </Animated.View>
-          <Animated.View style={[styles.notificationBtn, { 
-            position: 'absolute', 
-            top: insets.top + 16,
-            right: horizontalPadding + headerLogoSize + headerActionGap,
-            width: headerIconSize, 
-            height: headerIconSize, 
-            backgroundColor: colors.brand.primary, 
-            zIndex: 9999, 
-            elevation: 10,
-            opacity: closeButtonOpacity,
-            transform: [{ scale: closeButtonScale }],
-          }]}>
-             <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={0.8} onPress={closeNotifications}>
-                <Animated.View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
-                   <X size={22} color="#FFF" strokeWidth={2.5} />
-                </Animated.View>
-             </TouchableOpacity>
-          </Animated.View>
-        </Modal>
+        <NotificationSheet
+          visible={showNotifications}
+          notifications={notifications}
+          onClose={() => setShowNotifications(false)}
+          onMarkAllRead={handleMarkAllRead}
+          onMarkRead={handleMarkRead}
+          onDelete={handleDeleteNotification}
+          onNotificationPress={handleNotificationPress}
+        />
       </View>
     </ScreenFadeTransition>
   );
@@ -451,7 +407,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
-  mainLayout: { flex: 1 }, 
+  mainLayout: { flex: 1 },
   fixedHeaderContainer: { paddingBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   scrollView: { flex: 1 },
@@ -465,23 +421,26 @@ const styles = StyleSheet.create({
   name: { fontSize: 19, fontWeight: 'bold' },
   notificationBtn: { borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
   notificationBtnShell: { flexShrink: 0 },
-  notificationBadge: { position: 'absolute', top: 12, right: 14, width: 8, height: 8, borderRadius: 4, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  notificationBadgeText: { fontSize: 8, color: '#FFF', fontWeight: 'bold', display: 'none' },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notificationBadgeText: {
+    fontSize: 10,
+    color: '#FFF',
+    fontWeight: '800',
+    lineHeight: 14,
+  },
   logoTopRight: { flexShrink: 0 },
-  modalContainer: { position: 'absolute', left: 10, right: 10, bottom: 20, borderRadius: 32, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 20, maxHeight: '75%' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderBottomWidth: 1 },
-  modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 2 },
-  modalSubtitle: { fontSize: 14 },
-  notifListContainer: { flex: 1 },
-  notifItem: { flexDirection: 'row', padding: 16, borderRadius: 20, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  notifIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
-  notifItemTitle: { fontSize: 15, fontWeight: 'bold', flex: 1 },
-  notifTime: { fontSize: 11, marginLeft: 8 },
-  notifBody: { fontSize: 13, marginTop: 4, lineHeight: 18 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8, marginTop: 6 },
-  markReadBtn: { padding: 16, alignItems: 'center', borderTopWidth: 1 },
-  markReadText: { fontWeight: 'bold', fontSize: 14 },
-  rewardsCard: { borderRadius: 22, padding: 12, marginBottom: 12, borderWidth: 1, elevation: 3 },
+  rewardsCard: { borderRadius: 22, padding: 12, marginBottom: 12, borderWidth: 1.5, elevation: 8, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 20 },
   rewardsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 7 },
   rewardsLabel: { fontSize: 10, fontWeight: 'bold', letterSpacing: 0.8, marginBottom: 2 },
   rewardsPoints: { fontSize: 16, fontWeight: 'bold' },

@@ -15,7 +15,15 @@ export default function ScreenFadeTransition({ children }: ScreenFadeTransitionP
 
   useFocusEffect(
     useCallback(() => {
-      const direction = currentTabIndex >= previousTabIndex ? 1 : -1;
+      if (currentTabIndex === previousTabIndex) {
+        // Returning from a stack screen — no tab change, skip animation
+        opacity.setValue(1);
+        translateX.setValue(0);
+        return;
+      }
+
+      const direction = currentTabIndex > previousTabIndex ? 1 : -1;
+      previousTabIndex = currentTabIndex;
 
       opacity.setValue(0.94);
       translateX.setValue(26 * direction);
@@ -34,8 +42,6 @@ export default function ScreenFadeTransition({ children }: ScreenFadeTransitionP
           useNativeDriver: true,
         }),
       ]).start();
-
-      previousTabIndex = currentTabIndex;
 
       return () => {
         opacity.setValue(1);

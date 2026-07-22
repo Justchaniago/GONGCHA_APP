@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["functions", "dist"]
+  "exclude": ["functions", "dist", "node_modules", "__audit_zip_temp"]
 }

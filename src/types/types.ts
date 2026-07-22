@@ -29,6 +29,8 @@ export interface UserVoucher {
   expiry?: any;
   isUsed?: boolean;
   type?: VoucherType;
+  redeemedAt?: string;
+  usedAtStore?: string;
 }
 
 export interface XpHistoryEntry {
@@ -84,7 +86,7 @@ export interface UserProfile {
 // ============================================================================
 // 3. NOTIFICATIONS (Sub-Collection)
 // ============================================================================
-export type NotificationType = "voucher_injected" | "tx_verified" | "tx_rejected" | "broadcast" | "targeted" | "system";
+export type NotificationType = "voucher_injected" | "tx_verified" | "tx_rejected" | "points_pending" | "broadcast" | "targeted" | "system";
 
 export interface NotificationItem {
   id: string;

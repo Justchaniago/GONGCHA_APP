@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   query,
   where,
@@ -10,7 +11,7 @@ import {
   writeBatch,
   onSnapshot,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { firestoreDb } from '../config/firebase';
 import { NotificationItem } from '../types/types';
 
@@ -33,30 +34,56 @@ export const NotificationService = {
   subscribeToUserNotifications(
     callback: (notifications: NotificationItem[]) => void
   ): () => void {
-    const auth = getAuth();
-    const userId = auth.currentUser?.uid;
+    let firestoreUnsub: (() => void) | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
 
-    if (!userId) {
-      callback([]);
-      return () => {};
-    }
+    const startFirestore = (userId: string) => {
+      if (cancelled) return;
 
-    // FIREBASE RULES FIX: Tembak ke Sub-Collection users/{userId}/notifications
-    const q = query(
-      collection(firestoreDb, 'users', userId, 'notifications'),
-      orderBy('createdAt', 'desc'),
-      limit(20)
-    );
+      firestoreUnsub?.();
+      firestoreUnsub = null;
 
-    return onSnapshot(q, (snapshot) => {
-      callback(snapshot.docs.map(mapDoc));
-    }, (error) => {
-      if ((error as any)?.code === 'permission-denied') {
+      const q = query(
+        collection(firestoreDb, 'users', userId, 'notifications'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+
+      const listen = () => {
+        if (cancelled) return;
+        firestoreUnsub = onSnapshot(q, (snapshot) => {
+          if (!cancelled) callback(snapshot.docs.map(mapDoc));
+        }, (error) => {
+          if (cancelled) return;
+          callback([]);
+          if ((error as any)?.code !== 'permission-denied') {
+            retryTimer = setTimeout(listen, 4000);
+          }
+        });
+      };
+
+      listen();
+    };
+
+    // Wait for auth to restore from AsyncStorage before subscribing
+    const authUnsub = onAuthStateChanged(getAuth(), (user) => {
+      if (cancelled) return;
+      if (user) {
+        startFirestore(user.uid);
+      } else {
+        firestoreUnsub?.();
+        firestoreUnsub = null;
         callback([]);
-        return;
       }
-      callback([]);
     });
+
+    return () => {
+      cancelled = true;
+      authUnsub();
+      firestoreUnsub?.();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   },
 
   async markAsRead(notificationId: string): Promise<void> {
@@ -67,6 +94,17 @@ export const NotificationService = {
     await updateDoc(doc(firestoreDb, 'users', userId, 'notifications', notificationId), { 
       isRead: true 
     });
+  },
+
+  async deleteNotification(notificationId: string): Promise<boolean> {
+    const userId = getAuth().currentUser?.uid;
+    if (!userId) return false;
+    try {
+      await deleteDoc(doc(firestoreDb, 'users', userId, 'notifications', notificationId));
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   async markAllAsRead(userId: string): Promise<void> {

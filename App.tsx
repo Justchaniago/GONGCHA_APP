@@ -7,8 +7,12 @@ import './global.css';
 
 import AppNavigator from './src/navigation/AppNavigator';
 import { MemberProvider } from './src/context/MemberContext';
+import { configureGoogleSignIn } from './src/services/GoogleSignInService';
+
+configureGoogleSignIn();
 import { SecurityProvider } from './src/context/SecurityContext';
 import MemberCardModal from './src/components/MemberCardModal';
+import PromoAdModal from './src/components/PromoAdModal';
 
 // 🔥 PERBAIKAN IMPORT: Hapus kurung kurawal karena ini export default
 import useCustomFonts from './src/hooks/useCustomFonts';
@@ -58,6 +62,7 @@ export default function App() {
             <AppNavigator />
           </NavigationContainer>
           <MemberCardModal />
+          <PromoAdModal />
         </SecurityProvider>
       </MemberProvider>
     </SafeAreaProvider>

@@ -179,6 +179,12 @@ export default function SecurityModal({
   };
 
   useEffect(() => {
+    if (!loading && mode !== 'settings' && pinValue.length === 6) {
+      onSubmitPin();
+    }
+  }, [pinValue]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (visible) {
       setMounted(true);
       pageOpacity.setValue(0);

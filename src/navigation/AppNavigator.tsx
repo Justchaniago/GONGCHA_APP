@@ -21,6 +21,8 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import StoreLocatorScreen from '../screens/StoreLocatorScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
 import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
+import MembershipStatusScreen from '../screens/MembershipStatusScreen';
+import HelpCenterScreen from '../screens/HelpCenterScreen';
 import { hasCompletedGuestOnboarding } from '../utils/guestOnboarding';
 
 export type RootStackParamList = {
@@ -33,6 +35,8 @@ export type RootStackParamList = {
   StoreLocator: undefined;
   EditProfile: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
+  MembershipStatus: undefined;
+  HelpCenter: undefined;
 };
 
 export type RootTabParamList = {
@@ -109,6 +113,8 @@ export default function AppNavigator() {
             <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="MembershipStatus" component={MembershipStatusScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ animation: 'slide_from_right' }} />
             {/* Keeping ProfileCompletion accessible in case we need to revisit, though logically we shouldn't */}
             <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} /> 
           </>
