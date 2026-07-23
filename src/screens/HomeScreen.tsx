@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMember } from '../context/MemberContext';
 import { firebaseAuth } from '../config/firebase';
 import { NotificationService } from '../services/NotificationService';
-import { PromotionService, PromotionItem } from '../services/PromotionService';
+import { usePromotions } from '../composition/promotions';
 import type { RootTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import type { UserTier, NotificationItem } from '../types/types';
 
@@ -78,7 +78,7 @@ export default function HomeScreen() {
 
   const promoScrollRef = useRef<ScrollView | null>(null);
   const [activePromo, setActivePromo] = useState(0);
-  const [carouselPromos, setCarouselPromos] = useState<PromotionItem[]>([]);
+  const carouselPromos = usePromotions('carousel');
   const hasRedirectedToProfileCompletion = useRef(false);
 
   const isCompact = width < 360;
@@ -90,13 +90,6 @@ export default function HomeScreen() {
   useEffect(() => {
     const unsubscribe = NotificationService.subscribeToUserNotifications((notifs) => {
       setNotifications(notifs);
-    });
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = PromotionService.subscribeByType('carousel', (items) => {
-      setCarouselPromos(items);
     });
     return unsubscribe;
   }, []);

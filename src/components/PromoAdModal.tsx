@@ -13,9 +13,10 @@ import {
   AppStateStatus,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import type { Promotion } from '../application/promotions/Promotion';
+import { usePromotions } from '../composition/promotions';
 import { useMember } from '../context/MemberContext';
 import { useSecurity } from '../context/SecurityContext';
-import { PromotionService, PromotionItem } from '../services/PromotionService';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const COUNTDOWN = 5;
@@ -36,16 +37,12 @@ export default function PromoAdModal() {
   const [visible, setVisible] = useState(false);
   const [seconds, setSeconds] = useState(COUNTDOWN);
   const adIndexRef = useRef(-1);
-  const [currentAd, setCurrentAd] = useState<PromotionItem | null>(null);
+  const [currentAd, setCurrentAd] = useState<Promotion | null>(null);
 
-  const [ads, setAds] = useState<PromotionItem[]>([]);
+  const ads = usePromotions('modal_ad');
   const [cardHeight, setCardHeight] = useState(DEFAULT_CARD_H);
 
-  useEffect(() => {
-    return PromotionService.subscribeByType('modal_ad', setAds);
-  }, []);
-
-  const adsRef = useRef<PromotionItem[]>([]);
+  const adsRef = useRef<Promotion[]>([]);
   useEffect(() => { adsRef.current = ads; }, [ads]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
