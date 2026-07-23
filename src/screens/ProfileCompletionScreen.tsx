@@ -14,9 +14,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { doc, setDoc } from 'firebase/firestore';
-import { firebaseAuth, firestoreDb } from '../config/firebase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { profileCommands } from '../composition/profile';
 
 type RootStackParamList = {
   ProfileCompletion: undefined;
@@ -55,8 +54,7 @@ export default function ProfileCompletionScreen() {
   const handleCompleteProfile = async () => {
     if (!isFormValid) return; // Prevent action if invalid
 
-    const user = firebaseAuth.currentUser;
-    if (!user) {
+    if (!profileCommands.hasCurrentIdentity()) {
       Alert.alert('Error', 'User tidak ditemukan. Silakan login ulang.');
       return;
     }
@@ -65,20 +63,7 @@ export default function ProfileCompletionScreen() {
       setIsSubmitting(true);
       Keyboard.dismiss();
 
-      // Update user profile di Firestore
-      await setDoc(
-        doc(firestoreDb, 'users', user.uid),
-        {
-          name: fullName.trim(),
-          dateOfBirth: dateOfBirth,
-          profileComplete: true, 
-        },
-        { merge: true }
-      );
-
-      // FORCE REFRESH: Reload user to ensure token and claims are updated immediately
-      // This helps trigger any listeners listening to token changes
-      await user.getIdToken(true);
+      await profileCommands.completeCurrent(fullName, dateOfBirth);
       
       // UX: Keep loading state active indefinitely upon success
       // The AppNavigator will unmount this screen once it sees member.profileComplete = true

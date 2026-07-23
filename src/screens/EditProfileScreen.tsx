@@ -16,13 +16,13 @@ import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Camera, User, Phone, Mail, Save, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import DecorativeBackground from '../components/DecorativeBackground';
 import UserAvatar from '../components/UserAvatar';
 import { UserService } from '../services/UserService';
 import { UserProfile } from '../types/types';
+import { profileCommands } from '../composition/profile';
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
@@ -65,26 +65,13 @@ export default function EditProfileScreen() {
   };
 
   const handlePickImage = async () => {
-    // Meminta izin akses galeri
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
+    const result = await profileCommands.pickImage();
+    if (result.kind === 'permission-denied') {
       Alert.alert("Permission Required", "You need to allow access to your photos to change profile picture.");
       return;
     }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.3, // Kompresi agar tidak terlalu besar untuk Firestore
-      base64: true, // Kita butuh base64 untuk simpan langsung ke Firestore (simple method)
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      // Format data URI untuk ditampilkan dan disimpan
-      const selectedImage = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setPhoto(selectedImage);
+    if (result.kind === 'selected') {
+      setPhoto(result.dataUri);
     }
   };
 

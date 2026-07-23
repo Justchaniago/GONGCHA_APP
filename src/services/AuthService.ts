@@ -1,245 +1,81 @@
-// src/services/AuthService.ts
-
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  sendEmailVerification,
-  confirmPasswordReset as firebaseConfirmPasswordReset,
-  updatePassword as firebaseUpdatePassword,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updateProfile,
-  signOut,
-  applyActionCode,
-} from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { firebaseAuth, firestoreDb } from '../config/firebase';
-import { UserProfile } from '../types/types';
-import { UserService } from './UserService';
+import type { UserProfile } from '../types/types';
+import { authCommands } from '../composition/auth';
 
 export const AuthService = {
-  // ─── LOGIN VIA PHONE (mapped to fake email) ───────────────────────────────
-  async login(email: string, pass: string): Promise<UserProfile> {
-    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, pass);
-    const user = userCredential.user;
-
-    const profile = await UserService.getUserProfile();
-    if (profile) return profile;
-
-    // Jika belum ada doc Firestore, buat default sesuai God Schema (tanpa xpHistory, pakai uid)
-    const newProfile: UserProfile = {
-      uid: user.uid,
-      name: user.displayName || 'Member',
-      phoneNumber: email.split('@')[0],
-      currentPoints: 0,
-      pendingPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      vouchers: [],
-      role: 'member',
-    };
-
-    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
-    return newProfile;
+  login(email: string, password: string): Promise<UserProfile> {
+    return authCommands.loginWithPhoneAlias(
+      email,
+      password,
+    ) as Promise<UserProfile>;
   },
 
-  // ─── REGISTER VIA PHONE (mapped to fake email) ────────────────────────────
-  async register(
+  register(
     email: string,
-    pass: string,
+    password: string,
     name: string,
     phone: string,
   ): Promise<UserProfile> {
-    const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, pass);
-    const user = userCredential.user;
-
-    // Update displayName di Firebase Auth
-    await updateProfile(user, { displayName: name });
-
-    const newProfile: UserProfile = {
-      uid: user.uid,
+    return authCommands.registerWithPhoneAlias(
+      email,
+      password,
       name,
-      phoneNumber: phone,
-      currentPoints: 0,
-      pendingPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      vouchers: [],
-      role: 'member',
-      profileComplete: false,
-    };
-
-    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
-    return newProfile;
+      phone,
+    ) as Promise<UserProfile>;
   },
 
-  // ─── REGISTER VIA EMAIL + PASSWORD (real email) ───────────────────────────
-  async registerWithEmail(
+  registerWithEmail(
     email: string,
     password: string,
     name: string,
     phone?: string,
   ): Promise<UserProfile> {
-    const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-    const user = userCredential.user;
-
-    await updateProfile(user, { displayName: name });
-
-    // 📧 Kirim email verifikasi setelah registrasi
-    await sendEmailVerification(user);
-
-    // ✨ TIDAK create Firestore doc di sini
-    // Doc akan dibuat saat first login SETELAH email verified
-
-    // Sign out immediately — user must verify email before using the app
-    await signOut(firebaseAuth);
-
-    // Return temporary profile object (tidak disimpan ke Firestore)
-    const tempProfile: UserProfile = {
-      uid: user.uid,
-      name,
+    return authCommands.registerWithEmail(
       email,
-      phoneNumber: phone || '',
-      currentPoints: 0,
-      pendingPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      vouchers: [],
-      role: 'member',
-      emailVerified: false,
-    };
-
-    return tempProfile;
+      password,
+      name,
+      phone,
+    ) as Promise<UserProfile>;
   },
 
-  // ─── LOGIN VIA EMAIL + PASSWORD — blok jika belum verifikasi ─────────────
-  async loginWithEmail(email: string, password: string): Promise<UserProfile> {
-    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-    const user = userCredential.user;
-
-    // 🔥 FIX: Force Refresh Token untuk memastikan status emailVerified terbaru dari server
-    await user.getIdToken(true);
-    await user.reload();
-
-    if (!user.emailVerified) {
-      await signOut(firebaseAuth);
-      throw new Error('email_not_verified');
-    }
-
-    const profile = await UserService.getUserProfile();
-    if (profile) {
-      // Update emailVerified di Firestore jika belum ter-update
-      if (!profile.emailVerified) {
-        await setDoc(doc(firestoreDb, 'users', user.uid), { emailVerified: true }, { merge: true });
-      }
-      return profile;
-    }
-
-    // ✨ FIRST LOGIN after email verification
-    const newProfile: UserProfile = {
-      uid: user.uid,
-      name: user.displayName || email.split('@')[0],
-      email: user.email || email,
-      phoneNumber: '',
-      currentPoints: 0,
-      pendingPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      vouchers: [],
-      role: 'member',
-      emailVerified: true,
-      profileComplete: false,
-    };
-
-    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
-    return newProfile;
+  loginWithEmail(email: string, password: string): Promise<UserProfile> {
+    return authCommands.loginWithEmail(email, password) as Promise<UserProfile>;
   },
 
-  // ─── KIRIM ULANG EMAIL VERIFIKASI ─────────────────────────────────────────
-  async resendVerificationEmail(email: string, password: string): Promise<void> {
-    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-    await sendEmailVerification(userCredential.user);
-    await signOut(firebaseAuth);
+  resendVerificationEmail(email: string, password: string) {
+    return authCommands.resendVerificationEmail(email, password);
   },
 
-  // ─── KIRIM EMAIL RESET PASSWORD (Magic Link) ──────────────────────────────
-  async sendPasswordReset(email: string): Promise<void> {
-    await sendPasswordResetEmail(firebaseAuth, email);
+  sendPasswordReset(email: string) {
+    return authCommands.sendPasswordReset(email);
   },
 
-  // ─── KONFIRMASI RESET PASSWORD via oobCode (dari magic link) ─────────────
-  async confirmPasswordReset(oobCode: string, newPassword: string): Promise<void> {
-    await firebaseConfirmPasswordReset(firebaseAuth, oobCode, newPassword);
+  confirmPasswordReset(oobCode: string, newPassword: string) {
+    return authCommands.confirmPasswordReset(oobCode, newPassword);
   },
 
-  // ─── APPLY ACTION CODE (verifikasi email in-app) ─────────────────────────
-  async applyEmailVerificationCode(oobCode: string): Promise<void> {
-    await applyActionCode(firebaseAuth, oobCode);
-    await firebaseAuth.currentUser?.reload();
+  applyEmailVerificationCode(oobCode: string) {
+    return authCommands.applyEmailVerificationCode(oobCode);
   },
 
-  // ─── AUTO-LOGIN SETELAH VERIFIKASI EMAIL ──────────────────────────────────
-  async autoLoginAfterEmailVerification(email: string, password: string): Promise<UserProfile> {
-    const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-    const user = userCredential.user;
-
-    await user.reload();
-
-    if (!user.emailVerified) {
-      await signOut(firebaseAuth);
-      throw new Error('Email belum diverifikasi. Periksa inbox kamu.');
-    }
-
-    const profile = await UserService.getUserProfile();
-    if (profile) {
-      if (!profile.profileComplete) {
-        await setDoc(doc(firestoreDb, 'users', user.uid), { profileComplete: false }, { merge: true });
-      }
-      return { ...profile, profileComplete: false };
-    }
-
-    const newProfile: UserProfile = {
-      uid: user.uid,
-      name: user.displayName || email.split('@')[0],
-      email: user.email || email,
-      phoneNumber: '',
-      currentPoints: 0,
-      pendingPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
-      tier: 'Silver',
-      joinedDate: new Date().toISOString(),
-      vouchers: [],
-      role: 'member',
-      emailVerified: true,
-      profileComplete: false,
-    };
-
-    await setDoc(doc(firestoreDb, 'users', user.uid), newProfile);
-    return newProfile;
+  autoLoginAfterEmailVerification(
+    email: string,
+    password: string,
+  ): Promise<UserProfile> {
+    return authCommands.autoLoginAfterEmailVerification(
+      email,
+      password,
+    ) as Promise<UserProfile>;
   },
 
-  // ─── GANTI PASSWORD (untuk user yang sudah login) ─────────────────────────
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const user = firebaseAuth.currentUser;
-    if (!user || !user.email) throw new Error('Tidak ada user yang login.');
-
-    const credential = EmailAuthProvider.credential(user.email, currentPassword);
-    await reauthenticateWithCredential(user, credential);
-    await firebaseUpdatePassword(user, newPassword);
+  changePassword(currentPassword: string, newPassword: string) {
+    return authCommands.changePassword(currentPassword, newPassword);
   },
 
-  // ─── LOGOUT ───────────────────────────────────────────────────────────────
-  async logout(): Promise<void> {
-    await signOut(firebaseAuth);
+  logout() {
+    return authCommands.logout();
+  },
+
+  getCurrentIdentity() {
+    return authCommands.currentIdentity();
   },
 };

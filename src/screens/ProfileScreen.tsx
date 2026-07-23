@@ -13,7 +13,6 @@ import {
   User, History as HistoryIcon, ArrowDownCircle, ArrowUpCircle,
   Settings, LogOut, ChevronRight, MapPin, HelpCircle, X, ShieldCheck, Lock, Link,
 } from 'lucide-react-native';
-import { getAuth } from 'firebase/auth';
 import { linkGoogleToAccount, statusCodes } from '../services/GoogleSignInService';
 import GoogleIcon from '../components/GoogleIcon';
 import { useNavigation } from '@react-navigation/native';
@@ -109,7 +108,7 @@ export default function ProfileScreen() {
   const [visibleDayCount, setVisibleDayCount] = useState(1);
 
   // Auth provider detection
-  const authProviders = getAuth().currentUser?.providerData.map(p => p.providerId) ?? [];
+  const authProviders = AuthService.getCurrentIdentity()?.providerIds ?? [];
   const hasPasswordProvider = authProviders.includes('password');
   const hasGoogleProvider = authProviders.includes('google.com');
   const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);

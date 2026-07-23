@@ -1,10 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Alert } from 'react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
-
 import { useMember } from './MemberContext';
 import SecurityModal, { SecurityModalMode } from '../components/SecurityModal';
 import { DEFAULT_SECURITY_SETTINGS, SecuritySettings, SecurityStorage } from '../services/SecurityStorage';
+import { biometricCapability } from '../composition/security';
+import {
+  didSecurityScopeChange,
+  isSecurityPinValid,
+  isUnlockFresh,
+  shouldRelock,
+} from '../application/security/securityRules';
 
 type SensitiveAction = 'member_card' | 'redeem' | 'voucher' | 'app_unlock';
 
@@ -73,6 +78,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const pendingResolverRef = useRef<((result: boolean) => void) | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const initialLockCheckedRef = useRef(false);
+  const previousSecurityScopeRef = useRef(securityScope);
 
   const pinEnabled = hasPin;
 
@@ -96,15 +102,31 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const refreshBiometricAvailability = useCallback(async () => {
     try {
-      const [hasHardware, isEnrolled] = await Promise.all([
-        LocalAuthentication.hasHardwareAsync(),
-        LocalAuthentication.isEnrolledAsync(),
-      ]);
-      setBiometricAvailable(hasHardware && isEnrolled);
+      setBiometricAvailable(await biometricCapability.isAvailable());
     } catch {
       setBiometricAvailable(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (
+      !didSecurityScopeChange(
+        previousSecurityScopeRef.current,
+        securityScope,
+      )
+    ) {
+      return;
+    }
+
+    previousSecurityScopeRef.current = securityScope;
+    closeModal();
+    completePending(false);
+    setSettings(DEFAULT_SECURITY_SETTINGS);
+    setHasPin(false);
+    setPinDraft('');
+    initialLockCheckedRef.current = false;
+    void SecurityStorage.clearLastUnlockAt(securityScope);
+  }, [closeModal, completePending, securityScope]);
 
   useEffect(() => {
     let isMounted = true;
@@ -176,11 +198,16 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         const backgroundAt = lastBackgroundAtRef.current ?? 0;
-        const elapsed = Date.now() - backgroundAt;
         const lastUnlockAt = await SecurityStorage.getLastUnlockAt(securityScope);
-        const sessionFresh = lastUnlockAt > 0 && Date.now() - lastUnlockAt < settings.gracePeriodMs;
-
-        if (elapsed >= settings.gracePeriodMs && !sessionFresh) {
+        const now = Date.now();
+        if (shouldRelock({
+          pinEnabled,
+          appLockEnabled: settings.appLockEnabled,
+          backgroundAt,
+          lastUnlockAt,
+          now,
+          gracePeriodMs: settings.gracePeriodMs,
+        })) {
           setCurrentAction('app_unlock');
           setModalMode('unlock');
           setPinInput('');
@@ -200,14 +227,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return false;
     }
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Verify to continue',
-      cancelLabel: 'Use PIN',
-      fallbackLabel: 'Use PIN',
-      disableDeviceFallback: false,
-    });
-
-    if (result.success) {
+    if (await biometricCapability.authenticate()) {
       await markSessionUnlocked();
       closeModal();
       completePending(true);
@@ -224,7 +244,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       const lastUnlockAt = await SecurityStorage.getLastUnlockAt(securityScope);
-      if (lastUnlockAt > 0 && Date.now() - lastUnlockAt < settings.gracePeriodMs) {
+      if (isUnlockFresh(lastUnlockAt, Date.now(), settings.gracePeriodMs)) {
         return true;
       }
 
@@ -301,7 +321,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    if (pinInput.length < 6) {
+    if (!isSecurityPinValid(pinInput)) {
       setPinError('Your PIN must be 6 digits.');
       return;
     }

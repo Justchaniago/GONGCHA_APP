@@ -22,14 +22,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Eye, EyeOff, ScanFace } from 'lucide-react-native';
 import BouncyPressable from '../components/BouncyPressable';
-import { BiometricLoginStorage } from '../services/BiometricLoginStorage';
+import { savedLoginCredentialCapability } from '../composition/auth';
 import { signInWithGoogle, statusCodes } from '../services/GoogleSignInService';
 
 // 🔥 PENGGANTI THEME CONTEXT
 import { colors } from '../theme/colorTokens';
 import { AuthService } from '../services/AuthService';
 import { UserService } from '../services/UserService';
-import { firebaseAuth } from '../config/firebase';
 
 type RootStackParamList = {
   Login: { initialStep?: 'phone' | 'otp' };
@@ -86,10 +85,10 @@ export default function LoginScreen() {
 
   useEffect(() => {
     async function checkBiometric() {
-      const available = await BiometricLoginStorage.isAvailable();
+      const available = await savedLoginCredentialCapability.isAvailable();
       setBiometricAvailable(available);
       if (!available) return;
-      const hasCreds = await BiometricLoginStorage.hasSavedCredentials();
+      const hasCreds = await savedLoginCredentialCapability.hasSavedCredentials();
       setBiometricHasCreds(hasCreds);
     }
     checkBiometric();
@@ -154,7 +153,7 @@ export default function LoginScreen() {
         userProfile = userProfileRaw as import('../types/types').UserProfile;
       }
       if (!userProfile) {
-        const currentUser = firebaseAuth.currentUser;
+        const currentUser = AuthService.getCurrentIdentity();
         if (currentUser) {
           const fallbackPhone = currentUser.phoneNumber || currentUser.email?.split('@')[0] || phoneNumber;
           const fallbackName = currentUser.displayName || fallbackPhone || 'Member';
@@ -189,9 +188,9 @@ export default function LoginScreen() {
     }
     setBiometricLoading(true);
     try {
-      const success = await BiometricLoginStorage.authenticate();
+      const success = await savedLoginCredentialCapability.authenticate();
       if (!success) return;
-      const creds = await BiometricLoginStorage.getCredentials();
+      const creds = await savedLoginCredentialCapability.getCredentials();
       if (!creds) {
         setBiometricHasCreds(false);
         return;
@@ -205,9 +204,9 @@ export default function LoginScreen() {
   };
 
   const offerSaveBiometric = async (email: string, password: string) => {
-    const available = await BiometricLoginStorage.isAvailable();
+    const available = await savedLoginCredentialCapability.isAvailable();
     if (!available) return;
-    const hasCreds = await BiometricLoginStorage.hasSavedCredentials();
+    const hasCreds = await savedLoginCredentialCapability.hasSavedCredentials();
     if (hasCreds) return;
     Alert.alert(
       'Aktifkan Face ID?',
@@ -217,7 +216,7 @@ export default function LoginScreen() {
         {
           text: 'Aktifkan',
           onPress: async () => {
-            await BiometricLoginStorage.saveCredentials(email, password);
+            await savedLoginCredentialCapability.saveCredentials(email, password);
             setBiometricHasCreds(true);
           },
         },

@@ -17,14 +17,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { onAuthStateChanged } from 'firebase/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Eye, EyeOff } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import BouncyPressable from '../components/BouncyPressable';
 import OtpVerificationSection from '../components/OtpVerificationSection';
 import { AuthService } from '../services/AuthService';
-import { firebaseAuth } from '../config/firebase';
 import { getGreeting } from '../utils/greetingHelper';
 import { signInWithGoogle, statusCodes } from '../services/GoogleSignInService';
 import GoogleIcon from '../components/GoogleIcon';
@@ -163,45 +161,7 @@ export default function WelcomeScreen() {
     return -clamp(rawShift * WELCOME_KEYBOARD_SHIFT_MULTIPLIER, minShift, maxShift);
   };
 
-  // ─── Navigation Guard Ref ─────────────────────────────────────────────────
-  // Use ref to access current state inside onAuthStateChanged callback without dependency issues
-  const navGuardRef = useRef({
-    viewMode,
-    isCreatingAccount,
-    isPostEmailVerificationLogin,
-  });
-
-  useEffect(() => {
-    navGuardRef.current = {
-      viewMode,
-      isCreatingAccount,
-      isPostEmailVerificationLogin,
-    };
-  }, [viewMode, isCreatingAccount, isPostEmailVerificationLogin]);
-
   // ─── Effects ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-      // DEBUG: Monitor Auth State Check
-      // console.log('Auth State Changed:', user?.uid);
-      
-      // FIX CRASH: Jangan lakukan navigasi manual di sini.
-      // Biarkan AppNavigator yang menangani perpindahan screen berdasarkan perubahan state 'isAuthenticated'.
-      // Jika kita memaksa navigasi ke 'MainApp' di sini, akan crash jika AppNavigator sedang memblokir akses ke MainApp (karena profile belum lengkap).
-      
-      /* 
-      const current = navGuardRef.current;
-      if (user && 
-          !['signup_form', 'signup_otp', 'email_verify_pending'].includes(current.viewMode) && 
-          !current.isPostEmailVerificationLogin &&
-          !current.isCreatingAccount) {
-        navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
-      }
-      */
-    });
-    return unsubscribe;
-  }, [navigation]); // Only depend on navigation, internal state is accessed via ref
-
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -612,13 +572,6 @@ export default function WelcomeScreen() {
     try {
       setIsCreatingAccount(true);
       
-      // Update Ref IMMEDIATELY to block navigation guards
-      navGuardRef.current = {
-        ...navGuardRef.current,
-        viewMode: 'email_verify_pending',
-        isCreatingAccount: true
-      };
-      
       // Set ALL state SYNCHRONOUSLY before calling registerWithEmail
       setPendingVerifyEmail(newAccountEmail.trim());
       setPendingVerifyPassword(newAccountPassword);
@@ -630,7 +583,7 @@ export default function WelcomeScreen() {
       
       // CRITICAL: Sign out immediately so we don't have a lingering session.
       // The user must login manually after verification, which ensures the correct flow.
-      await firebaseAuth.signOut();
+      await AuthService.logout();
       
     } catch (error: any) {
       const message = String(error?.message || 'Registrasi gagal.');
