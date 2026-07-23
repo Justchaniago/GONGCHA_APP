@@ -6,6 +6,7 @@ import { View, ActivityIndicator } from 'react-native';
 // Import Context
 import { useMember } from '../context/MemberContext';
 import CustomTabBar from '../components/CustomTabBar';
+import { resolveSessionRoute } from '../application/session/sessionRules';
 
 // Import Screens
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -59,7 +60,8 @@ function MainTabNavigator() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated, loading, member } = useMember();
+  const { isAuthenticated, sessionPhase } = useMember();
+  const sessionRoute = resolveSessionRoute(sessionPhase);
   const [guestOnboardingReady, setGuestOnboardingReady] = useState(false);
   const [guestOnboardingComplete, setGuestOnboardingComplete] = useState(false);
 
@@ -87,7 +89,7 @@ export default function AppNavigator() {
   }, [isAuthenticated]);
 
   // Jika sedang mengecek sesi ke server Firebase, tahan dengan loading
-  if (loading || !guestOnboardingReady) {
+  if (sessionRoute === 'spinner' || !guestOnboardingReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8F0' }}>
         <ActivityIndicator size="large" color="#C8102E" />
@@ -100,13 +102,11 @@ export default function AppNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {isAuthenticated ? (
-        // Check Profile Completion
-        !member?.profileComplete ? (
+      {sessionRoute === 'needs-profile' ? (
              // SATPAM: Stop right here! You shall not pass until profile is complete.
              // This prevents MainApp (and HomeScreen) from mounting and triggering the "force exit" crash
              <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
-        ) : (
+      ) : sessionRoute === 'ready' ? (
           // Authenticated AND Profile Complete -> Welcome home
           <>
             <Stack.Screen name="MainApp" component={MainTabNavigator} />
@@ -118,7 +118,6 @@ export default function AppNavigator() {
             {/* Keeping ProfileCompletion accessible in case we need to revisit, though logically we shouldn't */}
             <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} /> 
           </>
-        )
       ) : (
         // Kalau belum login, hanya bisa akses area luar
         <>
