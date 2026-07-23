@@ -1,37 +1,22 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Linking, Platform, Alert, ActionSheetIOS,
-  ListRenderItem, RefreshControl
+  ActivityIndicator, ListRenderItem, RefreshControl
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import * as Location from 'expo-location';
 import { MapPin, Navigation, Clock, ChevronLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { firestoreDb } from '../config/firebase';
+import type { StoreStatusKind } from '../application/stores/GetStoreStatus';
+import type { Store } from '../application/stores/Store';
+import { useStores } from '../composition/stores';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import DecorativeBackground from '../components/DecorativeBackground';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMember } from '../context/MemberContext';
-
-// --- TYPES ---
-type StoreType = {
-  id: string;
-  name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  openHours: string;
-  statusOverride?: 'open' | 'closed' | 'almost_close';
-  distance?: number;
-  isAvailable?: boolean; 
-  updatedAt?: any;
-};
+import { openStoreMaps } from '../presentation/stores/openStoreMaps';
 
 type StoreStatus = {
   label: string;
@@ -39,295 +24,38 @@ type StoreStatus = {
   bg: string;
 };
 
-const CACHE_KEY = '@gongcha_stores_data';
-const CACHE_SYNC_TIME_KEY = '@gongcha_stores_sync_time';
+const STORE_STATUS: Record<StoreStatusKind, StoreStatus> = {
+  open: { label: 'Open', color: '#166534', bg: '#DCFCE7' },
+  'closing-soon': {
+    label: 'Closing Soon',
+    color: '#9A3412',
+    bg: '#FFEDD5',
+  },
+  closed: { label: 'Closed', color: '#6B7280', bg: '#E5E7EB' },
+};
 
 export default function StoreLocatorScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { isAuthenticated, loading: memberLoading } = useMember();
-  
-  const [stores, setStores] = useState<StoreType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus>(Location.PermissionStatus.UNDETERMINED);
-  
-  const [nowTick, setNowTick] = useState(Date.now());
+  const {
+    stores,
+    loading,
+    isRefreshing,
+    permissionStatus,
+    refresh,
+    requestLocation,
+    statusFor,
+  } = useStores(!memberLoading && isAuthenticated);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNowTick(Date.now());
-    }, 60 * 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const fetchStoresAndLocation = useCallback(async (forceFullRefresh = false) => {
-    try {
-      let currentUserLoc: Location.LocationObject | null = null;
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        setPermissionStatus(status);
-
-        if (status === 'granted') {
-          currentUserLoc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-        }
-      } catch {
-        setPermissionStatus(Location.PermissionStatus.UNDETERMINED);
-      }
-
-      const cachedDataStr = await AsyncStorage.getItem(CACHE_KEY);
-      let localStores: StoreType[] = cachedDataStr ? JSON.parse(cachedDataStr) : [];
-      
-      const lastSyncStr = await AsyncStorage.getItem(CACHE_SYNC_TIME_KEY);
-      // Jika forceFullRefresh true, kita reset waktu supaya nge-pull data lagi dari nol (biar kordinat yang lama ketimpa)
-      const lastSyncTime = forceFullRefresh ? 0 : (lastSyncStr ? parseInt(lastSyncStr, 10) : 0);
-      const currentSyncTime = Date.now();
-      const lastSyncDate = new Date(lastSyncTime);
-
-      console.log(`[SYNC STORES] Mengecek perubahan toko sejak: ${lastSyncDate.toISOString()}`);
-
-      const storesRef = collection(firestoreDb, 'stores');
-      const q =
-        forceFullRefresh || localStores.length === 0
-          ? query(storesRef)
-          : query(storesRef, where('updatedAt', '>', lastSyncDate));
-
-      const snapshot = await getDocs(q);
-
-      if (!snapshot.empty) {
-        console.log(
-          forceFullRefresh || localStores.length === 0
-            ? `[FULL STORE SYNC] Loaded ${snapshot.size} stores.`
-            : `[DELTA SYNC] Ada ${snapshot.size} data toko baru/berubah.`,
-        );
-        
-        const updatedStores: StoreType[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data() as any;
-          const rawName = data.name || data.Name || data.storeName || data.nama || 'Unnamed Store';
-          const rawAddress = data.address || data.Address || data.alamat || 'Address not available';
-
-          // 🔥 FIX 1: PARSING KOORDINAT GEOPOINT
-          let lat = 0;
-          let lng = 0;
-          if (data.location && typeof data.location.latitude === 'number') {
-            // Skema Baru (Web Admin)
-            lat = data.location.latitude;
-            lng = data.location.longitude;
-          } else {
-            // Skema Lama (Fallback)
-            lat = Number(data.latitude || 0);
-            lng = Number(data.longitude || 0);
-          }
-
-          // 🔥 FIX 2: PARSING JAM OPERASIONAL 
-          let hoursStr = '10:00 - 22:00';
-          if (data.operationalHours && data.operationalHours.open && data.operationalHours.close) {
-            hoursStr = `${data.operationalHours.open} - ${data.operationalHours.close}`;
-          } else if (data.openHours) {
-            hoursStr = data.openHours;
-          }
-
-          updatedStores.push({
-            id: doc.id,
-            name: String(rawName).trim(),
-            address: String(rawAddress).trim(),
-            latitude: lat,
-            longitude: lng,
-            openHours: hoursStr.trim(),
-            statusOverride: ['open', 'closed', 'almost_close'].includes(data.statusOverride) ? data.statusOverride : undefined,
-            isAvailable: data.isAvailable !== false,
-          });
-        });
-
-        if (forceFullRefresh || localStores.length === 0) {
-          localStores = updatedStores;
-        } else {
-          const localStoresMap = new Map(localStores.map(store => [store.id, store]));
-          updatedStores.forEach(store => {
-            localStoresMap.set(store.id, store);
-          });
-          localStores = Array.from(localStoresMap.values());
-        }
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(localStores));
-      } else {
-        console.log("[STORE SYNC] 0 perubahan. Pakai cache lokal.");
-      }
-
-      await AsyncStorage.setItem(CACHE_SYNC_TIME_KEY, currentSyncTime.toString());
-
-      let activeStores = localStores.filter(store => store.isAvailable !== false);
-
-      if (currentUserLoc) {
-        activeStores = activeStores
-          .map((store) => {
-            const dist = calculateDistance(
-              currentUserLoc!.coords.latitude,
-              currentUserLoc!.coords.longitude,
-              store.latitude,
-              store.longitude
-            );
-            return { ...store, distance: dist };
-          })
-          .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-      } else {
-        activeStores.sort((a, b) => a.name.localeCompare(b.name));
-      }
-
-      setStores(activeStores);
-
-    } catch {
-      console.warn('[StoreLocator] Unable to refresh store list. Showing cached stores if available.');
-      const cachedDataStr = await AsyncStorage.getItem(CACHE_KEY);
-      if (cachedDataStr) {
-        let fallbackStores: StoreType[] = JSON.parse(cachedDataStr);
-        setStores(fallbackStores.filter(s => s.isAvailable !== false));
-      }
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (memberLoading || !isAuthenticated) {
-      return;
-    }
-
-    // Jalankan force refresh true saat pertama kali me-load layar ini setelah perbaikan code
-    // agar data koordinat yang salah di cache lama ketimpa dengan yang baru
-    fetchStoresAndLocation(true);
-  }, [fetchStoresAndLocation, isAuthenticated, memberLoading]);
-
-  const onRefresh = () => {
-    if (memberLoading || !isAuthenticated) {
-      return;
-    }
-    setIsRefreshing(true);
-    fetchStoresAndLocation(false); // Kalau dipull manual, pakai Delta Sync biasa
-  };
-
-  // --- UTILS ---
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371;
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return Number((R * c).toFixed(1));
-  };
-
-  const deg2rad = (deg: number) => deg * (Math.PI / 180);
-
-  const parseHoursRange = (hours: string) => {
-    const matches = hours.match(/(\d{1,2})[:.](\d{2})/g);
-    if (!matches || matches.length < 2) return null;
-    const toMinutes = (raw: string) => {
-      const [h, m] = raw.replace('.', ':').split(':').map(Number);
-      return h * 60 + m;
-    };
-    return { open: toMinutes(matches[0]), close: toMinutes(matches[1]) };
-  };
-
-  const getStoreStatus = (store: StoreType): StoreStatus => {
-    if (store.statusOverride === 'open') return { label: 'Open', color: '#166534', bg: '#DCFCE7' };
-    if (store.statusOverride === 'almost_close') return { label: 'Closing Soon', color: '#9A3412', bg: '#FFEDD5' };
-    if (store.statusOverride === 'closed') return { label: 'Closed', color: '#6B7280', bg: '#E5E7EB' };
-
-    const range = parseHoursRange(store.openHours);
-    if (!range) return { label: 'Open', color: '#166534', bg: '#DCFCE7' }; 
-
-    const now = new Date(nowTick);
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const isOvernight = range.close < range.open;
-    
-    const isOpen = isOvernight
-      ? nowMinutes >= range.open || nowMinutes < range.close
-      : nowMinutes >= range.open && nowMinutes < range.close;
-
-    if (!isOpen) return { label: 'Closed', color: '#6B7280', bg: '#E5E7EB' };
-
-    let minutesToClose = range.close - nowMinutes;
-    if (isOvernight && nowMinutes >= range.open) minutesToClose = (24 * 60) - nowMinutes + range.close;
-
-    if (minutesToClose <= 30 && minutesToClose > 0) {
-      return { label: 'Closing Soon', color: '#9A3412', bg: '#FFEDD5' };
-    }
-
-    return { label: 'Open', color: '#166534', bg: '#DCFCE7' };
-  };
-
-  const openMaps = async (lat: number, lng: number, label: string, address?: string) => {
-    const latLng = `${lat},${lng}`;
-    const query = address ? `${label}, ${address}` : label;
-    const queryEncoded = encodeURIComponent(query);
-
-    const appleMapsUrl = `maps:0,0?q=${queryEncoded}&ll=${latLng}`;
-    const webGoogleUrl = `https://www.google.com/maps/search/?api=1&query=${queryEncoded}`;
-
-    const mapApps = Platform.select({
-      ios: [
-        { label: 'Google Maps', probeUrls: ['comgooglemaps://', 'comgooglemaps-x-callback://'], openUrl: `comgooglemaps://?q=${queryEncoded}@${latLng}` },
-        { label: 'Waze', probeUrls: ['waze://'], openUrl: `waze://?ll=${latLng}&navigate=yes` },
-        { label: 'Apple Maps', openUrl: appleMapsUrl },
-      ],
-      android: [
-        { label: 'Google Maps', probeUrls: ['comgooglemaps://', 'google.navigation:'], openUrl: `google.navigation:q=${queryEncoded}` },
-        { label: 'Waze', probeUrls: ['waze://'], openUrl: `waze://?ll=${latLng}&navigate=yes` },
-      ],
-      default: [],
-    }) || [];
-
-    const detectedApps: Array<{ label: string; run: () => void }> = [];
-
-    for (const app of mapApps) {
-      let available = false;
-      if (!app.probeUrls || app.probeUrls.length === 0) {
-        available = true;
-      } else {
-        for (const probeUrl of app.probeUrls) {
-          try { if (await Linking.canOpenURL(probeUrl)) { available = true; break; } } catch { available = false; }
-        }
-      }
-
-      if (available) {
-        detectedApps.push({
-          label: app.label,
-          run: () => { Linking.openURL(app.openUrl).catch(() => { Linking.openURL(webGoogleUrl); }); },
-        });
-      }
-    }
-
-    const hasNativeGoogleMaps = detectedApps.some((app) => app.label === 'Google Maps');
-    detectedApps.push({ label: hasNativeGoogleMaps ? 'Google Maps (Web)' : 'Google Maps', run: () => { Linking.openURL(webGoogleUrl); } });
-
-    if (Platform.OS === 'ios') {
-      const options = [...detectedApps.map((item) => item.label), 'Cancel'];
-      const cancelButtonIndex = options.length - 1;
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: label, message: address, options, cancelButtonIndex },
-        (buttonIndex) => { if (buttonIndex === cancelButtonIndex) return; detectedApps[buttonIndex]?.run(); }
-      );
-      return;
-    }
-
-    const alertOptions: Array<{ text: string; onPress: () => void; style?: 'cancel' }> = detectedApps.map((app) => ({ text: app.label, onPress: app.run }));
-    alertOptions.push({ text: 'Cancel', onPress: () => {}, style: 'cancel' });
-    Alert.alert('Open Maps', `${label}\n${address || ''}`, alertOptions);
-  };
-
-  const renderStoreItem: ListRenderItem<StoreType> = ({ item, index }) => {
-    const status = getStoreStatus(item);
+  const renderStoreItem: ListRenderItem<Store> = ({ item, index }) => {
+    const status = STORE_STATUS[statusFor(item)];
 
     return (
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.7}
-        onPress={() => openMaps(item.latitude, item.longitude, item.name, item.address)}
+        onPress={() => openStoreMaps(item.latitude, item.longitude, item.name, item.address)}
       >
         <View style={styles.cardHeader}>
           <View style={styles.iconBg}><MapPin size={24} color="#B91C2F" /></View>
@@ -354,7 +82,7 @@ export default function StoreLocatorScreen() {
             <Clock size={16} color="#8C7B75" />
             <Text style={styles.infoText}>{item.openHours}</Text>
           </View>
-          <TouchableOpacity style={styles.navButton} onPress={() => openMaps(item.latitude, item.longitude, item.name, item.address)}>
+          <TouchableOpacity style={styles.navButton} onPress={() => openStoreMaps(item.latitude, item.longitude, item.name, item.address)}>
             <Navigation size={16} color="#FFF" />
             <Text style={styles.navButtonText}>Go There</Text>
           </TouchableOpacity>
@@ -380,7 +108,7 @@ export default function StoreLocatorScreen() {
           {permissionStatus !== 'granted' && !loading && (
             <View style={styles.warningBox}>
               <Text style={styles.warningText}>Enable location for nearest store.</Text>
-              <TouchableOpacity onPress={() => fetchStoresAndLocation(false)}><Text style={styles.warningAction}>Allow Access</Text></TouchableOpacity>
+              <TouchableOpacity onPress={requestLocation}><Text style={styles.warningAction}>Allow Access</Text></TouchableOpacity>
             </View>
           )}
 
@@ -396,7 +124,7 @@ export default function StoreLocatorScreen() {
               renderItem={renderStoreItem}
               contentContainerStyle={styles.listContent}
               refreshControl={
-                <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor={'#B91C2F'} />
+                <RefreshControl refreshing={isRefreshing} onRefresh={refresh} colors={['#B91C2F']} tintColor={'#B91C2F'} />
               }
               ListEmptyComponent={<View style={styles.center}><Text style={styles.emptyText}>No stores found nearby.</Text></View>}
               showsVerticalScrollIndicator={false}
