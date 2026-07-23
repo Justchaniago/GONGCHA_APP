@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, Text, ScrollView, FlatList, Image, TouchableOpacity, 
   StyleSheet, Modal, Animated, TouchableWithoutFeedback, useWindowDimensions, RefreshControl 
@@ -7,38 +7,17 @@ import { Heart, X } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { firestoreDb as db } from '../config/firebase';
-
 import DecorativeBackground from '../components/DecorativeBackground';
 import ScreenFadeTransition from '../components/ScreenFadeTransition';
 import SkeletonLoader from '../components/SkeletonLoader';
-
-interface MenuItem {
-  id: string;
-  name: string;
-  category: string;
-  basePrice: number;        
-  isLargeAvailable: boolean; 
-  isHotAvailable?: boolean;  
-  description?: string;
-  imageUrl?: string;         
-  rating?: number;
-  isAvailable?: boolean;
-  updatedAt?: any; 
-}
+import type { MenuItem } from '../application/menu/MenuItem';
+import { useMenu } from '../composition/menu';
 
 const CATEGORY_LABELS: Record<string, string> = {
   Signature: 'Signature', MilkTea: 'Milk Tea', Coffee: 'Coffee', Matcha: 'Matcha', 
   Mint: 'Mint', BrownSugar: 'Brown Sugar', CreativeMix: 'Creative Mix', BrewedTea: 'Brewed Tea', Topping: 'Topping'
 };
 const CATEGORIES = ['All', 'Signature', 'MilkTea', 'Coffee', 'Matcha', 'Mint', 'BrownSugar', 'CreativeMix', 'BrewedTea'];
-
-// 🔥 KEY UNTUK LOCAL STORAGE
-const CACHE_KEY = '@gongcha_menu_data';
-const CACHE_SYNC_TIME_KEY = '@gongcha_menu_sync_time';
 
 export default function MenuScreen() {
   const insets = useSafeAreaInsets();
@@ -48,103 +27,19 @@ export default function MenuScreen() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
   
-  const [gongchaMenu, setGongchaMenu] = useState<MenuItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true); 
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
+    items: gongchaMenu,
+    isLoading,
+    isRefreshing,
+    refresh: onRefresh,
+  } = useMenu();
   
   const scaleValue = useRef(new Animated.Value(0)).current;
   const opacityValue = useRef(new Animated.Value(0)).current;
 
-  // 🚀 FUNGSI CERDAS: DELTA SYNC ARCHITECTURE PURE
-  const fetchMenuData = useCallback(async () => {
-    try {
-      // 1. Ambil Cache Lokal dan Waktu Sync Terakhir
-      const cachedDataStr = await AsyncStorage.getItem(CACHE_KEY);
-      let localData: MenuItem[] = cachedDataStr ? JSON.parse(cachedDataStr) : [];
-      
-      const lastSyncStr = await AsyncStorage.getItem(CACHE_SYNC_TIME_KEY);
-      
-      // 🔥 FIX: Memastikan waktu TIDAK kereset ke 0 walau di-pull refresh
-      const lastSyncTime = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
-
-      // Catat waktu sekarang SEBELUM query (menghindari data terlewat saat proses fetch)
-      const currentSyncTime = Date.now();
-      const lastSyncDate = new Date(lastSyncTime);
-
-      console.log(`[SYNC] Mengecek menu yang berubah sejak: ${lastSyncDate.toISOString()}`);
-
-      // 2. Query ke Firestore: "Tolong kasih menu yang diubah/ditambah SETELAH lastSyncDate"
-      const q = query(
-        collection(db, 'products'),
-        where('updatedAt', '>', lastSyncDate)
-      );
-
-      const snapshot = await getDocs(q);
-
-      if (!snapshot.empty) {
-        console.log(`[DELTA SYNC] Ada ${snapshot.size} menu baru/berubah. Menggabungkan dengan data lokal...`);
-        
-        const updatedItems: MenuItem[] = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as MenuItem));
-
-        // 3. Proses Merge (Upsert: Timpa yang lama, tambah yang baru)
-        const localDataMap = new Map(localData.map(item => [item.id, item]));
-        
-        updatedItems.forEach(item => {
-          localDataMap.set(item.id, item);
-        });
-
-        // Ubah kembali Map menjadi Array
-        localData = Array.from(localDataMap.values());
-
-        // 4. Simpan hasil gabungan ke HP User
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(localData));
-      } else {
-        console.log("[DELTA SYNC] 0 Perubahan. Menggunakan 100% Cache Lokal (Hanya 1 Read!)");
-      }
-
-      // 5. Update Waktu Sync Terakhir
-      await AsyncStorage.setItem(CACHE_SYNC_TIME_KEY, currentSyncTime.toString());
-
-      // 6. Urutkan berdasarkan nama agar rapi, lalu set ke State UI
-      const sortedData = localData.sort((a, b) => a.name.localeCompare(b.name));
-      setGongchaMenu(sortedData);
-
-    } catch (error) {
-      if ((error as any)?.code === 'permission-denied') {
-        console.warn('[MenuScreen] Menu read is blocked by Firestore rules. Using cached menu if available.');
-      } else {
-        console.warn('[MenuScreen] Delta sync fallback triggered:', error);
-      }
-      // Fallback: Jika offline (tidak ada sinyal), paksa pakai cache lokal yang ada
-      const cachedData = await AsyncStorage.getItem(CACHE_KEY);
-      if (cachedData) {
-        const parsed = JSON.parse(cachedData);
-        setGongchaMenu(parsed.sort((a: MenuItem, b: MenuItem) => a.name.localeCompare(b.name)));
-      }
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMenuData();
-  }, [fetchMenuData]);
-
-  const onRefresh = () => {
-    setIsRefreshing(true);
-    // Tidak perlu passing true, panggil langsung agar mengecek Delta Sync saja
-    fetchMenuData(); 
-  };
-
-  // 🔥 Filter Soft Delete: Menu yang isAvailable-nya false TIDAK akan ditampilkan
-  const availableMenu = gongchaMenu.filter(item => item.isAvailable !== false);
   const filteredMenu = selectedCategory === 'All' 
-    ? availableMenu
-    : availableMenu.filter(item => item.category === selectedCategory);
+    ? gongchaMenu
+    : gongchaMenu.filter(item => item.category === selectedCategory);
     
   const isCompact = width < 360;
   const horizontalPadding = isCompact ? 16 : 20;
