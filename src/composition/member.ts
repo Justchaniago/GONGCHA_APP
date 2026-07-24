@@ -4,7 +4,10 @@ import {
   buildMemberData,
 } from '../application/member/memberProjection';
 import { MemberSessionController } from '../application/session/MemberSessionController';
-import { isEligibleSession } from '../application/session/sessionRules';
+import {
+  isEligibleLocalEmulatorSession,
+  isEligibleSession,
+} from '../application/session/sessionRules';
 import type { MemberRepository } from '../application/ports/member/MemberRepository';
 import type { PendingMemberRepository } from '../application/ports/member/PendingMemberRepository';
 import type { SessionGateway } from '../application/ports/session/SessionGateway';
@@ -53,7 +56,9 @@ const memberSessionController = new MemberSessionController(
   dependencies.session,
   dependencies.member,
   dependencies.pending,
-  isEligibleSession,
+  runtimeConfig.mode === 'local_emulator'
+    ? isEligibleLocalEmulatorSession
+    : isEligibleSession,
   buildMemberData,
   applyPendingSummary,
   EMPTY_PENDING_SUMMARY,
@@ -61,4 +66,8 @@ const memberSessionController = new MemberSessionController(
 
 export function useMemberSession() {
   return useMemberSessionController(memberSessionController);
+}
+
+export function refreshMemberSession() {
+  return memberSessionController.refreshMember();
 }

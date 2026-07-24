@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { resolveSessionRoute } from '../application/session/sessionRules';
 import { useMember } from '../context/MemberContext';
 import LocationPermissionScreen from '../screens/LocationPermissionScreen';
-import LoginScreen from '../screens/LoginScreen';
+import LocalDashboardScreen from '../screens/LocalDashboardScreen';
 import NotificationPermissionScreen from '../screens/NotificationPermissionScreen';
 import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
@@ -16,8 +16,8 @@ type LocalStackParamList = {
   LocationPermission: undefined;
   NotificationPermission: undefined;
   Welcome: undefined;
-  Login: { initialStep?: 'phone' | 'otp' };
   ProfileCompletion: undefined;
+  LocalDashboard: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
 };
 
@@ -60,10 +60,15 @@ export default function LocalAppNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {route === 'needs-profile' || route === 'ready' ? (
+      {route === 'needs-profile' ? (
         <Stack.Screen
           name="ProfileCompletion"
           component={ProfileCompletionScreen}
+        />
+      ) : route === 'ready' ? (
+        <Stack.Screen
+          name="LocalDashboard"
+          component={LocalDashboardScreen}
         />
       ) : (
         <>
@@ -80,7 +85,6 @@ export default function LocalAppNavigator() {
             />
           )}
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen
             name="UpdatePassword"
             component={UpdatePasswordScreen}

@@ -5,13 +5,16 @@ import type { ProfileUpdates } from './ProfileData';
 export class ProfileCommands {
   private readonly repository: ProfileRepository;
   private readonly imageCapability: ProfileImageCapability;
+  private readonly onProfileCompleted?: () => void | Promise<void>;
 
   constructor(
     repository: ProfileRepository,
     imageCapability: ProfileImageCapability,
+    onProfileCompleted?: () => void | Promise<void>,
   ) {
     this.repository = repository;
     this.imageCapability = imageCapability;
+    this.onProfileCompleted = onProfileCompleted;
   }
 
   getCurrent() {
@@ -26,8 +29,9 @@ export class ProfileCommands {
     return this.repository.updateCurrent(updates);
   }
 
-  completeCurrent(fullName: string, dateOfBirth: string) {
-    return this.repository.completeCurrent(fullName.trim(), dateOfBirth);
+  async completeCurrent(fullName: string, dateOfBirth: string) {
+    await this.repository.completeCurrent(fullName.trim(), dateOfBirth);
+    await this.onProfileCompleted?.();
   }
 
   pickImage() {

@@ -43,6 +43,7 @@ export class MemberSessionController {
   private sessionGeneration = 0;
   private generation = 0;
   private latestPendingSummary: PendingMemberSummary;
+  private currentIdentity: SessionIdentity | null = null;
 
   constructor(
     sessionGateway: SessionGateway,
@@ -82,6 +83,69 @@ export class MemberSessionController {
     };
   }
 
+  refreshMember(): Promise<void> {
+    const identity = this.currentIdentity;
+    if (!identity || !this.isEligible(identity)) {
+      return Promise.reject(new Error('member_refresh_unauthenticated'));
+    }
+
+    const previousState = this.state;
+    const generation = ++this.generation;
+    this.stopMemberObservers();
+    this.latestPendingSummary = { ...this.emptyPendingSummary };
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        fail(new Error('member_refresh_timeout'));
+      }, 10_000);
+
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        if (error) reject(error);
+        else resolve();
+      };
+
+      const fail = (error: Error) => {
+        if (generation === this.generation) {
+          this.generation += 1;
+          this.stopMemberObservers();
+          this.publish(previousState);
+        }
+        finish(error);
+      };
+
+      this.memberUnsubscribe = this.memberRepository.observe(
+        identity.uid,
+        (document) => {
+          if (generation !== this.generation) return;
+          const member = this.projectMember(
+            identity,
+            document,
+            this.latestPendingSummary,
+          );
+          if (!member.profileComplete) {
+            fail(new Error('member_refresh_not_converged'));
+            return;
+          }
+          this.publish({ phase: 'ready', member });
+          finish();
+        },
+        () => fail(new Error('member_refresh_failed')),
+      );
+      this.pendingUnsubscribe = this.pendingRepository.observe(
+        identity.uid,
+        (summary) => {
+          if (generation === this.generation) {
+            this.latestPendingSummary = summary;
+          }
+        },
+      );
+    });
+  }
+
   private start() {
     const sessionGeneration = ++this.sessionGeneration;
     this.publish({ phase: 'restoring', member: null });
@@ -105,10 +169,12 @@ export class MemberSessionController {
     this.stopMemberObservers();
     this.sessionUnsubscribe?.();
     this.sessionUnsubscribe = null;
+    this.currentIdentity = null;
     this.state = { phase: 'restoring', member: null };
   }
 
   private handleIdentity(identity: SessionIdentity | null) {
+    this.currentIdentity = identity;
     const generation = ++this.generation;
     this.stopMemberObservers();
     this.latestPendingSummary = { ...this.emptyPendingSummary };
@@ -160,6 +226,7 @@ export class MemberSessionController {
   }
 
   private handleSessionError() {
+    this.currentIdentity = null;
     this.generation += 1;
     this.stopMemberObservers();
     this.publish({ phase: 'error', member: null });

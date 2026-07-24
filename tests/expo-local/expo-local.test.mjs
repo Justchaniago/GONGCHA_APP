@@ -7,7 +7,14 @@ import { FirebaseEmulatorAuthenticationGateway } from '../../src/infrastructure/
 import { UnsupportedLocalGoogleIdentityGateway } from '../../src/infrastructure/auth/UnsupportedLocalGoogleIdentityGateway.ts';
 import { FastApiMemberRepository } from '../../src/infrastructure/member/FastApiMemberRepository.ts';
 import { NoPendingMemberRepository } from '../../src/infrastructure/member/NoPendingMemberRepository.ts';
-import { UnavailableLocalProfileRepository } from '../../src/infrastructure/profile/UnavailableLocalProfileRepository.ts';
+import {
+  FastApiProfileRepository,
+} from '../../src/infrastructure/profile/FastApiProfileRepository.ts';
+import { toIsoDateOfBirth } from '../../src/application/profile/profileValidation.ts';
+import {
+  isValidDateOfBirth,
+  isValidProfileName,
+} from '../../src/application/profile/profileValidation.ts';
 
 test('runtime config is explicit, simulator-only, and fail-closed', () => {
   assert.deepEqual(resolveRuntimeConfig(undefined, undefined, true), {
@@ -202,7 +209,7 @@ test('FastAPI member adapter ignores late results after unsubscribe', async () =
   assert.equal(callbacks, 0);
 });
 
-test('local pending and profile adapters cannot invent or mutate state', async () => {
+test('local pending adapter cannot invent economic state', async () => {
   const pending = new NoPendingMemberRepository();
   let summary;
   pending.observe('member', (value) => {
@@ -214,16 +221,82 @@ test('local pending and profile adapters cannot invent or mutate state', async (
     pendingPoints: 0,
   });
 
-  const profile = new UnavailableLocalProfileRepository(() => true);
+});
+
+test('FastAPI profile adapter validates DOB, writes allow-listed fields, and reads projection', async () => {
+  const calls = [];
+  const profile = new FastApiProfileRepository(
+    { currentUser: fakeUser() },
+    'http://127.0.0.1:8000',
+    toIsoDateOfBirth,
+    async (url, init) => {
+      calls.push([url, init]);
+      return {
+        ok: true,
+        async json() {
+          return {
+            display_name: 'Local Member',
+            profile_completed: true,
+            created_at: '2026-07-24T00:00:00Z',
+          };
+        },
+      };
+    },
+  );
+
   assert.equal(profile.hasCurrentIdentity(), true);
-  assert.equal(await profile.getCurrent(), null);
-  await assert.rejects(
-    () => profile.completeCurrent('Member', '01/01/2000'),
-    /local_profile_api_unavailable/,
+  const today = new Date(2026, 6, 24);
+  assert.equal(toIsoDateOfBirth('29/02/2000'), '2000-02-29');
+  assert.equal(isValidDateOfBirth('24/07/2026', today), true);
+  assert.equal(isValidDateOfBirth('25/07/2026', today), false);
+  assert.equal(isValidProfileName('Member'), true);
+  assert.equal(isValidProfileName('x'.repeat(161)), false);
+  assert.throws(
+    () => toIsoDateOfBirth('29/02/2001'),
+    /date_of_birth_invalid/,
+  );
+
+  await profile.completeCurrent('Local Member', '29/02/2000');
+  assert.deepEqual(await profile.getCurrent(), {
+    uid: 'emulator-user',
+    name: 'Local Member',
+    phoneNumber: undefined,
+    email: 'local@example.invalid',
+    tier: 'Silver',
+    joinedDate: '2026-07-24T00:00:00Z',
+    profileComplete: true,
+  });
+  assert.deepEqual(
+    calls.map(([url, init]) => ({
+      url,
+      method: init.method,
+      authorization: init.headers.Authorization,
+      contentType: init.headers['Content-Type'],
+      body: init.body,
+    })),
+    [
+      {
+        url: 'http://127.0.0.1:8000/api/v1/member/profile/complete',
+        method: 'POST',
+        authorization: 'Bearer emulator-token',
+        contentType: 'application/json',
+        body: JSON.stringify({
+          display_name: 'Local Member',
+          date_of_birth: '2000-02-29',
+        }),
+      },
+      {
+        url: 'http://127.0.0.1:8000/api/v1/member/me',
+        method: 'GET',
+        authorization: 'Bearer emulator-token',
+        contentType: undefined,
+        body: undefined,
+      },
+    ],
   );
   await assert.rejects(
-    () => profile.updateCurrent({ name: 'Member' }),
-    /local_profile_api_unavailable/,
+    () => profile.updateCurrent({ name: 'Changed' }),
+    /local_profile_update_not_supported/,
   );
 });
 
@@ -232,10 +305,11 @@ test('local runtime surface has no Firestore, Storage, or transaction imports', 
     '../../src/config/firebaseLocal.ts',
     '../../src/runtime/LocalEmulatorApp.tsx',
     '../../src/navigation/LocalAppNavigator.tsx',
+    '../../src/screens/LocalDashboardScreen.tsx',
     '../../src/infrastructure/auth/FirebaseEmulatorAuthenticationGateway.ts',
     '../../src/infrastructure/member/FastApiMemberRepository.ts',
     '../../src/infrastructure/member/NoPendingMemberRepository.ts',
-    '../../src/infrastructure/profile/UnavailableLocalProfileRepository.ts',
+    '../../src/infrastructure/profile/FastApiProfileRepository.ts',
   ];
   const forbidden = [
     'firebase/firestore',
@@ -243,6 +317,7 @@ test('local runtime surface has no Firestore, Storage, or transaction imports', 
     'config/firebase',
     'TransactionService',
     'BackendApi',
+    'UserService',
   ];
   for (const relativePath of files) {
     const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8');
@@ -254,4 +329,35 @@ test('local runtime surface has no Firestore, Storage, or transaction imports', 
       );
     }
   }
+});
+
+test('welcome auth flow delegates routing to session state', () => {
+  const source = readFileSync(
+    new URL('../../src/screens/WelcomeScreen.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.equal(source.includes("navigation.navigate('MainApp')"), false);
+});
+
+test('ready local session uses isolated dashboard with application logout', () => {
+  const navigator = readFileSync(
+    new URL('../../src/navigation/LocalAppNavigator.tsx', import.meta.url),
+    'utf8',
+  );
+  const dashboard = readFileSync(
+    new URL('../../src/screens/LocalDashboardScreen.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.equal(navigator.includes("route === 'ready'"), true);
+  assert.equal(navigator.includes('name="LocalDashboard"'), true);
+  assert.equal(dashboard.includes('await authCommands.logout()'), true);
+});
+
+test('local navigator excludes the unauthenticated legacy Login route', () => {
+  const source = readFileSync(
+    new URL('../../src/navigation/LocalAppNavigator.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.equal(source.includes('LoginScreen'), false);
+  assert.equal(source.includes('name="Login"'), false);
 });

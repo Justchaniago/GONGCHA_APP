@@ -346,7 +346,6 @@ export default function WelcomeScreen() {
       setIsAuthSubmitting(true);
       setAuthProgressMessage('Signing in securely...');
       await AuthService.login(email, OTP_AUTH_PASSWORD);
-      navigation.navigate('MainApp');
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
       if (message.includes('timed out')) Alert.alert('Koneksi bermasalah', 'Request terlalu lama. Cek internet.');
@@ -378,7 +377,7 @@ export default function WelcomeScreen() {
         setIsPostEmailVerificationLogin(true);
       }
       
-      const profile = await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
+      await AuthService.loginWithEmail(loginEmail.trim(), loginPassword);
       
       // CRITICAL FIX: Hapus manual navigation reset.
       // Biarkan AppNavigator mendeteksi perubahan auth state dan member data.
@@ -539,7 +538,6 @@ export default function WelcomeScreen() {
       setIsAuthSubmitting(true);
       setAuthProgressMessage('Creating account...');
       await AuthService.register(email, OTP_AUTH_PASSWORD, profileName, normalizedPhone);
-      navigation.navigate('MainApp');
     } catch (error: any) {
       const message = String(error?.message || 'Registrasi gagal.');
       if (message.includes('timed out')) Alert.alert('Koneksi bermasalah', 'Request terlalu lama. Cek internet.');
@@ -547,7 +545,7 @@ export default function WelcomeScreen() {
         try {
           setAuthProgressMessage('Account exists, signing in...');
           await AuthService.login(email, OTP_AUTH_PASSWORD);
-          navigation.navigate('MainApp'); return;
+          return;
         } catch { Alert.alert('Registrasi gagal', 'Akun sudah ada tapi tidak bisa login. Coba lagi nanti.'); }
       } else if (message.includes('auth/network-request-failed')) Alert.alert('Registrasi gagal', 'Cek koneksi internet kamu.');
       else Alert.alert('Registrasi gagal', message);

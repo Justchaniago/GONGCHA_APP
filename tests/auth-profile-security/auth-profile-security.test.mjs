@@ -180,6 +180,9 @@ test('profile commands preserve reads, updates, completion, and image result', a
         return { kind: 'selected', dataUri: 'data:image/jpeg;base64,A' };
       },
     },
+    () => {
+      calls.push(['refreshMember']);
+    },
   );
 
   assert.equal(commands.hasCurrentIdentity(), true);
@@ -195,6 +198,7 @@ test('profile commands preserve reads, updates, completion, and image result', a
     ['get'],
     ['update', { name: 'Next' }],
     ['complete', 'Full Name', '01/01/2000'],
+    ['refreshMember'],
     ['pick'],
   ]);
 });

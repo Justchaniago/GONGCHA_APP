@@ -16,6 +16,11 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { profileCommands } from '../composition/profile';
+import {
+  isValidDateOfBirth,
+  isValidProfileName,
+  PROFILE_NAME_MAX_LENGTH,
+} from '../application/profile/profileValidation';
 
 type RootStackParamList = {
   ProfileCompletion: undefined;
@@ -33,10 +38,14 @@ export default function ProfileCompletionScreen() {
 
   // Validate inputs
   const isFormValid = useMemo(() => {
-    const isNameValid = fullName.trim().length > 0;
-    const isDobValid = dateOfBirth.replace(/\D/g, '').length === 8;
-    return isNameValid && isDobValid;
+    return (
+      isValidProfileName(fullName) &&
+      isValidDateOfBirth(dateOfBirth)
+    );
   }, [fullName, dateOfBirth]);
+  const showDobError =
+    dateOfBirth.replace(/\D/g, '').length === 8 &&
+    !isValidDateOfBirth(dateOfBirth);
 
   const handleDobChange = (text: string) => {
     const d = text.replace(/\D/g, '').slice(0, 8);
@@ -103,6 +112,7 @@ export default function ProfileCompletionScreen() {
                 placeholderTextColor="#9CA3AF"
                 value={fullName}
                 onChangeText={setFullName}
+                maxLength={PROFILE_NAME_MAX_LENGTH}
                 editable={!isSubmitting}
               />
             </View>
@@ -120,6 +130,11 @@ export default function ProfileCompletionScreen() {
                 maxLength={10}
                 editable={!isSubmitting}
               />
+              {showDobError && (
+                <Text style={styles.validationText}>
+                  Gunakan tanggal valid yang tidak berada di masa depan.
+                </Text>
+              )}
             </View>
 
             {/* Info Box */}
@@ -217,6 +232,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginTop: 12,
+  },
+  validationText: {
+    color: '#B91C1C',
+    fontSize: 12,
+    marginTop: 8,
   },
   infoText: {
     fontSize: 13,

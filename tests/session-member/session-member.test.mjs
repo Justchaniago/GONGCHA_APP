@@ -9,6 +9,7 @@ import {
 } from '../../src/application/member/memberProjection.ts';
 import { MemberSessionController } from '../../src/application/session/MemberSessionController.ts';
 import {
+  isEligibleLocalEmulatorSession,
   isEligibleSession,
   resolveSessionRoute,
 } from '../../src/application/session/sessionRules.ts';
@@ -36,6 +37,30 @@ test('password sessions require verification while federated sessions remain eli
       providerIds: ['google.com'],
     }),
     true,
+  );
+  assert.equal(
+    isEligibleSession({
+      ...verifiedIdentity,
+      email: '8123456789@gongcha-id.app',
+      emailVerified: false,
+    }),
+    false,
+  );
+  assert.equal(
+    isEligibleLocalEmulatorSession({
+      ...verifiedIdentity,
+      email: '8123456789@gongcha-id.app',
+      emailVerified: false,
+    }),
+    true,
+  );
+  assert.equal(
+    isEligibleSession({
+      ...verifiedIdentity,
+      email: 'member@gongcha-id.app',
+      emailVerified: false,
+    }),
+    false,
   );
 });
 
@@ -275,6 +300,51 @@ test('identity changes clear old member and reject stale callbacks', () => {
   harness.memberObservers[1].onMember(null);
   assert.equal(states.at(-1).phase, 'needs-profile');
   assert.equal(states.at(-1).member.uid, 'member-b');
+});
+
+test('explicit member refresh converges only after a complete projection', async () => {
+  const harness = createHarness();
+  const states = [];
+  harness.controller.observe((state) => states.push(state));
+
+  harness.emitIdentity(verifiedIdentity);
+  harness.memberObservers[0].onMember({
+    fullName: 'Incomplete Member',
+    profileComplete: false,
+  });
+  assert.equal(states.at(-1).phase, 'needs-profile');
+
+  const refresh = harness.controller.refreshMember();
+  assert.equal(harness.memberObservers[0].unsubscribed, true);
+  assert.equal(harness.pendingObservers[0].unsubscribed, true);
+  assert.equal(states.at(-1).phase, 'needs-profile');
+  assert.equal(harness.memberObservers.length, 2);
+
+  harness.memberObservers[1].onMember({
+    fullName: 'Complete Member',
+    profileComplete: true,
+  });
+  await refresh;
+  assert.equal(states.at(-1).phase, 'ready');
+  assert.equal(states.at(-1).member.fullName, 'Complete Member');
+});
+
+test('failed explicit refresh preserves the recoverable profile screen state', async () => {
+  const harness = createHarness();
+  const states = [];
+  harness.controller.observe((state) => states.push(state));
+
+  harness.emitIdentity(verifiedIdentity);
+  harness.memberObservers[0].onMember({
+    fullName: 'Incomplete Member',
+    profileComplete: false,
+  });
+  const beforeRefresh = states.at(-1);
+
+  const refresh = harness.controller.refreshMember();
+  harness.memberObservers[1].onError();
+  await assert.rejects(refresh, /member_refresh_failed/);
+  assert.deepEqual(states.at(-1), beforeRefresh);
 });
 
 test('stopped session subscriptions cannot mutate a restarted controller', () => {

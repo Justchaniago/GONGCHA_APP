@@ -23,12 +23,12 @@ import { StatusBar } from 'expo-status-bar';
 import { Eye, EyeOff, ScanFace } from 'lucide-react-native';
 import BouncyPressable from '../components/BouncyPressable';
 import { savedLoginCredentialCapability } from '../composition/auth';
+import { profileCommands } from '../composition/profile';
 import { signInWithGoogle, statusCodes } from '../services/GoogleSignInService';
 
 // 🔥 PENGGANTI THEME CONTEXT
 import { colors } from '../theme/colorTokens';
 import { AuthService } from '../services/AuthService';
-import { UserService } from '../services/UserService';
 
 type RootStackParamList = {
   Login: { initialStep?: 'phone' | 'otp' };
@@ -147,7 +147,7 @@ export default function LoginScreen() {
     if (otp.join('').length !== 4) return;
     setVerifying(true);
     try {
-      let userProfileRaw = await UserService.getUserProfile();
+      let userProfileRaw = await profileCommands.getCurrent();
       let userProfile: import('../types/types').UserProfile | null = null;
       if (userProfileRaw && typeof userProfileRaw === 'object' && 'name' in userProfileRaw && 'phoneNumber' in userProfileRaw) {
         userProfile = userProfileRaw as import('../types/types').UserProfile;
@@ -162,7 +162,7 @@ export default function LoginScreen() {
             'name' in userProfile && 'phoneNumber' in userProfile &&
             ((userProfile as any).name !== fallbackName || (userProfile as any).phoneNumber !== fallbackPhone)
           ) {
-            await UserService.updateProfile({ name: fallbackName, phoneNumber: fallbackPhone });
+            await profileCommands.updateCurrent({ name: fallbackName, phoneNumber: fallbackPhone });
           }
         } else {
           throw new Error('User Auth tidak ditemukan setelah login.');

@@ -9,6 +9,15 @@ export function isEligibleSession(identity: SessionIdentity): boolean {
   return !usesPassword || identity.emailVerified;
 }
 
+export function isEligibleLocalEmulatorSession(
+  identity: SessionIdentity,
+): boolean {
+  const usesPhoneAlias =
+    typeof identity.email === 'string' &&
+    /^\d+@gongcha-id\.app$/.test(identity.email);
+  return usesPhoneAlias || isEligibleSession(identity);
+}
+
 export function resolveSessionRoute(phase: SessionPhase): SessionRoute {
   if (
     phase === 'restoring' ||
