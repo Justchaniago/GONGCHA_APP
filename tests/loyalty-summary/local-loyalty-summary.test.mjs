@@ -408,6 +408,21 @@ test('local membership status reuses authoritative summary without legacy policy
     new URL('../../src/composition/loyaltySummary.ts', import.meta.url),
     'utf8',
   );
+  const presenter = readFileSync(
+    new URL(
+      '../../src/application/membershipStatus/MembershipStatusViewModel.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const sharedView = readFileSync(
+    new URL(
+      '../../src/presentation/membershipStatus/MembershipStatusView.tsx',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const membershipSurface = `${screen}\n${presenter}\n${sharedView}`;
 
   for (const field of [
     'availableLeaves',
@@ -417,10 +432,10 @@ test('local membership status reuses authoritative summary without legacy policy
     'remaining',
     'progressPercent',
     'policyVersion',
-    'Belum didukung',
+    'Pending Belum Didukung',
     'Benefit belum dikonfigurasi',
   ]) {
-    assert.equal(screen.includes(field), true, `missing ${field}`);
+    assert.equal(membershipSurface.includes(field), true, `missing ${field}`);
   }
   for (const forbidden of [
     "from '../screens/MembershipStatusScreen'",
