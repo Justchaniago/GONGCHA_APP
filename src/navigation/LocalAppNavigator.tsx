@@ -6,18 +6,20 @@ import { resolveSessionRoute } from '../application/session/sessionRules';
 import { useMember } from '../context/MemberContext';
 import LocationPermissionScreen from '../screens/LocationPermissionScreen';
 import LocalDashboardScreen from '../screens/LocalDashboardScreen';
+import LocalLoyaltyActivityScreen from '../screens/LocalLoyaltyActivityScreen';
 import NotificationPermissionScreen from '../screens/NotificationPermissionScreen';
 import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { hasCompletedGuestOnboarding } from '../utils/guestOnboarding';
 
-type LocalStackParamList = {
+export type LocalStackParamList = {
   LocationPermission: undefined;
   NotificationPermission: undefined;
   Welcome: undefined;
   ProfileCompletion: undefined;
   LocalDashboard: undefined;
+  LocalLoyaltyActivity: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
 };
 
@@ -66,10 +68,17 @@ export default function LocalAppNavigator() {
           component={ProfileCompletionScreen}
         />
       ) : route === 'ready' ? (
-        <Stack.Screen
-          name="LocalDashboard"
-          component={LocalDashboardScreen}
-        />
+        <>
+          <Stack.Screen
+            name="LocalDashboard"
+            component={LocalDashboardScreen}
+          />
+          <Stack.Screen
+            name="LocalLoyaltyActivity"
+            component={LocalLoyaltyActivityScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+        </>
       ) : (
         <>
           {!onboardingComplete && (

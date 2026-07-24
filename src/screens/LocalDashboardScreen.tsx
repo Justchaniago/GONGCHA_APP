@@ -9,12 +9,17 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { authCommands } from '../composition/auth';
 import { useMember } from '../context/MemberContext';
+import type { LocalStackParamList } from '../navigation/LocalAppNavigator';
 
 export default function LocalDashboardScreen() {
   const insets = useSafeAreaInsets();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
   const { member } = useMember();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -58,12 +63,23 @@ export default function LocalDashboardScreen() {
         </View>
 
         <View style={styles.notice}>
-          <Text style={styles.noticeTitle}>Data loyalty belum ditampilkan</Text>
+          <Text style={styles.noticeTitle}>Loyalty activity siap diuji</Text>
           <Text style={styles.noticeText}>
-            Poin, reward, dan transaksi akan muncul setelah API domain terkait
-            tersedia. Dashboard lokal ini tidak membuat data contoh.
+            Riwayat dibaca langsung dari FastAPI. Member baru akan menampilkan
+            empty state karena dashboard lokal tidak membuat poin contoh.
           </Text>
         </View>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka loyalty activity lokal"
+          style={styles.activityButton}
+          onPress={() => navigation.navigate('LocalLoyaltyActivity')}
+        >
+          <Text style={styles.activityButtonText}>
+            Buka Loyalty Activity
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity
@@ -186,6 +202,19 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     marginBottom: 16,
+  },
+  activityButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    backgroundColor: '#C8102E',
+    borderRadius: 14,
+    marginTop: 16,
+  },
+  activityButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
   disabled: {
     opacity: 0.55,
