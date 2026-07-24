@@ -1,6 +1,8 @@
 import { LoyaltyActivityController } from '../application/loyaltyActivity/LoyaltyActivityController';
+import { LoadLocalActivityFixture } from '../application/loyaltyActivity/LoadLocalActivityFixture';
 import { firebaseLocalAuth } from '../config/firebaseLocal';
 import { runtimeConfig } from '../config/runtime';
+import { FastApiLocalActivityFixtureGateway } from '../infrastructure/loyaltyActivity/FastApiLocalActivityFixtureGateway';
 import { FastApiLoyaltyActivityRepository } from '../infrastructure/loyaltyActivity/FastApiLoyaltyActivityRepository';
 
 if (runtimeConfig.mode !== 'local_emulator') {
@@ -12,4 +14,22 @@ export const localLoyaltyActivityController = new LoyaltyActivityController(
     firebaseLocalAuth,
     runtimeConfig.backendBaseUrl,
   ),
+);
+
+export const loadLocalActivityFixture = new LoadLocalActivityFixture(
+  new FastApiLocalActivityFixtureGateway(
+    firebaseLocalAuth,
+    runtimeConfig.backendBaseUrl,
+  ),
+  async () => {
+    await localLoyaltyActivityController.refresh();
+    const state = localLoyaltyActivityController.getState();
+    if (
+      state.phase === 'error' ||
+      state.pageError === 'activity_load_failed'
+    ) {
+      throw new Error('local_activity_fixture_refresh_failed');
+    }
+  },
+  (uid) => firebaseLocalAuth.currentUser?.uid === uid,
 );

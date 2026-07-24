@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -17,7 +17,10 @@ import type {
   LoyaltyActivityEventType,
   LoyaltyActivityItem,
 } from '../application/loyaltyActivity/LoyaltyActivity';
-import { localLoyaltyActivityController } from '../composition/loyaltyActivity';
+import {
+  loadLocalActivityFixture,
+  localLoyaltyActivityController,
+} from '../composition/loyaltyActivity';
 import { useMember } from '../context/MemberContext';
 import type { LocalStackParamList } from '../navigation/LocalAppNavigator';
 import { useLocalLoyaltyActivity } from '../presentation/loyaltyActivity/useLocalLoyaltyActivity';
@@ -91,6 +94,35 @@ export default function LocalLoyaltyActivityScreen() {
     localLoyaltyActivityController,
     uid,
   );
+  const [fixturePhase, setFixturePhase] = useState<
+    'idle' | 'loading' | 'success' | 'error'
+  >('idle');
+  const fixtureUidRef = useRef(uid);
+  const fixtureGenerationRef = useRef(0);
+  if (fixtureUidRef.current !== uid) {
+    fixtureUidRef.current = uid;
+    fixtureGenerationRef.current += 1;
+  }
+
+  useEffect(() => {
+    setFixturePhase('idle');
+  }, [uid]);
+
+  const handleLoadDemoActivity = async () => {
+    if (!uid || fixturePhase === 'loading') return;
+    const initiatingUid = uid;
+    const initiatingGeneration = fixtureGenerationRef.current;
+    const isCurrent = () =>
+      fixtureUidRef.current === initiatingUid &&
+      fixtureGenerationRef.current === initiatingGeneration;
+    setFixturePhase('loading');
+    try {
+      await loadLocalActivityFixture.execute(initiatingUid);
+      if (isCurrent()) setFixturePhase('success');
+    } catch {
+      if (isCurrent()) setFixturePhase('error');
+    }
+  };
 
   return (
     <SafeAreaView
@@ -128,6 +160,43 @@ export default function LocalLoyaltyActivityScreen() {
               ? 'Pending points belum tersedia di local backend.'
               : 'Status pending gagal dimuat. Tarik ke bawah untuk mencoba lagi.'}
         </Text>
+      </View>
+
+      <View style={styles.fixtureCard}>
+        <Text style={styles.fixtureTitle}>Demo activity lokal</Text>
+        <Text style={styles.fixtureText}>
+          Backend akan membuat fixture earn, refund, dan redemption untuk akun
+          emulator ini.
+        </Text>
+        {fixturePhase === 'error' ? (
+          <Text style={styles.fixtureError}>
+            Demo gagal dimuat. Backend tetap menjadi sumber data; coba lagi.
+          </Text>
+        ) : fixturePhase === 'success' ? (
+          <Text style={styles.fixtureSuccess}>
+            Demo selesai dan activity sudah dimuat ulang.
+          </Text>
+        ) : null}
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Muat demo loyalty activity lokal"
+          style={[
+            styles.fixtureButton,
+            fixturePhase === 'loading' && styles.disabled,
+          ]}
+          disabled={!uid || fixturePhase === 'loading'}
+          onPress={() => void handleLoadDemoActivity()}
+        >
+          {fixturePhase === 'loading' ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.fixtureButtonText}>
+              {fixturePhase === 'error'
+                ? 'Coba Lagi Muat Demo Activity'
+                : 'Muat Demo Activity'}
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {state.phase === 'idle' || state.phase === 'loading' ? (
@@ -275,6 +344,47 @@ const styles = StyleSheet.create({
   },
   errorCard: {
     backgroundColor: '#FEF2F2',
+  },
+  fixtureCard: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#FDE8EC',
+  },
+  fixtureTitle: {
+    color: '#7F1024',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  fixtureText: {
+    color: '#8F3344',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  fixtureError: {
+    color: '#B91C1C',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  fixtureSuccess: {
+    color: '#15803D',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  fixtureButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    backgroundColor: '#C8102E',
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  fixtureButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   pendingTitle: {
     color: '#7C4A03',
