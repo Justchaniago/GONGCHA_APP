@@ -7,9 +7,14 @@ if (runtimeConfig.mode !== 'local_emulator') {
   throw new Error('local_loyalty_summary_requires_emulator');
 }
 
-export const localLoyaltySummaryController = new LoyaltySummaryController(
-  new FastApiLoyaltySummaryRepository(
-    firebaseLocalAuth,
-    runtimeConfig.backendBaseUrl,
-  ),
+const localLoyaltySummaryRepository = new FastApiLoyaltySummaryRepository(
+  firebaseLocalAuth,
+  runtimeConfig.backendBaseUrl,
 );
+
+export function createLocalLoyaltySummaryController(): LoyaltySummaryController {
+  return new LoyaltySummaryController(localLoyaltySummaryRepository);
+}
+
+export const localLoyaltySummaryController =
+  createLocalLoyaltySummaryController();

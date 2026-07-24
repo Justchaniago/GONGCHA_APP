@@ -344,6 +344,7 @@ test('local summary surface has no provider, legacy tier, or client policy math'
     '../../src/presentation/loyaltySummary/useLocalLoyaltySummary.ts',
     '../../src/composition/loyaltySummary.ts',
     '../../src/screens/LocalDashboardScreen.tsx',
+    '../../src/screens/LocalMembershipStatusScreen.tsx',
   ];
   const forbidden = [
     'firebase/firestore',
@@ -385,4 +386,88 @@ test('local summary surface has no provider, legacy tier, or client policy math'
   ]) {
     assert.equal(dashboard.includes(field), true, `missing ${field}`);
   }
+});
+
+test('local membership status reuses authoritative summary without legacy policy', () => {
+  const screen = readFileSync(
+    new URL(
+      '../../src/screens/LocalMembershipStatusScreen.tsx',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const navigator = readFileSync(
+    new URL('../../src/navigation/LocalAppNavigator.tsx', import.meta.url),
+    'utf8',
+  );
+  const dashboard = readFileSync(
+    new URL('../../src/screens/LocalDashboardScreen.tsx', import.meta.url),
+    'utf8',
+  );
+  const composition = readFileSync(
+    new URL('../../src/composition/loyaltySummary.ts', import.meta.url),
+    'utf8',
+  );
+
+  for (const field of [
+    'availableLeaves',
+    'qualifyingLeaves',
+    'currentThreshold',
+    'nextThreshold',
+    'remaining',
+    'progressPercent',
+    'policyVersion',
+    'Belum didukung',
+    'Benefit belum dikonfigurasi',
+  ]) {
+    assert.equal(screen.includes(field), true, `missing ${field}`);
+  }
+  for (const forbidden of [
+    "from '../screens/MembershipStatusScreen'",
+    'Silver',
+    'Gold',
+    'Platinum',
+    'tierXp',
+    'TIER_CONFIG',
+    'firebase/firestore',
+    'firebase/storage',
+    'RewardsScreen',
+    'MemberCardModal',
+  ]) {
+    assert.equal(screen.includes(forbidden), false, `contains ${forbidden}`);
+  }
+  assert.equal(
+    navigator.includes(
+      "import LocalMembershipStatusScreen from '../screens/LocalMembershipStatusScreen'",
+    ),
+    true,
+  );
+  assert.equal(
+    navigator.includes('name="LocalMembershipStatus"'),
+    true,
+  );
+  assert.equal(
+    dashboard.includes("navigation.navigate('LocalMembershipStatus')"),
+    true,
+  );
+  assert.equal(
+    screen.includes("navigation.navigate('LocalLoyaltyActivity')"),
+    true,
+  );
+  assert.equal(
+    composition.includes('createLocalLoyaltySummaryController'),
+    true,
+  );
+  assert.equal(
+    composition.includes(
+      'return new LoyaltySummaryController(localLoyaltySummaryRepository)',
+    ),
+    true,
+  );
+  assert.equal(
+    screen.includes(
+      '() => createLocalLoyaltySummaryController()',
+    ),
+    true,
+  );
 });

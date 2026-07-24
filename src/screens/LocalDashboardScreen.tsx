@@ -168,6 +168,18 @@ export default function LocalDashboardScreen() {
                   </Text>
                 )}
               </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Buka status membership lokal"
+                style={styles.membershipButton}
+                onPress={() =>
+                  navigation.navigate('LocalMembershipStatus')
+                }
+              >
+                <Text style={styles.membershipButtonText}>
+                  Lihat Membership Status
+                </Text>
+              </TouchableOpacity>
             </>
           ) : null}
         </View>
@@ -397,6 +409,19 @@ const styles = StyleSheet.create({
   summaryRefreshText: {
     color: '#C8102E',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  membershipButton: {
+    alignItems: 'center',
+    backgroundColor: '#C8102E',
+    borderRadius: 10,
+    minHeight: 42,
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  membershipButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '800',
   },
   noticeTitle: {
