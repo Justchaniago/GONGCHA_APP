@@ -1,18 +1,6 @@
-import {
-  collection,
-  onSnapshot,
-  query,
-  where,
-  type QueryDocumentSnapshot,
-  type QuerySnapshot,
-} from 'firebase/firestore';
-import { firestoreDb } from '../config/firebase';
-import type { TransactionRecord, XpHistoryEntry } from '../types/types';
 import { BackendApi } from './BackendApi';
 
 export type MemberTransactionStatus = 'pending' | 'verified' | 'rejected';
-type TransactionUserField = 'uid' | 'userId' | 'memberId';
-type TransactionSnapshotMap = Partial<Record<TransactionUserField, QuerySnapshot>>;
 
 export interface MemberTransactionHistoryItem {
   id: string;
@@ -70,22 +58,6 @@ const normalizeStatus = (status: unknown): MemberTransactionStatus => {
   return 'rejected';
 };
 
-const USER_ID_FIELDS: TransactionUserField[] = ['uid', 'userId', 'memberId'];
-const buildUserQuery = (userId: string, field: TransactionUserField) =>
-  query(collection(firestoreDb, 'transactions'), where(field, '==', userId));
-
-const mergeSnapshots = (snapshots: TransactionSnapshotMap) => {
-  const docsById = new Map<string, QueryDocumentSnapshot>();
-
-  USER_ID_FIELDS.forEach((field) => {
-    snapshots[field]?.docs.forEach((docSnap) => {
-      docsById.set(docSnap.id, docSnap);
-    });
-  });
-
-  return Array.from(docsById.values());
-};
-
 const sortHistoryItems = (items: MemberTransactionHistoryItem[]) =>
   [...items].sort((a, b) => {
     const first = a.createdAtIso ? new Date(a.createdAtIso).getTime() : 0;
@@ -93,95 +65,6 @@ const sortHistoryItems = (items: MemberTransactionHistoryItem[]) =>
     return second - first;
   });
 
-const normalizeTransactionDoc = (docSnap: QueryDocumentSnapshot): MemberTransactionHistoryItem => {
-  const data = docSnap.data() as TransactionRecord & Record<string, any>;
-  const normalizedStatus = normalizeStatus(data.status);
-  const type = data.type === 'redeem' ? 'redeem' : 'earn';
-  const pointsRaw =
-    typeof data.pointsEarned === 'number'
-      ? data.pointsEarned
-      : typeof data.potentialPoints === 'number'
-        ? data.potentialPoints
-        : 0;
-  const pointsAmount =
-    normalizedStatus === 'rejected'
-      ? 0
-      : type === 'redeem'
-        ? -Math.abs(pointsRaw)
-        : Math.abs(pointsRaw);
-  const createdAtIso = toIsoString(data.verifiedAt) || toIsoString(data.createdAt);
-  const transactionId = data.transactionId ?? data.receiptNumber ?? docSnap.id;
-  const storeLabel = formatStoreLabel(data.storeName ?? data.storeLocation);
-  const referenceLabel = String(transactionId ?? '').trim();
-  const title =
-    type === 'redeem'
-      ? data.voucherTitle ?? 'Reward redemption'
-      : normalizedStatus === 'pending'
-        ? 'Points pending validation'
-        : normalizedStatus === 'verified'
-          ? 'Points released'
-          : 'Points not added';
-  const subtitleParts = [
-    storeLabel,
-    referenceLabel,
-  ].filter(Boolean);
-
-  return {
-    id: docSnap.id,
-    transactionId,
-    createdAtIso,
-    status: normalizedStatus,
-    type,
-    pointsAmount,
-    title,
-    subtitle: subtitleParts.join(' • '),
-    storeLabel,
-    referenceLabel,
-    isPending: normalizedStatus === 'pending',
-    totalAmount: typeof data.totalAmount === 'number' ? data.totalAmount : undefined,
-    voucherTitle: typeof data.voucherTitle === 'string' ? data.voucherTitle : undefined,
-    voucherCode: typeof data.voucherCode === 'string' ? data.voucherCode : undefined,
-  };
-};
-
-export const mapXpHistoryFallback = (history: XpHistoryEntry[]): MemberTransactionHistoryItem[] =>
-  history
-    .map<MemberTransactionHistoryItem>((item) => {
-      const status = normalizeStatus(item.status);
-      const type = item.type === 'redeem' ? 'redeem' : 'earn';
-      const pointsAmount =
-        status === 'rejected'
-          ? 0
-          : type === 'redeem'
-            ? -Math.abs(item.amount)
-            : Math.abs(item.amount);
-
-      return {
-        id: item.id,
-        transactionId: item.transactionId ?? item.id,
-        createdAtIso: item.date || toIsoString(item.createdAt),
-        status,
-        type,
-        pointsAmount,
-        title:
-          type === 'redeem'
-            ? item.context ?? 'Reward redemption'
-            : status === 'pending'
-              ? 'Points pending validation'
-              : status === 'verified'
-                ? 'Points released'
-                : 'Points not added',
-        subtitle: [item.location, item.transactionId].filter(Boolean).join(' • '),
-        storeLabel: formatStoreLabel(item.location),
-        referenceLabel: item.transactionId ?? '',
-        isPending: status === 'pending',
-      };
-    })
-    .sort((a, b) => {
-      const first = a.createdAtIso ? new Date(a.createdAtIso).getTime() : 0;
-      const second = b.createdAtIso ? new Date(b.createdAtIso).getTime() : 0;
-      return second - first;
-    });
 
 export const TransactionService = {
   subscribeToUserTransactions(
