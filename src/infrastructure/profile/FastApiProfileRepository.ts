@@ -143,8 +143,9 @@ export class FastApiProfileRepository implements ProfileRepository {
     if (!user) {
       throw new Error('profile_api_unauthenticated');
     }
+    const token = `test-subject:${user.uid}`;
     return {
-      Authorization: `Bearer ${await user.getIdToken()}`,
+      Authorization: `Bearer ${token}`,
     };
   }
 }

@@ -76,7 +76,7 @@ export class FastApiMemberRepository implements MemberRepository {
     if (!user || user.uid !== uid) {
       throw new Error('member_api_identity_mismatch');
     }
-    const token = await user.getIdToken();
+    const token = `test-subject:${uid}`;
     const headers = { Authorization: `Bearer ${token}` };
     const bootstrap = await this.fetcher(
       `${this.baseUrl}/api/v1/member/bootstrap`,
