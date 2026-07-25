@@ -349,7 +349,19 @@ export default function WelcomeScreen() {
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
       if (message.includes('timed out')) Alert.alert('Koneksi bermasalah', 'Request terlalu lama. Cek internet.');
-      else if (message.includes('User profile not found') || message.includes('auth/invalid-credential')) Alert.alert('Akun tidak ditemukan', 'Nomor belum terdaftar. Silakan Sign Up.');
+      else if (
+        message.includes('User profile not found') ||
+        message.includes('auth/invalid-credential') ||
+        message.includes('auth/user-not-found')
+      ) {
+        try {
+          setAuthProgressMessage('Creating profile...');
+          await AuthService.register(email, OTP_AUTH_PASSWORD, 'Member', phoneNumber);
+          return;
+        } catch (regErr: any) {
+          Alert.alert('Login gagal', 'Akun tidak ditemukan. Silakan Sign Up terlebih dahulu.');
+        }
+      }
       else if (message.includes('auth/network-request-failed')) Alert.alert('Login gagal', 'Cek koneksi internet kamu.');
       else Alert.alert('Login gagal', message);
     } finally {
@@ -546,7 +558,22 @@ export default function WelcomeScreen() {
           setAuthProgressMessage('Account exists, signing in...');
           await AuthService.login(email, OTP_AUTH_PASSWORD);
           return;
-        } catch { Alert.alert('Registrasi gagal', 'Akun sudah ada tapi tidak bisa login. Coba lagi nanti.'); }
+        } catch {
+          Alert.alert(
+            'Akun Sudah Terdaftar',
+            'Nomor HP ini sudah terdaftar. Silakan login dengan nomor HP Anda.',
+            [
+              {
+                text: 'Ke Halaman Login',
+                onPress: () => {
+                  setPhoneNumber(signupPhone);
+                  setLoginEntryMode('phone');
+                  setViewMode('login_form');
+                },
+              },
+            ]
+          );
+        }
       } else if (message.includes('auth/network-request-failed')) Alert.alert('Registrasi gagal', 'Cek koneksi internet kamu.');
       else Alert.alert('Registrasi gagal', message);
     } finally {
