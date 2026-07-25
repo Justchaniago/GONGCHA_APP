@@ -21,17 +21,18 @@ test('buildLegacyMemberCardShellViewModel formats legacy member data correctly',
   assert.equal(vm.availableLeavesText, '1.250');
   assert.equal(vm.pendingLeavesText, '50 pending');
   assert.equal(vm.tierName, 'GOLD');
-  assert.equal(vm.qrValue, 'user-123');
+  assert.match(vm.qrValue, /^GC:M2:user-123:\d+:[a-f0-9]{8}$/);
   assert.equal(vm.showQrCode, true);
 });
 
-test('buildLocalMemberCardShellViewModel formats FastAPI summary correctly with disabled QR', () => {
+test('buildLocalMemberCardShellViewModel formats FastAPI summary correctly with dynamic QR', () => {
   const member = {
     displayName: 'Jane Smith',
     createdAt: '2026-02-15T00:00:00.000Z',
   };
   const summary = {
     tier: 'AMBASSADOR',
+    memberUid: 'user-456',
     availableLeaves: 3400,
     qualifyingLeaves: 4200,
   };
@@ -42,6 +43,6 @@ test('buildLocalMemberCardShellViewModel formats FastAPI summary correctly with 
   assert.equal(vm.availableLeavesText, '3.400');
   assert.equal(vm.pendingLeavesText, '— / Not supported yet');
   assert.equal(vm.tierName, 'AMBASSADOR');
-  assert.equal(vm.showQrCode, false);
-  assert.equal(vm.qrPlaceholderText, 'QR payload gated until security policy approved');
+  assert.equal(vm.showQrCode, true);
+  assert.match(vm.qrValue, /^GC:M2:user-456:\d+:[a-f0-9]{8}$/);
 });

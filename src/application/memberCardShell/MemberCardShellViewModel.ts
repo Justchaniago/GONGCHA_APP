@@ -1,3 +1,5 @@
+import { generateDynamicMemberQrPayload } from './GetDynamicMemberQr.ts';
+
 export interface CardAnchor {
   x: number;
   y: number;
@@ -55,6 +57,10 @@ export function buildLegacyMemberCardShellViewModel(
     })}`;
   }
 
+  const uid = member?.uid;
+  const showQrCode = Boolean(uid);
+  const qrValue = uid ? generateDynamicMemberQrPayload(uid).qrPayload : '';
+
   return {
     visible: isCardVisible,
     anchor: anchor ?? null,
@@ -68,8 +74,8 @@ export function buildLegacyMemberCardShellViewModel(
       pendingPoints > 0
         ? 'Pending points stay on hold until admin validation is completed.'
         : 'New earn points will appear here while waiting for validation.',
-    showQrCode: Boolean(member?.uid),
-    qrValue: member?.uid ?? '',
+    showQrCode,
+    qrValue,
     qrPlaceholderText: 'Loading...',
   };
 }
@@ -94,6 +100,10 @@ export function buildLocalMemberCardShellViewModel(
     })}`;
   }
 
+  const uid = member?.uid || summary?.memberUid || member?.id;
+  const showQrCode = Boolean(uid);
+  const qrValue = uid ? generateDynamicMemberQrPayload(uid).qrPayload : '';
+
   return {
     visible: isCardVisible,
     anchor: anchor ?? null,
@@ -105,8 +115,9 @@ export function buildLocalMemberCardShellViewModel(
     pendingLeavesText: '— / Not supported yet',
     pendingExplanationText:
       'Pending Leaves are unsupported locally until an authoritative ESB lifecycle exists.',
-    showQrCode: false,
-    qrValue: '',
-    qrPlaceholderText: 'QR payload gated until security policy approved',
+    showQrCode,
+    qrValue,
+    qrPlaceholderText: 'Loading...',
   };
 }
+
