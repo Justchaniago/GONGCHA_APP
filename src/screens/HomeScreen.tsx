@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View, Text, ScrollView, Image, TouchableOpacity,
   useWindowDimensions, StyleSheet, RefreshControl,
-  Animated, Easing,
+  Animated, Easing, DeviceEventEmitter,
 } from 'react-native';
 
 import { Bell } from 'lucide-react-native';
@@ -90,6 +90,36 @@ export default function HomeScreen() {
   const headerOpacity = useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(35)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  // Track scroll for auto-hiding tab bar
+  const lastScrollY = useRef(0);
+  const isTabBarHiddenRef = useRef(false);
+
+  const handleScroll = (event: any) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const diff = currentY - lastScrollY.current;
+
+    if (currentY <= 10) {
+      // User is at the top, show the tab bar
+      if (isTabBarHiddenRef.current) {
+        DeviceEventEmitter.emit('TOGGLE_TAB_BAR', false);
+        isTabBarHiddenRef.current = false;
+      }
+    } else if (diff > 15 && currentY > 60) {
+      // User is scrolling down, hide the tab bar
+      if (!isTabBarHiddenRef.current) {
+        DeviceEventEmitter.emit('TOGGLE_TAB_BAR', true);
+        isTabBarHiddenRef.current = true;
+      }
+    } else if (diff < -15) {
+      // User is scrolling up, show the tab bar
+      if (isTabBarHiddenRef.current) {
+        DeviceEventEmitter.emit('TOGGLE_TAB_BAR', false);
+        isTabBarHiddenRef.current = false;
+      }
+    }
+    lastScrollY.current = currentY;
+  };
 
   useEffect(() => {
     // Synchronize with Custom Splash Screen exit timing (t = 1100ms)
@@ -341,14 +371,7 @@ export default function HomeScreen() {
               />
             </View>
 
-            {/* WALLET / LEAVES REGION */}
-            <View style={{ marginTop: 10 }}>
-              <HomeWalletRegion
-                model={loyaltyModel}
-                loading={isMemberLoading}
-                onAction={() => navigation.navigate('LoyaltyActivity')}
-              />
-            </View>
+
           </Animated.View>
 
           {/* SCROLLABLE BENTO CONTENT (SLIDE-UP STAGGERED ENTRANCE) */}
@@ -357,6 +380,8 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
               style={styles.scrollView}
               contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom, paddingTop: 16 }]}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
               refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor="#B91C2F" />}
             >
               {/* NEWS AND PROMOTIONS */}

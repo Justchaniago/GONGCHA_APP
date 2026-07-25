@@ -146,7 +146,6 @@ export function HomeMembershipRegion({
   return (
     <TouchableOpacity
       activeOpacity={0.88}
-      disabled={!model}
       onPress={onPress}
       style={[
         styles.rewardsCard,

@@ -33,10 +33,12 @@ export type LocalStackParamList = {
   LocalDashboard: undefined;
   LocalLoyaltyActivity: undefined;
   LocalMembershipStatus: undefined;
+  MembershipStatus: undefined;
   LocalProfile: undefined;
   LocalRewards: undefined;
   LocalMenu: undefined;
   LocalStoreLocator: undefined;
+  StoreLocator: undefined;
   LocalNotifications: undefined;
   LocalPromotions: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
@@ -121,6 +123,11 @@ export default function LocalAppNavigator() {
             options={{ animation: 'slide_from_bottom' }}
           />
           <Stack.Screen
+            name="MembershipStatus"
+            component={LocalMembershipStatusScreen}
+            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
             name="LocalProfile"
             component={LocalProfileScreen}
             options={{ animation: 'slide_from_right' }}
@@ -137,6 +144,11 @@ export default function LocalAppNavigator() {
           />
           <Stack.Screen
             name="LocalStoreLocator"
+            component={LocalStoreLocatorScreen}
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="StoreLocator"
             component={LocalStoreLocatorScreen}
             options={{ animation: 'slide_from_bottom' }}
           />

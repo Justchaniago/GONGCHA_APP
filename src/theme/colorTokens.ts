@@ -7,10 +7,10 @@ export const colors = {
     secondary: '#D4A853', // Gong Cha Gold
   },
   background: {
-    primary: '#FFF8F0',
-    secondary: '#FFFFFF',
-    tertiary: '#F9F9F9',
-    elevated: '#F5F5F5',
+    primary: '#FAF8F5', // Off-white / Putih tulang clean
+    secondary: '#FAF8F5',
+    tertiary: '#FAF8F5',
+    elevated: '#FAF8F5',
   },
   surface: {
     card: '#FFFFFF',
@@ -22,7 +22,7 @@ export const colors = {
     tertiary: '#9CA3AF',
   },
   border: {
-    light: '#F0F0F0',
+    light: '#F0E8E2',
     medium: '#E5E7EB',
   },
   status: {
@@ -35,5 +35,5 @@ export const colors = {
   },
   shadow: {
     color: '#000000',
-  }
+  },
 };

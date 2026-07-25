@@ -58,7 +58,7 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 function MainTabNavigator() {
   return (
     <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Home" component={USE_FASTAPI_BACKEND ? LocalDashboardScreen : HomeScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Menu" component={USE_FASTAPI_BACKEND ? LocalMenuScreen : MenuScreen} />
       <Tab.Screen name="QR" component={QrPlaceholderScreen} />
       <Tab.Screen name="Rewards" component={USE_FASTAPI_BACKEND ? LocalRewardsScreen : RewardsScreen} />

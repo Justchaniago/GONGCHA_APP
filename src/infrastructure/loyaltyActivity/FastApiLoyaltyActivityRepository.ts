@@ -23,8 +23,7 @@ type FetchLike = (
   },
 ) => Promise<JsonResponse>;
 
-const LOCAL_BACKEND_PATTERN =
-  /^http:\/\/(?:127\.0\.0\.1|10\.0\.2\.2):8000$/;
+const LOCAL_BACKEND_PATTERN = /^https?:\/\/.+/;
 const ACTIVITY_ID_PATTERN = /^la_[0-9a-f]{64}$/;
 const CURSOR_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const EVENT_TYPES = new Set<LoyaltyActivityEventType>([
