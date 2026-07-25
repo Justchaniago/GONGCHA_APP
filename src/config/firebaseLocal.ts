@@ -11,9 +11,11 @@ import * as FirebaseAuth from 'firebase/auth';
 
 import { runtimeConfig } from './runtime';
 
-if (runtimeConfig.mode !== 'local_emulator') {
-  throw new Error('local_firebase_requires_local_emulator_mode');
-}
+const projectId =
+  runtimeConfig.mode === 'local_emulator'
+    ? runtimeConfig.projectId
+    : 'demo-gongcha-local';
+
 
 const APP_NAME = 'gongcha-local-emulator';
 const existingApp = getApps().find((app) => app.name === APP_NAME);
@@ -22,8 +24,8 @@ const app =
   initializeApp(
     {
       apiKey: 'demo-api-key',
-      authDomain: `${runtimeConfig.projectId}.firebaseapp.com`,
-      projectId: runtimeConfig.projectId,
+      authDomain: `${projectId}.firebaseapp.com`,
+      projectId: projectId,
       appId: 'demo-app-id',
     },
     APP_NAME,
@@ -50,17 +52,18 @@ type EmulatorConnectionState = {
 };
 const connectionState = globalThis as typeof globalThis &
   EmulatorConnectionState;
-if (
-  connectionState.__gongchaAuthEmulatorUrl &&
-  connectionState.__gongchaAuthEmulatorUrl !==
-    runtimeConfig.authEmulatorUrl
-) {
-  throw new Error('auth_emulator_host_changed_without_restart');
-}
-if (!connectionState.__gongchaAuthEmulatorUrl) {
-  connectAuthEmulator(auth, runtimeConfig.authEmulatorUrl);
-  connectionState.__gongchaAuthEmulatorUrl =
-    runtimeConfig.authEmulatorUrl;
+if (runtimeConfig.mode === 'local_emulator') {
+  const emulatorUrl = runtimeConfig.authEmulatorUrl;
+  if (
+    connectionState.__gongchaAuthEmulatorUrl &&
+    connectionState.__gongchaAuthEmulatorUrl !== emulatorUrl
+  ) {
+    throw new Error('auth_emulator_host_changed_without_restart');
+  }
+  if (!connectionState.__gongchaAuthEmulatorUrl) {
+    connectAuthEmulator(auth, emulatorUrl);
+    connectionState.__gongchaAuthEmulatorUrl = emulatorUrl;
+  }
 }
 
 export const firebaseLocalAuth = auth;

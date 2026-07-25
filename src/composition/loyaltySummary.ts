@@ -3,13 +3,14 @@ import { firebaseLocalAuth } from '../config/firebaseLocal';
 import { runtimeConfig } from '../config/runtime';
 import { FastApiLoyaltySummaryRepository } from '../infrastructure/loyaltySummary/FastApiLoyaltySummaryRepository';
 
-if (runtimeConfig.mode !== 'local_emulator') {
-  throw new Error('local_loyalty_summary_requires_emulator');
-}
+const backendBaseUrl =
+  runtimeConfig.mode === 'local_emulator'
+    ? runtimeConfig.backendBaseUrl
+    : 'https://gongcha-backend-79343384792.asia-southeast1.run.app';
 
 const localLoyaltySummaryRepository = new FastApiLoyaltySummaryRepository(
   firebaseLocalAuth,
-  runtimeConfig.backendBaseUrl,
+  backendBaseUrl,
 );
 
 export function createLocalLoyaltySummaryController(): LoyaltySummaryController {

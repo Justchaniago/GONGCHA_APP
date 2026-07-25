@@ -5,10 +5,10 @@ import { runtimeConfig } from '../config/runtime';
 import { FastApiLocalActivityFixtureGateway } from '../infrastructure/loyaltyActivity/FastApiLocalActivityFixtureGateway';
 import { FastApiLoyaltyActivityRepository } from '../infrastructure/loyaltyActivity/FastApiLoyaltyActivityRepository';
 
-if (runtimeConfig.mode !== 'local_emulator') {
-  throw new Error('local_loyalty_activity_requires_emulator');
-}
-const localBackendBaseUrl = runtimeConfig.backendBaseUrl;
+const localBackendBaseUrl =
+  runtimeConfig.mode === 'local_emulator'
+    ? runtimeConfig.backendBaseUrl
+    : 'https://gongcha-backend-79343384792.asia-southeast1.run.app';
 
 export function createLocalLoyaltyActivityController(): LoyaltyActivityController {
   return new LoyaltyActivityController(
