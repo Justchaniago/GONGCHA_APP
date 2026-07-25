@@ -25,6 +25,13 @@ import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
 import MembershipStatusScreen from '../screens/MembershipStatusScreen';
 import HelpCenterScreen from '../screens/HelpCenterScreen';
 import { hasCompletedGuestOnboarding } from '../utils/guestOnboarding';
+import { USE_FASTAPI_BACKEND } from '../config/flags';
+import LocalDashboardScreen from '../screens/LocalDashboardScreen';
+import LocalMenuScreen from '../screens/LocalMenuScreen';
+import LocalRewardsScreen from '../screens/LocalRewardsScreen';
+import LocalProfileScreen from '../screens/LocalProfileScreen';
+import LocalStoreLocatorScreen from '../screens/LocalStoreLocatorScreen';
+import LocalMembershipStatusScreen from '../screens/LocalMembershipStatusScreen';
 
 export type RootStackParamList = {
   LocationPermission: undefined;
@@ -50,11 +57,11 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 function MainTabNavigator() {
   return (
     <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Menu" component={MenuScreen} />
+      <Tab.Screen name="Home" component={USE_FASTAPI_BACKEND ? LocalDashboardScreen : HomeScreen} />
+      <Tab.Screen name="Menu" component={USE_FASTAPI_BACKEND ? LocalMenuScreen : MenuScreen} />
       <Tab.Screen name="QR" component={QrPlaceholderScreen} />
-      <Tab.Screen name="Rewards" component={RewardsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Rewards" component={USE_FASTAPI_BACKEND ? LocalRewardsScreen : RewardsScreen} />
+      <Tab.Screen name="Profile" component={USE_FASTAPI_BACKEND ? LocalProfileScreen : ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -110,10 +117,10 @@ export default function AppNavigator() {
           // Authenticated AND Profile Complete -> Welcome home
           <>
             <Stack.Screen name="MainApp" component={MainTabNavigator} />
-            <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="StoreLocator" component={USE_FASTAPI_BACKEND ? LocalStoreLocatorScreen : StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="MembershipStatus" component={MembershipStatusScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="MembershipStatus" component={USE_FASTAPI_BACKEND ? LocalMembershipStatusScreen : MembershipStatusScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ animation: 'slide_from_right' }} />
             {/* Keeping ProfileCompletion accessible in case we need to revisit, though logically we shouldn't */}
             <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} /> 
