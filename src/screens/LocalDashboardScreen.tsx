@@ -153,6 +153,17 @@ export default function LocalDashboardScreen() {
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka promosi lokal"
+          style={styles.promotionsButton}
+          onPress={() => navigation.navigate('LocalPromotions')}
+        >
+          <Text style={styles.promotionsButtonText}>
+            📢 Buka Promosi & Banner V1
+          </Text>
+        </TouchableOpacity>
+
         <HomeMembershipRegion
           model={loyaltyModel}
           loading={
@@ -374,6 +385,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   storeLocatorButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  promotionsButton: {
+    alignItems: 'center',
+    backgroundColor: '#8A1C14',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    marginBottom: 16,
+  },
+  promotionsButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
