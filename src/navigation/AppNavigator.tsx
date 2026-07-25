@@ -32,6 +32,7 @@ import LocalRewardsScreen from '../screens/LocalRewardsScreen';
 import LocalProfileScreen from '../screens/LocalProfileScreen';
 import LocalStoreLocatorScreen from '../screens/LocalStoreLocatorScreen';
 import LocalMembershipStatusScreen from '../screens/LocalMembershipStatusScreen';
+import LocalLoyaltyActivityScreen from '../screens/LocalLoyaltyActivityScreen';
 
 export type RootStackParamList = {
   LocationPermission: undefined;
@@ -46,6 +47,7 @@ export type RootStackParamList = {
   MembershipStatus: undefined;
   HelpCenter: undefined;
   LocalDashboard: undefined;
+  LocalLoyaltyActivity: undefined;
 };
 
 export type RootTabParamList = {
@@ -125,6 +127,7 @@ export default function AppNavigator() {
             <Stack.Screen name="MembershipStatus" component={USE_FASTAPI_BACKEND ? LocalMembershipStatusScreen : MembershipStatusScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="LocalDashboard" component={LocalDashboardScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="LocalLoyaltyActivity" component={LocalLoyaltyActivityScreen} options={{ animation: 'slide_from_right' }} />
           </>
 
       ) : (

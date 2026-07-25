@@ -4,6 +4,7 @@ import { firebaseLocalAuth } from '../config/firebaseLocal';
 import { runtimeConfig } from '../config/runtime';
 import { FastApiLocalActivityFixtureGateway } from '../infrastructure/loyaltyActivity/FastApiLocalActivityFixtureGateway';
 import { FastApiLoyaltyActivityRepository } from '../infrastructure/loyaltyActivity/FastApiLoyaltyActivityRepository';
+import { USE_FASTAPI_BACKEND, FASTAPI_BASE_URL } from '../config/flags';
 
 const localBackendBaseUrl =
   runtimeConfig.mode === 'local_emulator'
@@ -11,10 +12,15 @@ const localBackendBaseUrl =
     : 'https://gongcha-backend-79343384792.asia-southeast1.run.app';
 
 export function createLocalLoyaltyActivityController(): LoyaltyActivityController {
+  const auth = USE_FASTAPI_BACKEND
+    ? (require('../config/firebase') as typeof import('../config/firebase')).firebaseAuth
+    : firebaseLocalAuth;
+  const baseUrl = USE_FASTAPI_BACKEND ? FASTAPI_BASE_URL : localBackendBaseUrl;
+
   return new LoyaltyActivityController(
     new FastApiLoyaltyActivityRepository(
-      firebaseLocalAuth,
-      localBackendBaseUrl,
+      auth,
+      baseUrl,
     ),
   );
 }
