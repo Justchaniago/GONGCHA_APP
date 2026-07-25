@@ -125,8 +125,6 @@ export default function AppNavigator() {
             <Stack.Screen name="MembershipStatus" component={USE_FASTAPI_BACKEND ? LocalMembershipStatusScreen : MembershipStatusScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="LocalDashboard" component={LocalDashboardScreen} options={{ animation: 'slide_from_right' }} />
-            {/* Keeping ProfileCompletion accessible in case we need to revisit, though logically we shouldn't */}
-            <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} /> 
           </>
 
       ) : (
