@@ -23,7 +23,9 @@ const firebaseConfig = {
 };
 
 // 1. Init App (Singleton Pattern)
-export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const defaultApp = getApps().find((a) => a.name === '[DEFAULT]');
+export const firebaseApp = defaultApp ?? initializeApp(firebaseConfig);
+
 
 // 2. Init Auth dengan Persistence (Agar tidak auto-logout)
 let auth;

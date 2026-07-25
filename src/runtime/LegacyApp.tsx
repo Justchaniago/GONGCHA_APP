@@ -13,6 +13,8 @@ import PromoAdModal from '../components/PromoAdModal';
 import useCustomFonts from '../hooks/useCustomFonts';
 import { preloadAppAssets } from '../utils/preloadAppAssets';
 
+import CustomAnimatedSplashScreen from '../components/CustomAnimatedSplashScreen';
+
 configureGoogleSignIn();
 LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
@@ -23,6 +25,7 @@ void SplashScreen.preventAutoHideAsync();
 export default function LegacyApp() {
   const fontsLoaded = useCustomFonts();
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     void preloadAppAssets()
@@ -47,6 +50,9 @@ export default function LegacyApp() {
           <NavigationContainer>
             <AppNavigator />
           </NavigationContainer>
+          {showSplash && (
+            <CustomAnimatedSplashScreen onFinish={() => setShowSplash(false)} />
+          )}
           <MemberCardModal />
           <PromoAdModal />
         </SecurityProvider>
@@ -54,3 +60,4 @@ export default function LegacyApp() {
     </SafeAreaProvider>
   );
 }
+

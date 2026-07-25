@@ -121,87 +121,67 @@ export function RewardsView({
 
   const renderRewardItem = ({ item }: { item: RewardDisplayItem }) => {
     return (
-      <View style={styles.rewardCard}>
-        <View style={styles.imageContainer}>
+      <TouchableOpacity
+        style={styles.bentoGridCard}
+        onPress={() => setConfirmingItem(item)}
+        activeOpacity={0.88}
+        accessibilityRole="button"
+        accessibilityLabel={`Tukar ${item.title}`}
+      >
+        <View style={styles.bentoImageContainer}>
           {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.rewardImage} />
+            <Image source={{ uri: item.imageUrl }} style={styles.bentoRewardImage} resizeMode="cover" />
           ) : (
-            <View style={styles.placeholderImage}>
-              <Gift size={32} color="#8C7B75" />
+            <View style={styles.bentoPlaceholderImage}>
+              <Gift size={36} color="#B91C2F" />
             </View>
           )}
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{item.category || 'Minuman'}</Text>
+          <View style={styles.bentoCategoryBadge}>
+            <Text style={styles.bentoCategoryText}>{item.category || 'Minuman'}</Text>
           </View>
         </View>
-        <View style={styles.rewardInfo}>
-          <Text style={styles.rewardTitle} numberOfLines={1}>{item.title}</Text>
-          <Text style={styles.rewardDesc} numberOfLines={2}>{item.description}</Text>
-          <View style={styles.priceRow}>
-            <View style={styles.pointsBadge}>
-              <Star size={12} color="#B91C2F" fill="#B91C2F" />
-              <Text style={styles.pointsText}>{item.pointsRequiredLabel}</Text>
-            </View>
 
-            <TouchableOpacity
-              style={[styles.redeemBtn, !item.canAfford && styles.disabledBtn]}
-              onPress={() => setConfirmingItem(item)}
-              disabled={redeemingId === item.id || !item.canAfford}
-              accessibilityRole="button"
-              accessibilityLabel={`Tukar ${item.title}`}
-            >
-              {redeemingId === item.id ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Text style={styles.redeemBtnText}>{item.actionLabel}</Text>
-              )}
-            </TouchableOpacity>
+        <View style={styles.bentoCardContent}>
+          <Text style={styles.bentoRewardTitle} numberOfLines={2}>{item.title}</Text>
+
+          <View style={styles.bentoPriceRow}>
+            <View style={styles.bentoPointsBadge}>
+              <Star size={11} color="#B91C2F" fill="#B91C2F" />
+              <Text style={styles.bentoPointsText}>{item.pointsRequiredLabel}</Text>
+            </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   const renderVoucherItem = ({ item }: { item: VoucherDisplayItem }) => {
     return (
       <TouchableOpacity
-        style={styles.voucherCard}
+        style={styles.bentoGridCard}
         onPress={() => setSelectedVoucher(item)}
+        activeOpacity={0.88}
         accessibilityRole="button"
         accessibilityLabel={`Gunakan voucher ${item.title}`}
       >
-        <View style={styles.voucherTop}>
-          <View style={styles.voucherTitleRow}>
-            <View style={styles.voucherIconWrap}>
-              <Ticket size={16} color="#B91C2F" />
-            </View>
-            <View style={styles.voucherTitleContent}>
-              <Text style={styles.voucherLabel}>Voucher</Text>
-              <Text style={styles.voucherTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
-            </View>
+        <View style={styles.bentoImageContainer}>
+          <View style={styles.bentoPlaceholderImage}>
+            <Ticket size={36} color="#B91C2F" />
           </View>
-          <View style={[styles.statusBadge, styles.activeStatusBadge]}>
-            <Text style={[styles.statusText, styles.activeStatusText]}>Aktif</Text>
+          <View style={[styles.bentoCategoryBadge, { backgroundColor: '#166534' }]}>
+            <Text style={styles.bentoCategoryText}>AKTIF</Text>
           </View>
         </View>
 
-        <View style={styles.voucherCodePanel}>
-          <Text style={styles.voucherCodeLabel}>Kode Voucher</Text>
-          <Text style={styles.voucherCode} numberOfLines={1}>
-            {item.code}
+        <View style={styles.bentoCardContent}>
+          <Text style={styles.bentoRewardTitle} numberOfLines={2}>
+            {item.title}
           </Text>
-        </View>
 
-        <View style={styles.voucherFooter}>
-          <View>
-            <Text style={styles.voucherExpiryLabel}>Berlaku s/d</Text>
-            <Text style={styles.voucherExpiry}>{item.formattedExpiry}</Text>
-          </View>
-          <View style={styles.voucherAction}>
-            <Text style={styles.voucherActionText}>Lihat</Text>
-            <ChevronRight size={16} color="#BCC1D3" />
+          <View style={styles.bentoPriceRow}>
+            <Text style={styles.bentoExpiryText} numberOfLines={1}>
+              {item.formattedExpiry}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -240,9 +220,12 @@ export function RewardsView({
         <View style={styles.content}>
           {activeTab === 'catalog' ? (
             <AnimatedFlatList
+              key="catalog-grid"
               data={model.catalogItems}
               keyExtractor={(item) => item.id}
               renderItem={renderRewardItem}
+              numColumns={2}
+              columnWrapperStyle={styles.gridColumnWrapper}
               ListHeaderComponent={renderHeader}
               contentContainerStyle={styles.listContainer}
               refreshControl={
@@ -253,9 +236,12 @@ export function RewardsView({
             />
           ) : (
             <AnimatedFlatList
+              key="vouchers-grid"
               data={model.activeVouchers}
               keyExtractor={(item) => item.id}
               renderItem={renderVoucherItem}
+              numColumns={2}
+              columnWrapperStyle={styles.gridColumnWrapper}
               ListHeaderComponent={renderHeader}
               contentContainerStyle={styles.listContainer}
               onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
@@ -265,6 +251,7 @@ export function RewardsView({
                   <Text style={styles.emptyText}>Belum ada voucher aktif. Yuk tukar poin di katalog!</Text>
                 </View>
               }
+
               ListFooterComponent={() => {
                 if (!model.historyVouchers || model.historyVouchers.length === 0) return null;
                 return (
@@ -600,6 +587,106 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  gridColumnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  bentoGridCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F0E8E2',
+    elevation: 3,
+    shadowColor: '#2A1F1F',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  bentoImageContainer: {
+    width: '100%',
+    height: 110,
+    backgroundColor: '#FFF1F3',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bentoRewardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bentoPlaceholderImage: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF1F3',
+  },
+  bentoCategoryBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(185, 28, 47, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  bentoCategoryText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  bentoCardContent: {
+    padding: 12,
+    justifyContent: 'space-between',
+    flex: 1,
+  },
+  bentoRewardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2A1F1F',
+    lineHeight: 17,
+    marginBottom: 10,
+  },
+  bentoPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 'auto',
+  },
+  bentoPointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  bentoPointsText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#B91C2F',
+  },
+  bentoExpiryText: {
+    fontSize: 10,
+    color: '#8C7B75',
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 4,
+  },
+  bentoActionPill: {
+    backgroundColor: '#B91C2F',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  bentoActionPillText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  disabledBentoPill: {
+    backgroundColor: '#D1D5DB',
+  },
   usedSection: { marginTop: 12, marginBottom: 8 },
   usedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderTopWidth: 1, borderTopColor: '#F0E8E2' },
   usedToggleText: { fontSize: 13, fontWeight: '700', color: '#8C7B75' },
@@ -615,3 +702,4 @@ const styles = StyleSheet.create({
   usedVoucherMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EDE8E3', flexWrap: 'wrap' },
   usedVoucherMetaText: { fontSize: 11, color: '#A08F88' },
 });
+

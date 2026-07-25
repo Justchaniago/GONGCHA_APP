@@ -11,8 +11,8 @@ import {
   writeBatch,
   onSnapshot,
 } from 'firebase/firestore';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { firestoreDb } from '../config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { firestoreDb, firebaseAuth } from '../config/firebase';
 import { NotificationItem } from '../types/types';
 
 const mapDoc = (docSnap: any): NotificationItem => {
@@ -67,7 +67,7 @@ export const NotificationService = {
     };
 
     // Wait for auth to restore from AsyncStorage before subscribing
-    const authUnsub = onAuthStateChanged(getAuth(), (user) => {
+    const authUnsub = onAuthStateChanged(firebaseAuth, (user) => {
       if (cancelled) return;
       if (user) {
         startFirestore(user.uid);
@@ -87,7 +87,7 @@ export const NotificationService = {
   },
 
   async markAsRead(notificationId: string): Promise<void> {
-    const userId = getAuth().currentUser?.uid;
+    const userId = firebaseAuth.currentUser?.uid;
     if (!userId) return;
 
     // Sesuai rules: Hanya boleh merubah isRead menjadi true
@@ -97,7 +97,7 @@ export const NotificationService = {
   },
 
   async deleteNotification(notificationId: string): Promise<boolean> {
-    const userId = getAuth().currentUser?.uid;
+    const userId = firebaseAuth.currentUser?.uid;
     if (!userId) return false;
     try {
       await deleteDoc(doc(firestoreDb, 'users', userId, 'notifications', notificationId));
@@ -106,6 +106,7 @@ export const NotificationService = {
       return false;
     }
   },
+
 
   async markAllAsRead(userId: string): Promise<void> {
     const q = query(

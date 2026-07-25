@@ -30,6 +30,7 @@ interface Theme {
   actionAccent: string;
 }
 
+
 const THEMES: Record<HomeLoyaltyThemeKey, Theme> = {
   'legacy-silver': {
     progressGradient: ['#B7C0CC', '#8A93A1'],
@@ -124,6 +125,8 @@ const THEMES: Record<HomeLoyaltyThemeKey, Theme> = {
   },
 };
 
+
+
 interface SharedProps {
   model: HomeLoyaltyViewModel | null;
   loading: boolean;
@@ -176,6 +179,30 @@ export function HomeMembershipRegion({
                 {model.tierDisplayName} Tier
               </Text>
             </View>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.progressContainer}>
+        {/* ROW WITH SHORTENED PROGRESS BAR + PERCENTAGE PILL */}
+        <View style={styles.progressRow}>
+          <View
+            style={[
+              styles.progressBarBg,
+              { backgroundColor: theme.progressTrackBg },
+            ]}
+          >
+            <LinearGradient
+              colors={theme.progressGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[
+                styles.progressBarFill,
+                { width: `${model?.progressPercent ?? 0}%` },
+              ]}
+            />
+          </View>
+          {model ? (
             <View
               style={[
                 styles.percentBadge,
@@ -186,43 +213,31 @@ export function HomeMembershipRegion({
                 {Math.round(model.progressPercent)}%
               </Text>
             </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
+
+        {/* BOTTOM FOOTER */}
+        <View style={styles.rewardsFooter}>
+          <Gift size={14} color={theme.footerIcon} />
+          {loading || !model ? (
+            <SkeletonLoader width={140} height={12} />
+          ) : (
+            <Text
+              style={[
+                styles.rewardsFooterText,
+                { color: colors.text.secondary },
+              ]}
+            >
+              {model.progressMessage}
+            </Text>
+          )}
+        </View>
       </View>
-      <View
-        style={[
-          styles.progressBarBg,
-          { backgroundColor: theme.progressTrackBg },
-        ]}
-      >
-        <LinearGradient
-          colors={theme.progressGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[
-            styles.progressBarFill,
-            { width: `${model?.progressPercent ?? 0}%` },
-          ]}
-        />
-      </View>
-      <View style={styles.rewardsFooter}>
-        <Gift size={14} color={theme.footerIcon} />
-        {loading || !model ? (
-          <SkeletonLoader width={140} height={12} />
-        ) : (
-          <Text
-            style={[
-              styles.rewardsFooterText,
-              { color: colors.text.secondary },
-            ]}
-          >
-            {model.progressMessage}
-          </Text>
-        )}
-      </View>
+
     </TouchableOpacity>
   );
 }
+
 
 interface WalletProps extends SharedProps {
   onAction: () => void;
@@ -318,51 +333,62 @@ export function HomeWalletRegion({
 const styles = StyleSheet.create({
   rewardsCard: {
     borderRadius: 22,
-    padding: 12,
-    marginBottom: 12,
+    borderCurve: 'continuous',
+    padding: 18,
+    marginBottom: 0,
     borderWidth: 1.5,
     elevation: 8,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 20,
   },
+
+
   rewardsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 7,
   },
   rewardsLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
-    letterSpacing: 0.8,
-    marginBottom: 2,
+    letterSpacing: 1.0,
+    marginBottom: 4,
   },
-  rewardsPoints: { fontSize: 16, fontWeight: 'bold' },
+  rewardsPoints: { fontSize: 20, fontWeight: 'bold' },
   badges: { alignItems: 'flex-end' },
   tierBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  tierText: { fontSize: 11, fontWeight: 'bold' },
+  progressContainer: {
+    marginTop: 18,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  progressBarBg: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: { height: '100%', borderRadius: 4 },
+  percentBadge: {
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 10,
-    marginBottom: 3,
-  },
-  tierText: { fontSize: 9, fontWeight: 'bold' },
-  percentBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-    alignSelf: 'flex-end',
   },
   percentText: { color: '#FFF', fontWeight: 'bold', fontSize: 10 },
-  progressBarBg: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressBarFill: { height: '100%', borderRadius: 3 },
   rewardsFooter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rewardsFooterText: { fontSize: 9, fontWeight: '500' },
+  rewardsFooterText: { fontSize: 11, fontWeight: '500' },
+
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

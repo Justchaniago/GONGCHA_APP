@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { resolveSessionRoute } from '../application/session/sessionRules';
 import { useMember } from '../context/MemberContext';
+import CustomTabBar from '../components/CustomTabBar';
+import HomeScreen from '../screens/HomeScreen';
+import QrPlaceholderScreen from '../screens/QrPlaceholderScreen';
 import LocationPermissionScreen from '../screens/LocationPermissionScreen';
 import LocalDashboardScreen from '../screens/LocalDashboardScreen';
 import LocalLoyaltyActivityScreen from '../screens/LocalLoyaltyActivityScreen';
@@ -21,6 +25,7 @@ import LocalNotificationsScreen from '../screens/LocalNotificationsScreen';
 import { hasCompletedGuestOnboarding } from '../utils/guestOnboarding';
 
 export type LocalStackParamList = {
+  MainTabs: undefined;
   LocationPermission: undefined;
   NotificationPermission: undefined;
   Welcome: undefined;
@@ -38,6 +43,19 @@ export type LocalStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<LocalStackParamList>();
+const Tab = createBottomTabNavigator();
+
+function LocalTabNavigator() {
+  return (
+    <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Menu" component={LocalMenuScreen} />
+      <Tab.Screen name="QR" component={QrPlaceholderScreen} />
+      <Tab.Screen name="Rewards" component={LocalRewardsScreen} />
+      <Tab.Screen name="Profile" component={LocalProfileScreen} />
+    </Tab.Navigator>
+  );
+}
 
 export default function LocalAppNavigator() {
   const { isAuthenticated, sessionPhase } = useMember();
@@ -84,9 +102,14 @@ export default function LocalAppNavigator() {
       ) : route === 'ready' ? (
         <>
           <Stack.Screen
+            name="MainTabs"
+            component={LocalTabNavigator}
+          />
+          <Stack.Screen
             name="LocalDashboard"
             component={LocalDashboardScreen}
           />
+
           <Stack.Screen
             name="LocalLoyaltyActivity"
             component={LocalLoyaltyActivityScreen}

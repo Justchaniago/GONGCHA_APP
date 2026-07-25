@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View, Text, ScrollView, Image, TouchableOpacity,
   useWindowDimensions, StyleSheet, RefreshControl,
+  Animated, Easing,
 } from 'react-native';
+
 import { Bell } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -12,12 +14,22 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMember } from '../context/MemberContext';
-import { buildLegacyHomeLoyaltyViewModel } from '../application/homeLoyalty/HomeLoyaltyViewModel';
+import {
+  buildLegacyHomeLoyaltyViewModel,
+  buildLocalHomeLoyaltyViewModel,
+} from '../application/homeLoyalty/HomeLoyaltyViewModel';
+import { localLoyaltySummaryController } from '../composition/loyaltySummary';
+import { useLocalLoyaltySummary } from '../presentation/loyaltySummary/useLocalLoyaltySummary';
+import { USE_FASTAPI_BACKEND } from '../config/flags';
 import { firebaseAuth } from '../config/firebase';
 import { NotificationService } from '../services/NotificationService';
 import { usePromotions } from '../composition/promotions';
 import type { RootTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import type { NotificationItem } from '../types/types';
+
+import BentoFeaturedDrinks from '../components/BentoFeaturedDrinks';
+import BentoNearbyOutlet from '../components/BentoNearbyOutlet';
+
 
 import { colors } from '../theme/colorTokens';
 
@@ -45,11 +57,24 @@ export default function HomeScreen() {
 
   const { member, loading: isMemberLoading } = useMember();
 
+  const summaryState = useLocalLoyaltySummary(
+    localLoyaltySummaryController,
+    member?.uid ?? null,
+  );
+  const summary = summaryState.phase === 'ready' ? summaryState.summary : null;
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
     setIsRefreshing(true);
+    if (USE_FASTAPI_BACKEND) {
+      if (summaryState.phase === 'ready') {
+        void localLoyaltySummaryController.refresh();
+      } else {
+        void localLoyaltySummaryController.retry();
+      }
+    }
     setTimeout(() => setIsRefreshing(false), 1000);
-  }, []);
+  }, [summaryState.phase]);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -59,13 +84,77 @@ export default function HomeScreen() {
   const carouselPromos = usePromotions('carousel');
   const hasRedirectedToProfileCompletion = useRef(false);
 
+  // ENTRANCE ANIMATION VALUES FOR APP LAUNCH / FIRST ENTRY
+  const bgOpacity = useRef(new Animated.Value(0)).current;
+  const headerTranslateY = useRef(new Animated.Value(-120)).current;
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(35)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Synchronize with Custom Splash Screen exit timing (t = 1100ms)
+    const splashSyncDelay = 1100;
+
+    const timer = setTimeout(() => {
+      // 1. App Cream Background Fades In
+      Animated.timing(bgOpacity, {
+        toValue: 1,
+        duration: 350,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
+
+      // 2. Red Header Slides Down Smoothly as Splash Screen dissolves
+      Animated.parallel([
+        Animated.timing(headerTranslateY, {
+          toValue: 0,
+          duration: 750,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+          useNativeDriver: true,
+        }),
+        Animated.timing(headerOpacity, {
+          toValue: 1,
+          duration: 550,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // 3. Staggered Bento Grid Content Slides Up
+      Animated.sequence([
+        Animated.delay(180),
+        Animated.parallel([
+          Animated.timing(contentTranslateY, {
+            toValue: 0,
+            duration: 700,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(contentOpacity, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    }, splashSyncDelay);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+
   const isCompact = width < 360;
+
   const horizontalPadding = isCompact ? 16 : 20;
   const avatarSize = isCompact ? 46 : 52;
   const headerIconSize = isCompact ? 44 : 48;
   const headerLogoSize = isCompact ? 50 : 59;
 
   useEffect(() => {
+    if (USE_FASTAPI_BACKEND) {
+      setNotifications([]);
+      return;
+    }
     const unsubscribe = NotificationService.subscribeToUserNotifications((notifs) => {
       setNotifications(notifs);
     });
@@ -73,17 +162,21 @@ export default function HomeScreen() {
   }, []);
 
   const handleMarkAllRead = useCallback(async () => {
-    const userId = firebaseAuth.currentUser?.uid;
+    if (USE_FASTAPI_BACKEND) return;
+    const userId = firebaseAuth?.currentUser?.uid;
     if (userId) await NotificationService.markAllAsRead(userId);
   }, []);
 
   const handleMarkRead = useCallback(async (id: string) => {
+    if (USE_FASTAPI_BACKEND) return;
     await NotificationService.markAsRead(id);
   }, []);
 
   const handleDeleteNotification = useCallback(async (id: string): Promise<boolean> => {
+    if (USE_FASTAPI_BACKEND) return true;
     return NotificationService.deleteNotification(id);
   }, []);
+
 
   const handleNotificationPress = useCallback((item: NotificationItem) => {
     setShowNotifications(false);
@@ -94,9 +187,10 @@ export default function HomeScreen() {
   }, [navigation]);
 
   const loyaltyModel = useMemo(
-    () => buildLegacyHomeLoyaltyViewModel(member),
-    [member],
+    () => (USE_FASTAPI_BACKEND && summary ? buildLocalHomeLoyaltyViewModel(summary) : buildLegacyHomeLoyaltyViewModel(member)),
+    [summary, member],
   );
+
   const promoCardWidth = width - 40;
 
   const promos = useMemo(() => {
@@ -160,22 +254,27 @@ export default function HomeScreen() {
   };
 
   return (
+
     <ScreenFadeTransition>
-      <View style={[styles.root, { backgroundColor: colors.background.primary }]}>
-        <StatusBar style={isDark ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+      <Animated.View style={[styles.root, { backgroundColor: colors.background.primary, opacity: bgOpacity }]}>
+        <StatusBar style="light" translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
         <View style={styles.mainLayout}>
-          {/* HEADER */}
-          <View style={[
+          {/* HEADER (SLIDE-DOWN ENTRANCE) */}
+          <Animated.View style={[
             styles.fixedHeaderContainer,
             {
-              paddingTop: insets.top + 6,
+              paddingTop: insets.top + 8,
               paddingHorizontal: horizontalPadding,
-              backgroundColor: colors.background.primary,
-              borderBottomColor: isDark ? colors.border.light : 'transparent',
-              borderBottomWidth: isDark ? 1 : 0,
+              paddingBottom: 16,
+              backgroundColor: colors.brand.primary,
+              borderBottomLeftRadius: 36,
+              borderBottomRightRadius: 36,
+              borderCurve: 'continuous',
               zIndex: 20,
+              opacity: headerOpacity,
+              transform: [{ translateY: headerTranslateY }],
             },
           ]}>
             <View style={styles.headerContent}>
@@ -185,7 +284,7 @@ export default function HomeScreen() {
                   <View style={styles.avatarStatusDot} />
                 </View>
                 <View style={styles.headerTextContainer}>
-                  <Text style={[styles.greeting, { color: colors.text.secondary }]}>{getGreeting()},</Text>
+                  <Text style={[styles.greeting, { color: 'rgba(255, 255, 255, 0.82)' }]}>{getGreeting()},</Text>
                   {isMemberLoading ? (
                     <SkeletonLoader width={100} height={20} style={{ marginTop: 4 }} />
                   ) : (
@@ -193,7 +292,7 @@ export default function HomeScreen() {
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.8}
-                      style={[styles.name, { color: colors.text.primary }]}
+                      style={[styles.name, { color: '#FFFFFF' }]}
                     >
                       {member?.fullName ?? 'Member'}
                     </Text>
@@ -205,15 +304,21 @@ export default function HomeScreen() {
                   style={[
                     styles.notificationBtn,
                     styles.notificationBtnShell,
-                    { width: headerIconSize, height: headerIconSize, backgroundColor: colors.surface.card, shadowColor: colors.shadow.color },
+                    {
+                      width: headerIconSize,
+                      height: headerIconSize,
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
                   ]}
                   activeOpacity={0.8}
                   onPress={() => setShowNotifications(true)}
                 >
-                  <Bell size={22} color={colors.brand.primary} strokeWidth={2.5} />
+                  <Bell size={22} color="#FFFFFF" strokeWidth={2.5} />
                   {notifications.some((n) => !n.isRead) && (
-                    <View style={[styles.notificationBadge, { backgroundColor: colors.brand.primary, borderColor: colors.surface.card }]}>
-                      <Text style={styles.notificationBadgeText}>
+                    <View style={[styles.notificationBadge, { backgroundColor: '#FFFFFF', borderColor: colors.brand.primary }]}>
+                      <Text style={[styles.notificationBadgeText, { color: colors.brand.primary }]}>
                         {notifications.filter((n) => !n.isRead).length}
                       </Text>
                     </View>
@@ -221,66 +326,85 @@ export default function HomeScreen() {
                 </TouchableOpacity>
                 <Image
                   source={require('../../assets/images/logo1.png')}
-                  style={[styles.logoTopRight, { width: headerLogoSize, height: headerLogoSize + 4 }]}
+                  style={[styles.logoTopRight, { width: headerLogoSize, height: headerLogoSize + 4, tintColor: '#FFFFFF' }]}
                   resizeMode="contain"
                 />
               </View>
             </View>
-          </View>
 
-          {/* SCROLLABLE CONTENT */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            style={styles.scrollView}
-            contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom, paddingTop: 10 }]}
-            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor="#B91C2F" />}
-          >
-            {/* MEMBERSHIP STATUS CARD */}
-            <HomeMembershipRegion
-              model={loyaltyModel}
-              loading={isMemberLoading}
-              onPress={() => navigation.navigate('MembershipStatus')}
-            />
-
-            {/* SPECIAL OFFERS */}
-            <View style={styles.sectionHeader}>
-              <View style={[styles.redPill, { backgroundColor: colors.brand.primary }]} />
-              <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Special Offers</Text>
-              <Image source={require('../../assets/images/boba.webp')} style={styles.titleIcon} />
+            {/* MEMBERSHIP STATUS CARD INSIDE RED HEADER */}
+            <View style={{ marginTop: 14 }}>
+              <HomeMembershipRegion
+                model={loyaltyModel}
+                loading={isMemberLoading}
+                onPress={() => navigation.navigate('MembershipStatus')}
+              />
             </View>
 
+            {/* WALLET / LEAVES REGION */}
+            <View style={{ marginTop: 10 }}>
+              <HomeWalletRegion
+                model={loyaltyModel}
+                loading={isMemberLoading}
+                onAction={() => navigation.navigate('LoyaltyActivity')}
+              />
+            </View>
+          </Animated.View>
+
+          {/* SCROLLABLE BENTO CONTENT (SLIDE-UP STAGGERED ENTRANCE) */}
+          <Animated.View style={{ flex: 1, opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
             <ScrollView
-              ref={promoScrollRef}
-              horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-              style={styles.promoScroll} contentContainerStyle={{ paddingRight: 20 }}
-              onMomentumScrollEnd={handlePromoScrollEnd}
-              scrollEventThrottle={16}
+              showsVerticalScrollIndicator={false}
+              style={styles.scrollView}
+              contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom, paddingTop: 16 }]}
+              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor="#B91C2F" />}
             >
-              {extendedPromos.map((promo, idx) => (
-                <View key={idx} style={[styles.promoCard, { width: promoCardWidth, backgroundColor: colors.surface.card }]}>
-                  {promo.uri ? (
-                    <Image source={{ uri: promo.uri }} style={styles.promoImage} resizeMode="cover" />
-                  ) : promo.image ? (
-                    <Image source={promo.image} style={styles.promoImage} resizeMode="cover" />
-                  ) : (
-                    <View style={[styles.promoPlaceholder, { backgroundColor: promo.color }]}>
-                      <Text style={{ color: '#8C7B75', fontWeight: 'bold' }}>Promo</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.paginationDots}>
-              {promos.map((_, i) => <View key={i} style={[styles.dot, activePromo === i && { backgroundColor: colors.brand.primary, width: 24 }]} />)}
-            </View>
+              {/* NEWS AND PROMOTIONS */}
+              <View style={styles.sectionHeader}>
+                <View style={[styles.redPill, { backgroundColor: colors.brand.primary }]} />
+                <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>News and Promotions</Text>
+              </View>
 
-            <HomeWalletRegion
-              model={loyaltyModel}
-              loading={isMemberLoading}
-              onAction={() => navigation.navigate('Rewards')}
-            />
-          </ScrollView>
-        </View>
+
+
+              <ScrollView
+                ref={promoScrollRef}
+                horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+                style={styles.promoScroll} contentContainerStyle={{ paddingRight: 20 }}
+                onMomentumScrollEnd={handlePromoScrollEnd}
+                scrollEventThrottle={16}
+              >
+                {extendedPromos.map((promo, idx) => (
+                  <View key={idx} style={[styles.promoCard, { width: promoCardWidth, backgroundColor: colors.surface.card }]}>
+                    {promo.uri ? (
+                      <Image source={{ uri: promo.uri }} style={styles.promoImage} resizeMode="cover" />
+                    ) : promo.image ? (
+                      <Image source={promo.image} style={styles.promoImage} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.promoPlaceholder, { backgroundColor: promo.color }]}>
+                        <Text style={{ color: '#8C7B75', fontWeight: 'bold' }}>Promo</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.paginationDots}>
+                {promos.map((_, i) => <View key={i} style={[styles.dot, activePromo === i && { backgroundColor: colors.brand.primary, width: 24 }]} />)}
+              </View>
+
+              {/* TWO BENTO BOXES ROW (FEATURED DRINKS & NEARBY COMPASS STORE) */}
+              <View style={styles.bentoGridRow}>
+                <BentoFeaturedDrinks
+                  onPress={() => navigation.navigate('Rewards')}
+                />
+                <BentoNearbyOutlet
+                  onPress={() => navigation.navigate('Rewards')}
+                />
+              </View>
+            </ScrollView>
+
+          </Animated.View>
+
 
         <NotificationSheet
           visible={showNotifications}
@@ -292,14 +416,25 @@ export default function HomeScreen() {
           onNotificationPress={handleNotificationPress}
         />
       </View>
-    </ScreenFadeTransition>
+    </Animated.View>
+  </ScreenFadeTransition>
   );
 }
+
 
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   mainLayout: { flex: 1 },
-  fixedHeaderContainer: { paddingBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  fixedHeaderContainer: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+
+
+
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
@@ -339,6 +474,14 @@ const styles = StyleSheet.create({
   promoCard: { height: 180, borderRadius: 24, overflow: 'hidden', elevation: 5 },
   promoImage: { width: '100%', height: '100%' },
   promoPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  paginationDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: 20, gap: 6 },
+  paginationDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: 16, gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E0D6CC' },
+  bentoGridRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 4,
+  },
 });
+
