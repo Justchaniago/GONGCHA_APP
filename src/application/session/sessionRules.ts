@@ -23,10 +23,12 @@ export function isEligibleLocalEmulatorSession(
 export function resolveSessionRoute(phase: SessionPhase): SessionRoute {
   if (
     phase === 'restoring' ||
-    phase === 'loading-member' ||
-    phase === 'error'
+    phase === 'loading-member'
   ) {
     return 'spinner';
+  }
+  if (phase === 'error') {
+    return 'anonymous';
   }
   return phase;
 }

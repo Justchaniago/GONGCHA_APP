@@ -67,7 +67,7 @@ test('password sessions require verification while federated sessions remain eli
 test('session phases map deterministically to navigation routes', () => {
   assert.equal(resolveSessionRoute('restoring'), 'spinner');
   assert.equal(resolveSessionRoute('loading-member'), 'spinner');
-  assert.equal(resolveSessionRoute('error'), 'spinner');
+  assert.equal(resolveSessionRoute('error'), 'anonymous');
   assert.equal(resolveSessionRoute('anonymous'), 'anonymous');
   assert.equal(resolveSessionRoute('needs-profile'), 'needs-profile');
   assert.equal(resolveSessionRoute('ready'), 'ready');

@@ -1,14 +1,18 @@
 import { GetStores } from '../application/stores/GetStores';
 import { firestoreDb } from '../config/firebase';
+import { USE_FASTAPI_BACKEND } from '../config/flags';
 import { AsyncStorageStoreCache } from '../infrastructure/cache/stores/AsyncStorageStoreCache';
 import { ExpoLocationCapability } from '../infrastructure/location/ExpoLocationCapability';
 import { SystemClock } from '../infrastructure/location/SystemClock';
+import { FastAPIStoreSource } from '../infrastructure/stores/FastAPIStoreSource';
 import { FirestoreStoreSource } from '../infrastructure/stores/FirestoreStoreSource';
 import { LegacyFirestoreStoreRepository } from '../infrastructure/stores/LegacyFirestoreStoreRepository';
 import { useStoresController } from '../presentation/stores/useStoresController';
 
 const storeCache = new AsyncStorageStoreCache();
-const storeSource = new FirestoreStoreSource(firestoreDb);
+const storeSource = USE_FASTAPI_BACKEND
+  ? new FastAPIStoreSource()
+  : new FirestoreStoreSource(firestoreDb);
 const storeRepository = new LegacyFirestoreStoreRepository(
   storeSource,
   storeCache,

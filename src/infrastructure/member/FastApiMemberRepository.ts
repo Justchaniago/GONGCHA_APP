@@ -62,7 +62,8 @@ export class FastApiMemberRepository implements MemberRepository {
       .then((document) => {
         if (active) onMember(document);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('[FastApiMemberRepository] load failed:', err);
         if (active) onError();
       });
     return () => {
@@ -82,6 +83,7 @@ export class FastApiMemberRepository implements MemberRepository {
       { method: 'POST', headers },
     );
     if (!bootstrap.ok) {
+      console.warn('[FastApiMemberRepository] bootstrap failed, status:', bootstrap.status);
       throw new Error('member_api_bootstrap_failed');
     }
     const current = await this.fetcher(
@@ -89,6 +91,7 @@ export class FastApiMemberRepository implements MemberRepository {
       { method: 'GET', headers },
     );
     if (!current.ok) {
+      console.warn('[FastApiMemberRepository] get me failed, status:', current.status);
       throw new Error('member_api_read_failed');
     }
     const member = parseMemberResponse(await current.json());
