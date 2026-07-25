@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { RewardDisplayItem, RewardsViewModel, VoucherDisplayItem } from '../../application/rewards/RewardsViewModel';
 import DecorativeBackground from '../../components/DecorativeBackground';
 import ScreenFadeTransition from '../../components/ScreenFadeTransition';
+import { RedemptionConfirmModal } from './RedemptionConfirmModal';
 import { VoucherDetailModal } from './VoucherDetailModal';
 
 const AnimatedFlatList = Animated.FlatList as typeof Animated.FlatList;
@@ -44,7 +45,7 @@ export function RewardsView({
   const [activeTab, setActiveTab] = useState<'catalog' | 'vouchers'>('catalog');
   const [showUsedVouchers, setShowUsedVouchers] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherDisplayItem | null>(null);
-  const [confirmingItemId, setConfirmingItemId] = useState<string | null>(null);
+  const [confirmingItem, setConfirmingItem] = useState<RewardDisplayItem | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const MINI_THRESHOLD = 155;
@@ -119,8 +120,6 @@ export function RewardsView({
   );
 
   const renderRewardItem = ({ item }: { item: RewardDisplayItem }) => {
-    const isConfirming = confirmingItemId === item.id;
-
     return (
       <View style={styles.rewardCard}>
         <View style={styles.imageContainer}>
@@ -144,51 +143,19 @@ export function RewardsView({
               <Text style={styles.pointsText}>{item.pointsRequiredLabel}</Text>
             </View>
 
-            {isConfirming ? (
-              <View style={styles.morphConfirmContainer}>
-                <Text style={styles.morphConfirmText}>Tukar {item.pointsRequiredLabel}?</Text>
-                <View style={styles.morphBtnRow}>
-                  <TouchableOpacity
-                    style={styles.cancelMorphBtn}
-                    onPress={() => setConfirmingItemId(null)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Batal penukaran"
-                  >
-                    <Text style={styles.cancelMorphText}>Batal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.confirmMorphBtn}
-                    onPress={() => {
-                      setConfirmingItemId(null);
-                      onRedeemReward(item);
-                    }}
-                    disabled={redeemingId === item.id}
-                    accessibilityRole="button"
-                    accessibilityLabel="Ya, Tukar"
-                  >
-                    {redeemingId === item.id ? (
-                      <ActivityIndicator size="small" color="#FFF" />
-                    ) : (
-                      <Text style={styles.confirmMorphTextBtn}>Ya, Tukar</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.redeemBtn, !item.canAfford && styles.disabledBtn]}
-                onPress={() => setConfirmingItemId(item.id)}
-                disabled={redeemingId === item.id || !item.canAfford}
-                accessibilityRole="button"
-                accessibilityLabel={`Tukar ${item.title}`}
-              >
-                {redeemingId === item.id ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text style={styles.redeemBtnText}>{item.actionLabel}</Text>
-                )}
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.redeemBtn, !item.canAfford && styles.disabledBtn]}
+              onPress={() => setConfirmingItem(item)}
+              disabled={redeemingId === item.id || !item.canAfford}
+              accessibilityRole="button"
+              accessibilityLabel={`Tukar ${item.title}`}
+            >
+              {redeemingId === item.id ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.redeemBtnText}>{item.actionLabel}</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -383,6 +350,19 @@ export function RewardsView({
             )}
           </LinearGradient>
         </Animated.View>
+
+        <RedemptionConfirmModal
+          visible={!!confirmingItem}
+          item={confirmingItem}
+          onClose={() => setConfirmingItem(null)}
+          onConfirm={() => {
+            if (confirmingItem) {
+              const target = confirmingItem;
+              setConfirmingItem(null);
+              onRedeemReward(target);
+            }
+          }}
+        />
 
         <VoucherDetailModal
           visible={!!selectedVoucher}
