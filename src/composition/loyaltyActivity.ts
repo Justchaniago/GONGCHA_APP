@@ -8,18 +8,24 @@ import { FastApiLoyaltyActivityRepository } from '../infrastructure/loyaltyActiv
 if (runtimeConfig.mode !== 'local_emulator') {
   throw new Error('local_loyalty_activity_requires_emulator');
 }
+const localBackendBaseUrl = runtimeConfig.backendBaseUrl;
 
-export const localLoyaltyActivityController = new LoyaltyActivityController(
-  new FastApiLoyaltyActivityRepository(
-    firebaseLocalAuth,
-    runtimeConfig.backendBaseUrl,
-  ),
-);
+export function createLocalLoyaltyActivityController(): LoyaltyActivityController {
+  return new LoyaltyActivityController(
+    new FastApiLoyaltyActivityRepository(
+      firebaseLocalAuth,
+      localBackendBaseUrl,
+    ),
+  );
+}
+
+export const localLoyaltyActivityController =
+  createLocalLoyaltyActivityController();
 
 export const loadLocalActivityFixture = new LoadLocalActivityFixture(
   new FastApiLocalActivityFixtureGateway(
     firebaseLocalAuth,
-    runtimeConfig.backendBaseUrl,
+    localBackendBaseUrl,
   ),
   async () => {
     await localLoyaltyActivityController.refresh();

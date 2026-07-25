@@ -8,6 +8,7 @@ import LocationPermissionScreen from '../screens/LocationPermissionScreen';
 import LocalDashboardScreen from '../screens/LocalDashboardScreen';
 import LocalLoyaltyActivityScreen from '../screens/LocalLoyaltyActivityScreen';
 import LocalMembershipStatusScreen from '../screens/LocalMembershipStatusScreen';
+import LocalProfileScreen from '../screens/LocalProfileScreen';
 import NotificationPermissionScreen from '../screens/NotificationPermissionScreen';
 import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
@@ -22,6 +23,7 @@ export type LocalStackParamList = {
   LocalDashboard: undefined;
   LocalLoyaltyActivity: undefined;
   LocalMembershipStatus: undefined;
+  LocalProfile: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
 };
 
@@ -84,6 +86,11 @@ export default function LocalAppNavigator() {
             name="LocalMembershipStatus"
             component={LocalMembershipStatusScreen}
             options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="LocalProfile"
+            component={LocalProfileScreen}
+            options={{ animation: 'slide_from_right' }}
           />
         </>
       ) : (

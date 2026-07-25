@@ -434,7 +434,7 @@ test('local activity surface contains no legacy business-data imports', () => {
   }
 });
 
-test('local navigator exposes only the isolated activity verification screen', () => {
+test('local navigator exposes isolated local activity without legacy Profile', () => {
   const navigator = readFileSync(
     new URL('../../src/navigation/LocalAppNavigator.tsx', import.meta.url),
     'utf8',
@@ -444,7 +444,10 @@ test('local navigator exposes only the isolated activity verification screen', (
     'utf8',
   );
   assert.equal(navigator.includes('LocalLoyaltyActivityScreen'), true);
-  assert.equal(navigator.includes('ProfileScreen'), false);
+  assert.equal(
+    /from ['"][^'"]*screens\/ProfileScreen['"]/.test(navigator),
+    false,
+  );
   assert.equal(navigator.includes('MainApp'), false);
   assert.equal(
     dashboard.includes("navigation.navigate('LocalLoyaltyActivity')"),

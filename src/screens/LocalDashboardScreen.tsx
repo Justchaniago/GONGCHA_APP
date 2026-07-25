@@ -100,6 +100,15 @@ export default function LocalDashboardScreen() {
           </View>
         </View>
 
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka profile lokal"
+          style={styles.profileButton}
+          onPress={() => navigation.navigate('LocalProfile')}
+        >
+          <Text style={styles.profileButtonText}>Buka Profile V1</Text>
+        </TouchableOpacity>
+
         <HomeMembershipRegion
           model={loyaltyModel}
           loading={
@@ -252,6 +261,19 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 13,
     lineHeight: 19,
+  },
+  profileButton: {
+    alignItems: 'center',
+    backgroundColor: '#1F2937',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    marginBottom: 16,
+  },
+  profileButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
   notice: {
     backgroundColor: '#FFF7E6',
