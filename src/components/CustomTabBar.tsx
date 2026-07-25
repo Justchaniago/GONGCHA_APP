@@ -140,8 +140,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   };
 
   const tabCount = state.routes.length || 1;
-  const innerWidth = Math.max(barWidth - dynamicBarPadding * 2, 0);
-  const bottomOffset = Math.max(insets.bottom + (isCompact ? 2 : 4), isCompact ? 8 : 10);
+  const bottomOffset = 34;
   const hideTranslateY = barHeight + bottomOffset + 60; 
 
   const handleTabLayout = (routeKey: string, event: LayoutChangeEvent) => {

@@ -40,6 +40,13 @@ const GONGCHA_STORES: StoreOutlet[] = [
     lng: 106.7972,
     openHours: '10:00 - 22:00',
   },
+  {
+    id: 'tp6',
+    name: 'Tunjungan Plaza 6',
+    lat: -7.2622,
+    lng: 112.7394,
+    openHours: '10:00 - 22:00',
+  },
 ];
 
 // Calculate Haversine distance in km
@@ -87,7 +94,7 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
       Animated.sequence([
         Animated.timing(radarPulse, {
           toValue: 1,
-          duration: 1800,
+          duration: 2000,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
@@ -164,13 +171,17 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
 
   const pulseScale = radarPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.4],
+    outputRange: [1, 1.3],
   });
 
   const pulseOpacity = radarPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.6, 0],
+    outputRange: [0.5, 0],
   });
+
+  const formattedDistance = distanceKm >= 1 
+    ? `${distanceKm.toFixed(1)} km` 
+    : `${Math.round(distanceKm * 1000)} m`;
 
   return (
     <TouchableOpacity
@@ -182,14 +193,14 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
       <View style={styles.headerRow}>
         <View style={styles.badgePill}>
           <MapPin size={10} color="#166534" />
-          <Text style={styles.badgeText}>STORE TERDEKAT</Text>
+          <Text style={styles.badgeText}>OUTLET TERDEKAT</Text>
         </View>
         <ChevronRight size={14} color="#A08F88" />
       </View>
 
-      {/* RADAR COMPASS + DISTANCE RING */}
+      {/* COMPASS RADAR CENTERED AREA */}
       <View style={styles.radarSection}>
-        {/* Pulsing Ring */}
+        {/* Pulsing Outer Ring */}
         <Animated.View
           style={[
             styles.pulseRing,
@@ -200,22 +211,16 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
           ]}
         />
 
-        {/* Compass Center Ring */}
-        <View style={styles.compassCenter}>
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Navigation size={20} color="#B91C2F" fill="#B91C2F" />
-          </Animated.View>
-        </View>
-
-        {/* Real-time Distance Pill */}
-        <View style={styles.distancePill}>
-          <Text style={styles.distanceText}>{distanceKm} km</Text>
+        {/* Outer Ring Container */}
+        <View style={styles.outerRing}>
+          {/* Big Dominant Center Distance Text */}
+          <Text style={styles.bigDistanceText}>{formattedDistance}</Text>
         </View>
       </View>
 
       {/* STORE NAME & STATUS */}
       <View style={styles.storeDetails}>
-        <Text style={styles.storeName} numberOfLines={1}>
+        <Text style={styles.storeName} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
           Gong Cha {nearestStore.name}
         </Text>
         <View style={styles.statusRow}>
@@ -230,7 +235,7 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    height: 175,
+    height: 185,
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
     padding: 12,
@@ -271,55 +276,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    height: 64,
-    marginVertical: 2,
+    height: 84,
+    marginVertical: 4,
   },
   pulseRing: {
     position: 'absolute',
-    width: 46,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(185, 28, 47, 0.12)',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: 'rgba(185, 28, 47, 0.08)',
   },
-  compassCenter: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF1F3',
+  outerRing: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#FAF8F5',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFE4E6',
-    shadowColor: '#B91C2F',
+    borderColor: '#EFECE7',
+    shadowColor: '#2A1F1F',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.04,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 1,
+    position: 'relative',
   },
-  distancePill: {
+  bigDistanceText: {
+    color: '#2A1F1F',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    textAlign: 'center',
+  },
+  compassArrowPointer: {
     position: 'absolute',
-    bottom: -2,
-    backgroundColor: '#2A1F1F',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#3D2F2F',
-  },
-  distanceText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
+    top: -5,
+    left: '50%',
+    marginLeft: -6,
+    zIndex: 10,
   },
   storeDetails: {
     alignItems: 'center',
-    marginTop: 2,
+    justifyContent: 'center',
+    minHeight: 38,
   },
   storeName: {
     fontSize: 12,
     fontWeight: '800',
     color: '#2A1F1F',
     textAlign: 'center',
+    lineHeight: 15,
+    paddingHorizontal: 2,
   },
   statusRow: {
     flexDirection: 'row',

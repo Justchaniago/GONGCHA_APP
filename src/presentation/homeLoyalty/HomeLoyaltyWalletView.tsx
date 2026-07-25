@@ -331,7 +331,7 @@ export function HomeWalletRegion({
 
 const styles = StyleSheet.create({
   rewardsCard: {
-    borderRadius: 22,
+    borderRadius: 20,
     borderCurve: 'continuous',
     padding: 18,
     marginBottom: 0,

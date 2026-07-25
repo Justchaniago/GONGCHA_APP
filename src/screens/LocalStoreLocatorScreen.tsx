@@ -65,6 +65,17 @@ const MOCK_STORES: Store[] = [
     phone: '+62 21 7592 1234',
     features: ['Dine-in', 'Takeaway', 'Delivery'],
   } as any,
+  {
+    id: 'mock-tp6',
+    name: 'Gong Cha Tunjungan Plaza 6',
+    address: 'Tunjungan Plaza 6, Lantai 5, Jl. Basuki Rahmat No.8-12, Kedungdoro, Kec. Tegalsari, Surabaya, Jawa Timur 60261',
+    latitude: -7.2622,
+    longitude: 112.7394,
+    openHours: '10:00 - 22:00',
+    isAvailable: true,
+    phone: '+62 31 9924 6789',
+    features: ['Dine-in', 'Takeaway', 'Delivery'],
+  } as any,
 ];
 
 export default function LocalStoreLocatorScreen() {

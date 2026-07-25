@@ -29,6 +29,7 @@ import type { NotificationItem } from '../types/types';
 
 import BentoFeaturedDrinks from '../components/BentoFeaturedDrinks';
 import BentoNearbyOutlet from '../components/BentoNearbyOutlet';
+import BentoDailyCheckIn from '../components/BentoDailyCheckIn';
 
 
 import { colors } from '../theme/colorTokens';
@@ -295,8 +296,8 @@ export default function HomeScreen() {
           <Animated.View style={[
             styles.fixedHeaderContainer,
             {
-              paddingTop: insets.top + 8,
-              paddingHorizontal: horizontalPadding,
+              paddingTop: 62,
+              paddingHorizontal: 16,
               paddingBottom: 16,
               backgroundColor: colors.brand.primary,
               borderBottomLeftRadius: 36,
@@ -308,28 +309,33 @@ export default function HomeScreen() {
             },
           ]}>
             <View style={styles.headerContent}>
-              <View style={styles.headerLeft}>
-                <View style={styles.avatarWrap}>
-                  <UserAvatar name={member?.fullName ?? 'Member'} photoURL={member?.photoURL} size={avatarSize} />
-                  <View style={styles.avatarStatusDot} />
-                </View>
-                <View style={styles.headerTextContainer}>
-                  <Text style={[styles.greeting, { color: 'rgba(255, 255, 255, 0.82)' }]}>{getGreeting()},</Text>
+              {/* LEFT AREA: Gongcha Logo */}
+              <View style={styles.headerLeftLogoContainer}>
+                <Image
+                  source={require('../../assets/images/GongchaLogo.png')}
+                  style={styles.gongchaHeaderLogo}
+                  resizeMode="contain"
+                />
+              </View>
+
+              {/* RIGHT AREA: Greeting and Bell Button */}
+              <View style={styles.headerRightContainer}>
+                <View style={styles.headerGreetingTextContainer}>
+                  <Text style={[styles.greeting, { color: 'rgba(255, 255, 255, 0.82)', textAlign: 'right' }]}>{getGreeting()},</Text>
                   {isMemberLoading ? (
-                    <SkeletonLoader width={100} height={20} style={{ marginTop: 4 }} />
+                    <SkeletonLoader width={80} height={16} style={{ marginTop: 2, alignSelf: 'flex-end' }} />
                   ) : (
                     <Text
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.8}
-                      style={[styles.name, { color: '#FFFFFF' }]}
+                      style={[styles.name, { color: '#FFFFFF', textAlign: 'right' }]}
                     >
                       {member?.fullName ?? 'Member'}
                     </Text>
                   )}
                 </View>
-              </View>
-              <View style={styles.headerRight}>
+
                 <TouchableOpacity
                   style={[
                     styles.notificationBtn,
@@ -354,11 +360,6 @@ export default function HomeScreen() {
                     </View>
                   )}
                 </TouchableOpacity>
-                <Image
-                  source={require('../../assets/images/logo1.png')}
-                  style={[styles.logoTopRight, { width: headerLogoSize, height: headerLogoSize + 4, tintColor: '#FFFFFF' }]}
-                  resizeMode="contain"
-                />
               </View>
             </View>
 
@@ -423,9 +424,12 @@ export default function HomeScreen() {
                   onPress={() => navigation.navigate('Rewards')}
                 />
                 <BentoNearbyOutlet
-                  onPress={() => navigation.navigate('Rewards')}
+                  onPress={() => navigation.navigate('StoreLocator')}
                 />
               </View>
+
+              {/* RECTANGULAR BENTO: DAILY CHECK-IN REWARD */}
+              <BentoDailyCheckIn />
             </ScrollView>
 
           </Animated.View>
@@ -460,16 +464,15 @@ const styles = StyleSheet.create({
 
 
 
-  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, alignSelf: 'stretch' },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 12 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, position: 'relative', flexShrink: 0 },
-  avatarWrap: { position: 'relative', marginRight: 12 },
-  avatarStatusDot: { position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, backgroundColor: '#4CAF50', borderRadius: 7, borderWidth: 2, borderColor: '#FFF' },
+  headerLeftLogoContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' },
+  gongchaHeaderLogo: { width: 120, height: 35, tintColor: '#FFFFFF' },
+  headerRightContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'flex-end' },
+  headerGreetingTextContainer: { alignItems: 'flex-end', justifyContent: 'center', marginRight: 4 },
   greeting: { fontSize: 13, fontWeight: '500' },
-  headerTextContainer: { justifyContent: 'center', flex: 1, minWidth: 0 },
-  name: { fontSize: 19, fontWeight: 'bold' },
+  name: { fontSize: 18, fontWeight: 'bold' },
   notificationBtn: { borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
   notificationBtnShell: { flexShrink: 0 },
   notificationBadge: {
