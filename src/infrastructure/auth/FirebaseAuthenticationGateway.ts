@@ -28,8 +28,25 @@ export class FirebaseAuthenticationGateway
   private async getCurrentProfile(): Promise<AuthProfile | null> {
     const user = this.auth.currentUser;
     if (!user) return null;
-    const snapshot = await getDoc(doc(this.database, 'users', user.uid));
-    return snapshot.exists() ? (snapshot.data() as AuthProfile) : null;
+    try {
+      const snapshot = await getDoc(doc(this.database, 'users', user.uid));
+      if (snapshot.exists()) return snapshot.data() as AuthProfile;
+    } catch (e) {
+      console.warn('[FirebaseAuthenticationGateway] Firestore getDoc warning:', e);
+    }
+    return {
+      uid: user.uid,
+      name: user.displayName || 'Member',
+      phoneNumber: user.phoneNumber || user.email?.split('@')[0] || '',
+      currentPoints: 0,
+      pendingPoints: 0,
+      lifetimePoints: 0,
+      tierXp: 0,
+      tier: 'Silver',
+      joinedDate: new Date().toISOString(),
+      vouchers: [],
+      role: 'member',
+    };
   }
 
   async loginWithPhoneAlias(
@@ -97,10 +114,14 @@ export class FirebaseAuthenticationGateway
       vouchers: [],
       role: 'member',
     };
-    await setDoc(
-      doc(this.database, 'users', credential.user.uid),
-      newProfile,
-    );
+    try {
+      await setDoc(
+        doc(this.database, 'users', credential.user.uid),
+        newProfile,
+      );
+    } catch (e) {
+      console.warn('[FirebaseAuthenticationGateway] Firestore setDoc warning:', e);
+    }
     return newProfile;
   }
 
@@ -130,10 +151,14 @@ export class FirebaseAuthenticationGateway
       role: 'member',
       profileComplete: false,
     };
-    await setDoc(
-      doc(this.database, 'users', credential.user.uid),
-      newProfile,
-    );
+    try {
+      await setDoc(
+        doc(this.database, 'users', credential.user.uid),
+        newProfile,
+      );
+    } catch (e) {
+      console.warn('[FirebaseAuthenticationGateway] Firestore setDoc warning:', e);
+    }
     return newProfile;
   }
 

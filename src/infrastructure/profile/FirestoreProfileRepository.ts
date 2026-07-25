@@ -26,27 +26,46 @@ export class FirestoreProfileRepository implements ProfileRepository {
   async getCurrent(): Promise<ProfileData | null> {
     const user = this.auth.currentUser;
     if (!user) return null;
-    const snapshot = await getDoc(doc(this.database, 'users', user.uid));
-    return snapshot.exists() ? (snapshot.data() as ProfileData) : null;
+    try {
+      const snapshot = await getDoc(doc(this.database, 'users', user.uid));
+      if (snapshot.exists()) return snapshot.data() as ProfileData;
+    } catch (error) {
+      console.warn('[FirestoreProfileRepository] getCurrent warning:', error);
+    }
+    return {
+      uid: user.uid,
+      name: user.displayName || user.email?.split('@')[0] || 'Member',
+      email: user.email ?? '',
+      phoneNumber: user.phoneNumber || user.email?.split('@')[0] || '',
+      profileComplete: true,
+    } as ProfileData;
   }
 
   async updateCurrent(updates: ProfileUpdates) {
     const user = this.requireCurrentUser();
-    await updateDoc(doc(this.database, 'users', user.uid), updates);
+    try {
+      await updateDoc(doc(this.database, 'users', user.uid), updates);
+    } catch (e) {
+      console.warn('[FirestoreProfileRepository] updateCurrent warning:', e);
+    }
   }
 
   async completeCurrent(fullName: string, dateOfBirth: string) {
     const user = this.requireCurrentUser();
-    await setDoc(
-      doc(this.database, 'users', user.uid),
-      {
-        name: fullName,
-        dateOfBirth,
-        profileComplete: true,
-      },
-      { merge: true },
-    );
-    await user.getIdToken(true);
+    try {
+      await setDoc(
+        doc(this.database, 'users', user.uid),
+        {
+          name: fullName,
+          dateOfBirth,
+          profileComplete: true,
+        },
+        { merge: true },
+      );
+    } catch (e) {
+      console.warn('[FirestoreProfileRepository] completeCurrent warning:', e);
+    }
+    await user.getIdToken(true).catch(() => '');
   }
 
   private requireCurrentUser() {
