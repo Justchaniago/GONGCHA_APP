@@ -131,6 +131,28 @@ export default function LocalDashboardScreen() {
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka menu lokal"
+          style={styles.menuButton}
+          onPress={() => navigation.navigate('LocalMenu')}
+        >
+          <Text style={styles.menuButtonText}>
+            🧋 Buka Menu & Katalog V1
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka store locator lokal"
+          style={styles.storeLocatorButton}
+          onPress={() => navigation.navigate('LocalStoreLocator')}
+        >
+          <Text style={styles.storeLocatorButtonText}>
+            📍 Buka Store Locator V1
+          </Text>
+        </TouchableOpacity>
+
         <HomeMembershipRegion
           model={loyaltyModel}
           loading={
@@ -326,6 +348,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   rewardsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  menuButton: {
+    alignItems: 'center',
+    backgroundColor: '#B91C2F',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    marginBottom: 16,
+  },
+  menuButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  storeLocatorButton: {
+    alignItems: 'center',
+    backgroundColor: '#8C7B75',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    marginBottom: 16,
+  },
+  storeLocatorButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',

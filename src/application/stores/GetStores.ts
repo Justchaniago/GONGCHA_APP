@@ -8,6 +8,53 @@ import type {
   Store,
   UserPosition,
 } from './Store';
+import { getStoreStatus } from './GetStoreStatus';
+
+export interface StoreDisplayItem {
+  id: string;
+  name: string;
+  address: string;
+  distanceLabel?: string;
+  isOpen: boolean;
+  operatingHours: string;
+  phone: string;
+  latitude: number;
+  longitude: number;
+  features: string[];
+}
+
+export function buildStoresViewModel(
+  rawStores: readonly Store[],
+  userLocation?: UserPosition | null,
+): StoreDisplayItem[] {
+  return rawStores.map((store) => {
+    let distanceLabel: string | undefined = undefined;
+    if (userLocation) {
+      const distance = calculateStoreDistance(userLocation, {
+        latitude: store.latitude,
+        longitude: store.longitude,
+      });
+      distanceLabel = `${distance} km`;
+    } else if (store.distance !== undefined) {
+      distanceLabel = `${store.distance} km`;
+    }
+
+    const isOpen = getStoreStatus(store, Date.now()) !== 'closed';
+
+    return {
+      id: store.id,
+      name: store.name,
+      address: store.address,
+      distanceLabel,
+      isOpen,
+      operatingHours: store.openHours,
+      phone: (store as any).phone || '+62 21 2345 6789',
+      latitude: store.latitude,
+      longitude: store.longitude,
+      features: (store as any).features || ['Dine-in', 'Takeaway', 'Delivery'],
+    };
+  });
+}
 
 export interface StoresSnapshot {
   stores: Store[];
