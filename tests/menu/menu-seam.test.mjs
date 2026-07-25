@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GetMenu, visibleMenuByName } from '../../src/application/menu/GetMenu.ts';
+import { GetMenu, visibleMenuByName, buildMenuViewModel } from '../../src/application/menu/GetMenu.ts';
 import {
   LegacyFirestoreMenuRepository,
   mergeMenuItems,
@@ -140,3 +140,56 @@ test('GetMenu exposes sorted visible data from repository snapshot', async () =>
     stale: true,
   });
 });
+
+test('buildMenuViewModel maps and filters raw menu items into presentable categories and items', () => {
+  const rawItems = [
+    {
+      id: 'item-1',
+      name: 'Pearl Milk Tea',
+      category: 'MilkTea',
+      basePrice: 25000,
+      isLargeAvailable: true,
+      description: 'Classic drink',
+      isAvailable: true,
+      rating: 4.9,
+    },
+    {
+      id: 'item-2',
+      name: 'Matcha Red Bean',
+      category: 'Matcha',
+      basePrice: 28000,
+      isLargeAvailable: true,
+      isAvailable: true,
+      rating: 4.5,
+    },
+    {
+      id: 'item-3',
+      name: 'Deleted Tea',
+      category: 'BrewedTea',
+      basePrice: 15000,
+      isLargeAvailable: true,
+      isAvailable: false,
+    }
+  ];
+
+  const modelAll = buildMenuViewModel(rawItems);
+
+  // Checks categories and counts
+  assert.equal(modelAll.categories.find(c => c.id === 'Semua')?.count, 2);
+  assert.equal(modelAll.categories.find(c => c.id === 'Milk Tea')?.count, 1);
+  assert.equal(modelAll.categories.find(c => c.id === 'Creative Tea')?.count, 1); // Matcha is normalized to Creative Tea
+  assert.equal(modelAll.categories.find(c => c.id === 'Brewed Tea')?.count, 0); // Deleted Tea is filtered out because isAvailable is false
+
+  // Checks mapping
+  const mappedMilkTea = modelAll.items.find(i => i.id === 'item-1');
+  assert.ok(mappedMilkTea);
+  assert.equal(mappedMilkTea.formattedPrice, 'Rp 25.000');
+  assert.equal(mappedMilkTea.isPopular, true); // rating >= 4.8
+  assert.equal(mappedMilkTea.isNew, false);
+
+  // Checks filtering by selectedCategory
+  const modelMilkTea = buildMenuViewModel(rawItems, 'Milk Tea');
+  assert.equal(modelMilkTea.items.length, 1);
+  assert.equal(modelMilkTea.items[0].id, 'item-1');
+});
+

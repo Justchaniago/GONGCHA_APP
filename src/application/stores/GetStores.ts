@@ -8,7 +8,7 @@ import type {
   Store,
   UserPosition,
 } from './Store';
-import { getStoreStatus } from './GetStoreStatus';
+import { getStoreStatus } from './GetStoreStatus.ts';
 
 export interface StoreDisplayItem {
   id: string;
