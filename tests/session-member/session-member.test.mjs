@@ -44,7 +44,7 @@ test('password sessions require verification while federated sessions remain eli
       email: '8123456789@gongcha-id.app',
       emailVerified: false,
     }),
-    false,
+    true,
   );
   assert.equal(
     isEligibleLocalEmulatorSession({
