@@ -45,7 +45,7 @@ if (Platform.OS !== 'web') {
 export const firebaseAuth = auth;
 
 // 3. Init Service Lain
-export const firestoreDb = getFirestore(firebaseApp, 'gongcha-ver001');
+export const firestoreDb = getFirestore(firebaseApp);
 export const firebaseStorage = getStorage(firebaseApp);
 
 // 4. Analytics
