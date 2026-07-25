@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { buildLocalHomeLoyaltyViewModel } from '../application/homeLoyalty/HomeLoyaltyViewModel';
+import LocalMemberCardModal from '../components/LocalMemberCardModal';
 import { authCommands } from '../composition/auth';
 import { localLoyaltySummaryController } from '../composition/loyaltySummary';
 import { useMember } from '../context/MemberContext';
@@ -41,6 +42,7 @@ export default function LocalDashboardScreen() {
     [summary],
   );
   const [loggingOut, setLoggingOut] = useState(false);
+  const [cardVisible, setCardVisible] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -99,6 +101,15 @@ export default function LocalDashboardScreen() {
             </Text>
           </View>
         </View>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka member card V1"
+          style={styles.cardButton}
+          onPress={() => setCardVisible(true)}
+        >
+          <Text style={styles.cardButtonText}>💳 Buka Member Card V1</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           accessibilityRole="button"
@@ -176,6 +187,13 @@ export default function LocalDashboardScreen() {
           <Text style={styles.logoutText}>Logout dan Ulangi Tes</Text>
         )}
       </TouchableOpacity>
+
+      <LocalMemberCardModal
+        visible={cardVisible}
+        onClose={() => setCardVisible(false)}
+        member={member}
+        loyaltySummary={summary}
+      />
     </SafeAreaView>
   );
 }
@@ -261,6 +279,19 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 13,
     lineHeight: 19,
+  },
+  cardButton: {
+    alignItems: 'center',
+    backgroundColor: '#C8102E',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    marginBottom: 12,
+  },
+  cardButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
   profileButton: {
     alignItems: 'center',
