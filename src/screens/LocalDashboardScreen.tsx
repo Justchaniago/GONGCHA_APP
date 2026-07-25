@@ -120,6 +120,17 @@ export default function LocalDashboardScreen() {
           <Text style={styles.profileButtonText}>Buka Profile V1</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka rewards lokal"
+          style={styles.rewardsButton}
+          onPress={() => navigation.navigate('LocalRewards')}
+        >
+          <Text style={styles.rewardsButtonText}>
+            🎁 Buka Rewards & Voucher V1
+          </Text>
+        </TouchableOpacity>
+
         <HomeMembershipRegion
           model={loyaltyModel}
           loading={
@@ -302,6 +313,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   profileButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  rewardsButton: {
+    alignItems: 'center',
+    backgroundColor: '#C8102E',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    marginBottom: 16,
+  },
+  rewardsButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
