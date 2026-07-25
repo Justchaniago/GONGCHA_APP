@@ -17,6 +17,7 @@ import ProfileCompletionScreen from '../screens/ProfileCompletionScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LocalStoreLocatorScreen from '../screens/LocalStoreLocatorScreen';
+import LocalNotificationsScreen from '../screens/LocalNotificationsScreen';
 import { hasCompletedGuestOnboarding } from '../utils/guestOnboarding';
 
 export type LocalStackParamList = {
@@ -31,6 +32,7 @@ export type LocalStackParamList = {
   LocalRewards: undefined;
   LocalMenu: undefined;
   LocalStoreLocator: undefined;
+  LocalNotifications: undefined;
   LocalPromotions: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
 };
@@ -118,6 +120,11 @@ export default function LocalAppNavigator() {
           <Stack.Screen
             name="LocalPromotions"
             component={LocalPromotionsScreen}
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="LocalNotifications"
+            component={LocalNotificationsScreen}
             options={{ animation: 'slide_from_bottom' }}
           />
         </>

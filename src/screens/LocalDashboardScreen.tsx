@@ -164,6 +164,17 @@ export default function LocalDashboardScreen() {
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Buka notifikasi lokal"
+          style={styles.notificationsButton}
+          onPress={() => navigation.navigate('LocalNotifications')}
+        >
+          <Text style={styles.notificationsButtonText}>
+            🔔 Buka Notifikasi V1
+          </Text>
+        </TouchableOpacity>
+
         <HomeMembershipRegion
           model={loyaltyModel}
           loading={
@@ -398,6 +409,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   promotionsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  notificationsButton: {
+    alignItems: 'center',
+    backgroundColor: '#CA8A04',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    marginBottom: 16,
+  },
+  notificationsButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
