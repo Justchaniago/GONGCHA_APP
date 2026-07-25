@@ -15,6 +15,12 @@ import type { LocalStackParamList } from '../navigation/LocalAppNavigator';
 
 const MOCK_CATALOG = [
   {
+    id: 'cat-0',
+    title: 'Free Welcome Tea (Demo)',
+    description: 'Gratis khusus testing lokal emulator (0 Leaves).',
+    pointsRequired: 0,
+  },
+  {
     id: 'cat-1',
     title: 'Free Pearl Milk Tea',
     description: 'Tukar 500 Leaves dengan 1 Pearl Milk Tea reguler.',
@@ -44,22 +50,21 @@ export default function LocalRewardsScreen() {
   );
   const state = useLocalLoyaltySummary(controller, member?.uid ?? null);
 
+  const [bonusLeaves] = useState(2000); // Override +2.000 Leaves untuk kemudahan pengujian emulator
   const [deductedLeaves, setDeductedLeaves] = useState(0);
   const [localVouchers, setLocalVouchers] = useState<any[]>([]);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
 
   const summary = useMemo(() => {
-    if (state.phase === 'ready' && state.summary) {
-      return {
-        leaves_balance: Math.max(
-          0,
-          state.summary.availableLeaves - deductedLeaves,
-        ),
-        pending_leaves: state.summary.pending?.leaves ?? 0,
-      };
-    }
-    return null;
-  }, [state, deductedLeaves]);
+    const baseLeaves = state.phase === 'ready' && state.summary ? state.summary.availableLeaves : 0;
+    return {
+      leaves_balance: Math.max(
+        0,
+        baseLeaves + bonusLeaves - deductedLeaves,
+      ),
+      pending_leaves: state.phase === 'ready' && state.summary ? (state.summary.pending?.leaves ?? 0) : 0,
+    };
+  }, [state, bonusLeaves, deductedLeaves]);
 
   const model = useMemo(() => {
     return buildLocalRewardsViewModel(
