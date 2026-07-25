@@ -84,27 +84,40 @@ export default function LocalRewardsScreen() {
       return;
     }
 
-    setRedeemingId(item.id);
-    setTimeout(() => {
-      setRedeemingId(null);
-      setDeductedLeaves((prev) => prev + item.pointsRequired);
+    Alert.alert(
+      'Konfirmasi Penukaran',
+      `Tukar ${item.pointsRequiredLabel} untuk voucher "${item.title}"?`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Ya, Tukar',
+          style: 'default',
+          onPress: () => {
+            setRedeemingId(item.id);
+            setTimeout(() => {
+              setRedeemingId(null);
+              setDeductedLeaves((prev) => prev + item.pointsRequired);
 
-      const newVoucher = {
-        id: `vouch-${Date.now()}`,
-        code: `GC-LOCAL-${Math.floor(1000 + Math.random() * 9000)}`,
-        title: item.title,
-        description: item.description,
-        discountType: 'fixed',
-        value: item.pointsRequired,
-        formattedExpiry: 'Berlaku s/d 31 Des 2026',
-        status: 'active',
-      };
-      setLocalVouchers((prev) => [newVoucher, ...prev]);
-      Alert.alert(
-        'Penukaran Berhasil 🎉',
-        `Voucher "${item.title}" telah ditambahkan ke tab "Voucher Saya".`,
-      );
-    }, 800);
+              const newVoucher = {
+                id: `vouch-${Date.now()}`,
+                code: `GC-LOCAL-${Math.floor(1000 + Math.random() * 9000)}`,
+                title: item.title,
+                description: item.description,
+                discountType: 'fixed',
+                value: item.pointsRequired,
+                formattedExpiry: 'Berlaku s/d 31 Des 2026',
+                status: 'active',
+              };
+              setLocalVouchers((prev) => [newVoucher, ...prev]);
+              Alert.alert(
+                'Penukaran Berhasil 🎉',
+                `Voucher "${item.title}" telah ditambahkan ke tab "Voucher Saya".`,
+              );
+            }, 800);
+          },
+        },
+      ],
+    );
   };
 
   return (
