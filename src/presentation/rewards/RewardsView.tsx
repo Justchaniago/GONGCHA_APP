@@ -17,7 +17,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { RewardDisplayItem, RewardsViewModel, VoucherDisplayItem } from '../../application/rewards/RewardsViewModel';
 import DecorativeBackground from '../../components/DecorativeBackground';
 import ScreenFadeTransition from '../../components/ScreenFadeTransition';
-import { RedemptionConfirmModal } from './RedemptionConfirmModal';
 import { VoucherDetailModal } from './VoucherDetailModal';
 
 const AnimatedFlatList = Animated.FlatList as typeof Animated.FlatList;
@@ -45,7 +44,7 @@ export function RewardsView({
   const [activeTab, setActiveTab] = useState<'catalog' | 'vouchers'>('catalog');
   const [showUsedVouchers, setShowUsedVouchers] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherDisplayItem | null>(null);
-  const [confirmingItem, setConfirmingItem] = useState<RewardDisplayItem | null>(null);
+  const [confirmingItemId, setConfirmingItemId] = useState<string | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const MINI_THRESHOLD = 155;
@@ -120,6 +119,8 @@ export function RewardsView({
   );
 
   const renderRewardItem = ({ item }: { item: RewardDisplayItem }) => {
+    const isConfirming = confirmingItemId === item.id;
+
     return (
       <View style={styles.rewardCard}>
         <View style={styles.imageContainer}>
@@ -142,19 +143,52 @@ export function RewardsView({
               <Star size={12} color="#B91C2F" fill="#B91C2F" />
               <Text style={styles.pointsText}>{item.pointsRequiredLabel}</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.redeemBtn, !item.canAfford && styles.disabledBtn]}
-              onPress={() => setConfirmingItem(item)}
-              disabled={redeemingId === item.id || !item.canAfford}
-              accessibilityRole="button"
-              accessibilityLabel={`Tukar ${item.title}`}
-            >
-              {redeemingId === item.id ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Text style={styles.redeemBtnText}>{item.actionLabel}</Text>
-              )}
-            </TouchableOpacity>
+
+            {isConfirming ? (
+              <View style={styles.morphConfirmContainer}>
+                <Text style={styles.morphConfirmText}>Tukar {item.pointsRequiredLabel}?</Text>
+                <View style={styles.morphBtnRow}>
+                  <TouchableOpacity
+                    style={styles.cancelMorphBtn}
+                    onPress={() => setConfirmingItemId(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Batal penukaran"
+                  >
+                    <Text style={styles.cancelMorphText}>Batal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.confirmMorphBtn}
+                    onPress={() => {
+                      setConfirmingItemId(null);
+                      onRedeemReward(item);
+                    }}
+                    disabled={redeemingId === item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel="Ya, Tukar"
+                  >
+                    {redeemingId === item.id ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text style={styles.confirmMorphTextBtn}>Ya, Tukar</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.redeemBtn, !item.canAfford && styles.disabledBtn]}
+                onPress={() => setConfirmingItemId(item.id)}
+                disabled={redeemingId === item.id || !item.canAfford}
+                accessibilityRole="button"
+                accessibilityLabel={`Tukar ${item.title}`}
+              >
+                {redeemingId === item.id ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.redeemBtnText}>{item.actionLabel}</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -350,19 +384,6 @@ export function RewardsView({
           </LinearGradient>
         </Animated.View>
 
-        <RedemptionConfirmModal
-          visible={!!confirmingItem}
-          item={confirmingItem}
-          onClose={() => setConfirmingItem(null)}
-          onConfirm={() => {
-            if (confirmingItem) {
-              const target = confirmingItem;
-              setConfirmingItem(null);
-              onRedeemReward(target);
-            }
-          }}
-        />
-
         <VoucherDetailModal
           visible={!!selectedVoucher}
           voucher={selectedVoucher}
@@ -557,9 +578,48 @@ const styles = StyleSheet.create({
   emptyText: { color: '#8C7B75', textAlign: 'center', fontSize: 14, fontWeight: '600', lineHeight: 20 },
   miniHeader: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 100 },
   miniHeaderGradient: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 18, borderRadius: 999, elevation: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
-  miniHeaderPts: { fontSize: 13, fontWeight: '800', color: '#FFF' },
-  miniHeaderSep: { width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 2 },
-  miniHeaderPending: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+  miniHeaderPts: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+  miniHeaderSep: { width: 1, height: 10, backgroundColor: 'rgba(255,255,255,0.25)' },
+  miniHeaderPending: { color: '#D4A853', fontSize: 11, fontWeight: '600' },
+  morphConfirmContainer: {
+    alignItems: 'flex-end',
+  },
+  morphConfirmText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B91C2F',
+    marginBottom: 4,
+  },
+  morphBtnRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  cancelMorphBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelMorphText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  confirmMorphBtn: {
+    backgroundColor: '#16A34A',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmMorphTextBtn: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   usedSection: { marginTop: 12, marginBottom: 8 },
   usedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 4, borderTopWidth: 1, borderTopColor: '#F0E8E2' },
   usedToggleText: { fontSize: 13, fontWeight: '700', color: '#8C7B75' },
