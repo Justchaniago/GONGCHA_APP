@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  RefreshControl,
   ScrollView,
   SafeAreaView,
   StyleSheet,
@@ -13,15 +14,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import { buildLocalHomeLoyaltyViewModel } from '../application/homeLoyalty/HomeLoyaltyViewModel';
 import { authCommands } from '../composition/auth';
 import { localLoyaltySummaryController } from '../composition/loyaltySummary';
 import { useMember } from '../context/MemberContext';
 import type { LocalStackParamList } from '../navigation/LocalAppNavigator';
+import {
+  HomeMembershipRegion,
+  HomeWalletRegion,
+} from '../presentation/homeLoyalty/HomeLoyaltyWalletView';
 import { useLocalLoyaltySummary } from '../presentation/loyaltySummary/useLocalLoyaltySummary';
-
-function leavesLabel(value: number): string {
-  return value === 1 ? 'Leaf' : 'Leaves';
-}
 
 export default function LocalDashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -34,6 +36,10 @@ export default function LocalDashboardScreen() {
   );
   const summary =
     summaryState.phase === 'ready' ? summaryState.summary : null;
+  const loyaltyModel = useMemo(
+    () => (summary ? buildLocalHomeLoyaltyViewModel(summary) : null),
+    [summary],
+  );
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -56,6 +62,22 @@ export default function LocalDashboardScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={
+              summaryState.phase === 'ready' && summaryState.refreshing
+            }
+            onRefresh={() => {
+              if (summaryState.phase === 'ready') {
+                void localLoyaltySummaryController.refresh();
+              } else {
+                void localLoyaltySummaryController.retry();
+              }
+            }}
+            colors={['#B91C2F']}
+            tintColor="#B91C2F"
+          />
+        }
       >
         <View style={styles.badge}>
           <Text style={styles.badgeText}>LOCAL EMULATOR</Text>
@@ -78,110 +100,40 @@ export default function LocalDashboardScreen() {
           </View>
         </View>
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryEyebrow}>CANDIDATE LOYALTY POLICY</Text>
-          {summaryState.phase === 'idle' ||
-          summaryState.phase === 'loading' ? (
-            <View style={styles.summaryLoading}>
-              <ActivityIndicator color="#C8102E" />
-              <Text style={styles.summaryMuted}>Memuat Leaves dari backend...</Text>
-            </View>
-          ) : summaryState.phase === 'error' ? (
-            <View>
-              <Text style={styles.summaryError}>
-                Loyalty summary gagal dimuat.
-              </Text>
-              <TouchableOpacity
-                style={styles.summaryRetry}
-                onPress={() =>
-                  void localLoyaltySummaryController.retry()
-                }
-              >
-                <Text style={styles.summaryRetryText}>Coba Lagi</Text>
-              </TouchableOpacity>
-            </View>
-          ) : summary ? (
-            <>
-              <Text style={styles.tierName}>
-                {summary.tier.displayName}
-              </Text>
-              <Text style={styles.summaryPolicy}>
-                {summary.policyVersion}
-              </Text>
-              <View style={styles.leavesRow}>
-                <View style={styles.leavesMetric}>
-                  <Text style={styles.leavesValue}>
-                    {summary.availableLeaves}
-                  </Text>
-                  <Text style={styles.leavesCaption}>
-                    Available{' '}
-                    {leavesLabel(summary.availableLeaves)}
-                  </Text>
-                </View>
-                <View style={styles.leavesMetric}>
-                  <Text style={styles.leavesValue}>
-                    {summary.qualifyingLeaves}
-                  </Text>
-                  <Text style={styles.leavesCaption}>
-                    Qualifying{' '}
-                    {leavesLabel(summary.qualifyingLeaves)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${summary.tier.progressPercent}%`,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressText}>
-                {summary.tier.nextDisplayName
-                  ? `${summary.tier.remaining} ${leavesLabel(
-                      summary.tier.remaining,
-                    )} menuju ${summary.tier.nextDisplayName}`
-                  : 'Tier kandidat tertinggi tercapai'}
-              </Text>
-              <Text style={styles.pendingText}>
-                Pending Leaves belum tersedia.
-              </Text>
-              {summaryState.error ? (
-                <Text style={styles.summaryError}>
-                  Refresh gagal; data sebelumnya tetap ditampilkan.
-                </Text>
-              ) : null}
-              <TouchableOpacity
-                style={styles.summaryRefresh}
-                disabled={summaryState.refreshing}
-                onPress={() =>
-                  void localLoyaltySummaryController.refresh()
-                }
-              >
-                {summaryState.refreshing ? (
-                  <ActivityIndicator color="#C8102E" />
-                ) : (
-                  <Text style={styles.summaryRefreshText}>
-                    Refresh Loyalty Summary
-                  </Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Buka status membership lokal"
-                style={styles.membershipButton}
-                onPress={() =>
-                  navigation.navigate('LocalMembershipStatus')
-                }
-              >
-                <Text style={styles.membershipButtonText}>
-                  Lihat Membership Status
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
+        <HomeMembershipRegion
+          model={loyaltyModel}
+          loading={
+            summaryState.phase === 'idle' ||
+            summaryState.phase === 'loading'
+          }
+          onPress={() => navigation.navigate('LocalMembershipStatus')}
+        />
+        {summaryState.phase === 'error' ? (
+          <View style={styles.summaryErrorCard}>
+            <Text style={styles.summaryError}>
+              Loyalty summary gagal dimuat. Nilai nol tidak ditampilkan.
+            </Text>
+            <TouchableOpacity
+              style={styles.summaryRetry}
+              onPress={() => void localLoyaltySummaryController.retry()}
+            >
+              <Text style={styles.summaryRetryText}>Coba Lagi</Text>
+            </TouchableOpacity>
+          </View>
+        ) : summaryState.error ? (
+          <Text style={styles.summaryError}>
+            Refresh gagal; data sebelumnya tetap ditampilkan.
+          </Text>
+        ) : null}
+        <View style={styles.walletRegion}>
+          <HomeWalletRegion
+            model={loyaltyModel}
+            loading={
+              summaryState.phase === 'idle' ||
+              summaryState.phase === 'loading'
+            }
+            onAction={() => navigation.navigate('LocalLoyaltyActivity')}
+          />
         </View>
 
         <View style={styles.notice}>
@@ -306,84 +258,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
   },
-  summaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 18,
-    marginBottom: 16,
-  },
-  summaryEyebrow: {
-    color: '#C8102E',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  summaryLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 54,
-  },
-  summaryMuted: {
-    color: '#6B7280',
-    fontSize: 13,
-    marginLeft: 10,
-  },
-  tierName: {
-    color: '#1A1A1A',
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  summaryPolicy: {
-    color: '#9CA3AF',
-    fontSize: 10,
-    marginBottom: 16,
-  },
-  leavesRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  leavesMetric: {
-    flex: 1,
-  },
-  leavesValue: {
-    color: '#1A1A1A',
-    fontSize: 26,
-    fontWeight: '800',
-  },
-  leavesCaption: {
-    color: '#6B7280',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: '#F3E8EA',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 8,
-    backgroundColor: '#C8102E',
-    borderRadius: 999,
-  },
-  progressText: {
-    color: '#4B5563',
-    fontSize: 12,
-    marginTop: 8,
-  },
-  pendingText: {
-    color: '#8A5A16',
-    fontSize: 12,
-    marginTop: 8,
-  },
   summaryError: {
     color: '#B91C1C',
     fontSize: 12,
     marginTop: 8,
+  },
+  summaryErrorCard: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
   },
   summaryRetry: {
     alignItems: 'center',
@@ -397,32 +283,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  summaryRefresh: {
-    alignItems: 'center',
-    borderColor: '#C8102E',
-    borderRadius: 10,
-    borderWidth: 1,
-    minHeight: 40,
-    justifyContent: 'center',
-    marginTop: 12,
-  },
-  summaryRefreshText: {
-    color: '#C8102E',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  membershipButton: {
-    alignItems: 'center',
-    backgroundColor: '#C8102E',
-    borderRadius: 10,
-    minHeight: 42,
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  membershipButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
+  walletRegion: {
+    marginTop: 8,
+    marginBottom: 16,
   },
   noticeTitle: {
     color: '#7C4A03',

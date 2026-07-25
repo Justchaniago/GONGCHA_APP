@@ -343,6 +343,7 @@ test('local summary surface has no provider, legacy tier, or client policy math'
     '../../src/infrastructure/loyaltySummary/FastApiLoyaltySummaryRepository.ts',
     '../../src/presentation/loyaltySummary/useLocalLoyaltySummary.ts',
     '../../src/composition/loyaltySummary.ts',
+    '../../src/presentation/homeLoyalty/HomeLoyaltyWalletView.tsx',
     '../../src/screens/LocalDashboardScreen.tsx',
     '../../src/screens/LocalMembershipStatusScreen.tsx',
   ];
@@ -371,10 +372,14 @@ test('local summary surface has no provider, legacy tier, or client policy math'
       );
     }
   }
-  const dashboard = readFileSync(
-    new URL('../../src/screens/LocalDashboardScreen.tsx', import.meta.url),
-    'utf8',
-  );
+  const localHomeSurface = [
+    '../../src/screens/LocalDashboardScreen.tsx',
+    '../../src/application/homeLoyalty/HomeLoyaltyViewModel.ts',
+  ]
+    .map((relativePath) =>
+      readFileSync(new URL(relativePath, import.meta.url), 'utf8'),
+    )
+    .join('\n');
   for (const field of [
     'availableLeaves',
     'qualifyingLeaves',
@@ -382,9 +387,9 @@ test('local summary surface has no provider, legacy tier, or client policy math'
     'policyVersion',
     'progressPercent',
     'remaining',
-    'Pending Leaves belum tersedia',
+    'Pending belum didukung',
   ]) {
-    assert.equal(dashboard.includes(field), true, `missing ${field}`);
+    assert.equal(localHomeSurface.includes(field), true, `missing ${field}`);
   }
 });
 
