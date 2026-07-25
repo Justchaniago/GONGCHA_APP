@@ -172,12 +172,12 @@ test('FastAPI member adapter bootstraps, reads, and maps minimal projection', as
       [
         'http://127.0.0.1:8000/api/v1/member/bootstrap',
         'POST',
-        'Bearer test-subject:emulator-user',
+        'Bearer emulator-token',
       ],
       [
         'http://127.0.0.1:8000/api/v1/member/me',
         'GET',
-        'Bearer test-subject:emulator-user',
+        'Bearer emulator-token',
       ],
     ],
   );
@@ -278,7 +278,7 @@ test('FastAPI profile adapter validates DOB, writes allow-listed fields, and rea
       {
         url: 'http://127.0.0.1:8000/api/v1/member/profile/complete',
         method: 'POST',
-        authorization: 'Bearer test-subject:emulator-user',
+        authorization: 'Bearer emulator-token',
         contentType: 'application/json',
         body: JSON.stringify({
           display_name: 'Local Member',
@@ -288,7 +288,7 @@ test('FastAPI profile adapter validates DOB, writes allow-listed fields, and rea
       {
         url: 'http://127.0.0.1:8000/api/v1/member/me',
         method: 'GET',
-        authorization: 'Bearer test-subject:emulator-user',
+        authorization: 'Bearer emulator-token',
         contentType: undefined,
         body: undefined,
       },
