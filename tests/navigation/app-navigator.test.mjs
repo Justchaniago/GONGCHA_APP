@@ -21,8 +21,7 @@ test('AppNavigator routing configuration binds pure presentation components / Fa
   assert.match(navigatorSource, /import\s+LocalStoreLocatorScreen\s+from\s+['"].*screens\/LocalStoreLocatorScreen['"]/);
   assert.match(navigatorSource, /import\s+LocalMembershipStatusScreen\s+from\s+['"].*screens\/LocalMembershipStatusScreen['"]/);
 
-  // Assert conditional routing or components mapping
-  assert.match(navigatorSource, /component=\{USE_FASTAPI_BACKEND\s*\?\s*LocalDashboardScreen\s*:\s*HomeScreen\}/);
+  assert.match(navigatorSource, /<Tab\.Screen\s+name="Home"\s+component=\{HomeScreen\}/);
   assert.match(navigatorSource, /component=\{USE_FASTAPI_BACKEND\s*\?\s*LocalMenuScreen\s*:\s*MenuScreen\}/);
   assert.match(navigatorSource, /component=\{USE_FASTAPI_BACKEND\s*\?\s*LocalRewardsScreen\s*:\s*RewardsScreen\}/);
   assert.match(navigatorSource, /component=\{USE_FASTAPI_BACKEND\s*\?\s*LocalProfileScreen\s*:\s*ProfileScreen\}/);

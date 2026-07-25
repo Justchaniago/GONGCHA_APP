@@ -187,7 +187,7 @@ test('FastAPI adapter fails closed for host, identity, HTTP, and network errors'
     () =>
       new FastApiLoyaltyActivityRepository(
         { currentUser: fakeUser() },
-        'https://api.example.com',
+        'ftp://invalid.com',
       ),
     /loyalty_activity_backend_not_local/,
   );

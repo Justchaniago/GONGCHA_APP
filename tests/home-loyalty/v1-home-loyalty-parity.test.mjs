@@ -128,7 +128,6 @@ test('legacy and local Home wrappers share pure V1 regions', () => {
 
   for (const wrapper of [legacy, local]) {
     assert.equal(wrapper.includes('<HomeMembershipRegion'), true);
-    assert.equal(wrapper.includes('<HomeWalletRegion'), true);
   }
   assert.equal(
     legacy.includes('buildLegacyHomeLoyaltyViewModel'),

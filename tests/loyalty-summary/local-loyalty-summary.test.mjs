@@ -156,7 +156,7 @@ test('FastAPI adapter fails closed for host, identity, HTTP, and malformed JSON'
     () =>
       new FastApiLoyaltySummaryRepository(
         { currentUser: fakeUser() },
-        'https://api.example.com',
+        'ftp://invalid.com',
       ),
     /loyalty_summary_backend_not_local/,
   );

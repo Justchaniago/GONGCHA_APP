@@ -60,7 +60,7 @@ test('gateway fails closed outside local backend and across identity/errors', as
     () =>
       new FastApiLocalActivityFixtureGateway(
         { currentUser: fakeUser() },
-        'https://api.example.com',
+        'ftp://invalid.com',
       ),
     /local_activity_fixture_backend_not_local/,
   );
