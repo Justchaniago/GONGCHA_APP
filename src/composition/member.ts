@@ -14,12 +14,30 @@ import type { SessionGateway } from '../application/ports/session/SessionGateway
 import { runtimeConfig } from '../config/runtime';
 import { FirebaseSessionGateway } from '../infrastructure/session/FirebaseSessionGateway';
 import { useMemberSession as useMemberSessionController } from '../presentation/member/useMemberSession';
+import { USE_FASTAPI_BACKEND, FASTAPI_BASE_URL } from '../config/flags';
 
 function buildSessionDependencies(): {
   session: SessionGateway;
   member: MemberRepository;
   pending: PendingMemberRepository;
 } {
+  if (USE_FASTAPI_BACKEND) {
+    const { firebaseAuth } = require('../config/firebase');
+    const { FastApiMemberRepository } = require(
+      '../infrastructure/member/FastApiMemberRepository'
+    );
+    const { NoPendingMemberRepository } = require(
+      '../infrastructure/member/NoPendingMemberRepository'
+    );
+    return {
+      session: new FirebaseSessionGateway(firebaseAuth),
+      member: new FastApiMemberRepository(
+        firebaseAuth,
+        FASTAPI_BASE_URL,
+      ),
+      pending: new NoPendingMemberRepository(),
+    };
+  }
   if (runtimeConfig.mode === 'local_emulator') {
     const { firebaseLocalAuth } = require('../config/firebaseLocal');
     const { FastApiMemberRepository } = require(
@@ -56,7 +74,7 @@ const memberSessionController = new MemberSessionController(
   dependencies.session,
   dependencies.member,
   dependencies.pending,
-  runtimeConfig.mode === 'local_emulator'
+  (runtimeConfig.mode === 'local_emulator' || USE_FASTAPI_BACKEND)
     ? isEligibleLocalEmulatorSession
     : isEligibleSession,
   buildMemberData,
