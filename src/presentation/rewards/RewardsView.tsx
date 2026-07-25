@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { RewardDisplayItem, RewardsViewModel, VoucherDisplayItem } from '../../application/rewards/RewardsViewModel';
 import DecorativeBackground from '../../components/DecorativeBackground';
 import ScreenFadeTransition from '../../components/ScreenFadeTransition';
+import { RedemptionConfirmModal } from './RedemptionConfirmModal';
 import { VoucherDetailModal } from './VoucherDetailModal';
 
 const AnimatedFlatList = Animated.FlatList as typeof Animated.FlatList;
@@ -44,6 +45,7 @@ export function RewardsView({
   const [activeTab, setActiveTab] = useState<'catalog' | 'vouchers'>('catalog');
   const [showUsedVouchers, setShowUsedVouchers] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherDisplayItem | null>(null);
+  const [confirmingItem, setConfirmingItem] = useState<RewardDisplayItem | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const MINI_THRESHOLD = 155;
@@ -142,7 +144,7 @@ export function RewardsView({
             </View>
             <TouchableOpacity
               style={[styles.redeemBtn, !item.canAfford && styles.disabledBtn]}
-              onPress={() => onRedeemReward(item)}
+              onPress={() => setConfirmingItem(item)}
               disabled={redeemingId === item.id || !item.canAfford}
               accessibilityRole="button"
               accessibilityLabel={`Tukar ${item.title}`}
@@ -347,6 +349,19 @@ export function RewardsView({
             )}
           </LinearGradient>
         </Animated.View>
+
+        <RedemptionConfirmModal
+          visible={!!confirmingItem}
+          item={confirmingItem}
+          onClose={() => setConfirmingItem(null)}
+          onConfirm={() => {
+            if (confirmingItem) {
+              const target = confirmingItem;
+              setConfirmingItem(null);
+              onRedeemReward(target);
+            }
+          }}
+        />
 
         <VoucherDetailModal
           visible={!!selectedVoucher}
