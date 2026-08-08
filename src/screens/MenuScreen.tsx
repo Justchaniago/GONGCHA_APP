@@ -5,7 +5,7 @@ import MenuView from '../presentation/menu/MenuView';
 import type { MenuItemDisplay } from '../application/menu/GetMenu';
 
 export default function MenuScreen() {
-  const { items: gongchaMenu, isLoading } = useMenu();
+  const { items: gongchaMenu, isLoading, isRefreshing, refresh } = useMenu();
 
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,6 +30,8 @@ export default function MenuScreen() {
       selectedItem={selectedItem}
       onSelectItem={setSelectedItem}
       loading={isLoading}
+      refreshing={isRefreshing}
+      onRefresh={refresh}
     />
   );
 }

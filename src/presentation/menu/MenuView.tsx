@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   useWindowDimensions,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import { Heart, X, Search, ArrowLeft } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -33,6 +34,8 @@ export interface MenuViewProps {
   onSelectItem: (item: MenuItemDisplay | null) => void;
   loading: boolean;
   onBack?: () => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 export default function MenuView({
@@ -46,6 +49,8 @@ export default function MenuView({
   onSelectItem,
   loading,
   onBack,
+  refreshing,
+  onRefresh,
 }: MenuViewProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -259,6 +264,16 @@ export default function MenuView({
               ]}
               columnWrapperStyle={styles.columnWrapper}
               showsVerticalScrollIndicator={false}
+              refreshControl={
+                onRefresh ? (
+                  <RefreshControl
+                    refreshing={!!refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#B91C2F']}
+                    tintColor="#B91C2F"
+                  />
+                ) : undefined
+              }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>Menu tidak ditemukan.</Text>

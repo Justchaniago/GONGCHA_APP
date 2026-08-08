@@ -63,27 +63,26 @@ export function MemberCardShellView({ viewModel, onClose }: MemberCardShellViewP
       entranceProgress.setValue(0);
       dragY.setValue(0);
       cardOpacity.setValue(0);
+      backdropOpacity.setValue(0);
       dismissScale.setValue(1);
       gestureDismissRef.current = false;
 
       Animated.parallel([
         Animated.spring(entranceProgress, {
           toValue: 1,
-          damping: 20,
-          stiffness: 135,
+          damping: 24,
+          stiffness: 110,
           mass: 0.95,
           useNativeDriver: true,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 1,
-          duration: 280,
-          easing: Easing.out(Easing.cubic),
+          duration: 380,
           useNativeDriver: true,
         }),
         Animated.timing(cardOpacity, {
           toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
+          duration: 300,
           useNativeDriver: true,
         }),
       ]).start();
@@ -97,20 +96,17 @@ export function MemberCardShellView({ viewModel, onClose }: MemberCardShellViewP
       Animated.parallel([
         Animated.timing(entranceProgress, {
           toValue: 0,
-          duration: 300,
-          easing: Easing.inOut(Easing.cubic),
+          duration: 280,
           useNativeDriver: true,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 0,
-          duration: 220,
-          easing: Easing.in(Easing.cubic),
+          duration: 240,
           useNativeDriver: true,
         }),
         Animated.timing(cardOpacity, {
           toValue: 0,
-          duration: 180,
-          easing: Easing.in(Easing.quad),
+          duration: 200,
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
@@ -133,39 +129,25 @@ export function MemberCardShellView({ viewModel, onClose }: MemberCardShellViewP
     viewModel.visible,
   ]);
 
-  const anchor = viewModel.anchor;
-  const startDx = anchor ? anchor.x - width / 2 : 0;
-  const startDy = anchor ? anchor.y - height / 2 : height * 0.3;
-  const startScale = anchor
-    ? Math.max(0.2, Math.min(anchor.size / cardWidth, 0.48))
-    : 0.45;
-
-  const entryTranslateX = entranceProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [startDx, 0],
-  });
-
+  // Clean Slide Up from the bottom of the screen (behind the floating navbar)
   const entryTranslateY = entranceProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [startDy, 0],
+    outputRange: [height, 0],
   });
 
-  const settleScale = entranceProgress.interpolate({
-    inputRange: [0, 0.75, 1],
-    outputRange: [startScale, 1.02, 1],
-  });
+  // Remain scale size consistent at 1
+  const composedScale = dismissScale;
 
-  const composedScale = Animated.multiply(settleScale, dismissScale);
-
+  // Fade out slightly when dragging down
   const gestureCardOpacity = dragY.interpolate({
-    inputRange: [-280, -85, 0],
-    outputRange: [0.14, 1, 1],
+    inputRange: [0, 120, 320],
+    outputRange: [1, 0.9, 0.15],
     extrapolate: 'clamp',
   });
 
   const gestureBackdropOpacity = dragY.interpolate({
-    inputRange: [-280, -85, 0],
-    outputRange: [0.4, 1, 1],
+    inputRange: [0, 120, 320],
+    outputRange: [1, 0.8, 0.3],
     extrapolate: 'clamp',
   });
 
@@ -175,7 +157,7 @@ export function MemberCardShellView({ viewModel, onClose }: MemberCardShellViewP
     gestureBackdropOpacity
   );
 
-  const composedTranslateY = Animated.add(entryTranslateY, dragY);
+  const composedTranslateY = dragY;
 
   const panResponder = useMemo(
     () =>
@@ -186,38 +168,33 @@ export function MemberCardShellView({ viewModel, onClose }: MemberCardShellViewP
         onMoveShouldSetPanResponderCapture: (_, gestureState) =>
           Math.abs(gestureState.dy) > 4,
         onPanResponderMove: (_, gestureState) => {
-          if (gestureState.dy < 0) {
+          if (gestureState.dy > 0) {
+            // Dragging down freely
             dragY.setValue(gestureState.dy);
           } else {
-            dragY.setValue(gestureState.dy * 0.12);
+            // Resist dragging up
+            dragY.setValue(gestureState.dy * 0.15);
           }
         },
         onPanResponderRelease: (_, gestureState) => {
-          if (gestureState.dy < -85 || gestureState.vy < -1.1) {
+          if (gestureState.dy > 80 || gestureState.vy > 1.0) {
+            // Swipe down to dismiss
             gestureDismissRef.current = true;
             Animated.parallel([
               Animated.timing(dragY, {
-                toValue: -height * 0.55,
-                duration: 240,
+                toValue: height,
+                duration: 250,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
               }),
               Animated.timing(cardOpacity, {
                 toValue: 0,
-                duration: 210,
-                easing: Easing.in(Easing.quad),
+                duration: 220,
                 useNativeDriver: true,
               }),
               Animated.timing(backdropOpacity, {
                 toValue: 0,
-                duration: 210,
-                easing: Easing.in(Easing.quad),
-                useNativeDriver: true,
-              }),
-              Animated.timing(dismissScale, {
-                toValue: 0.94,
                 duration: 220,
-                easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
               }),
             ]).start(() => onClose());
@@ -262,7 +239,6 @@ export function MemberCardShellView({ viewModel, onClose }: MemberCardShellViewP
               width: cardWidth,
               opacity: composedCardOpacity,
               transform: [
-                { translateX: entryTranslateX },
                 { translateY: composedTranslateY },
                 { scale: composedScale },
               ],

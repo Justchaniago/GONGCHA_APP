@@ -3,6 +3,8 @@ import { View, TouchableOpacity, StyleSheet, Animated, Easing, LayoutChangeEvent
 import { Home, Coffee, QrCode, Trophy, User } from 'lucide-react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // 🔥 IMPORT BARU: Menggunakan useMember & Token Warna Statis
 import { useMember } from '../context/MemberContext';
@@ -153,7 +155,33 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   };
 
   return (
-    <Animated.View
+    <>
+      {/* Background Scroll Fade Shade Overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.bottomFadeOverlay,
+          {
+            height: barHeight + bottomOffset + 24,
+            transform: [
+              {
+                translateY: tabBarHideProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, hideTranslateY],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['rgba(250, 248, 245, 0)', 'rgba(250, 248, 245, 0.88)', '#FAF8F5']}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </Animated.View>
+
+      <Animated.View
       pointerEvents={isTabBarHidden ? 'none' : 'auto'}
       style={[
         styles.bottomNav,
@@ -165,14 +193,14 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           borderRadius: barHeight / 2,
           paddingHorizontal: dynamicBarPadding,
           
-          backgroundColor: bottomNavColors.background,
-          borderWidth: 0.5,
-          borderColor: 'rgba(185, 28, 47, 0.12)', 
-          shadowColor: colors.brand.primary,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.12,
-          shadowRadius: 28,
-          elevation: 12,
+          backgroundColor: 'rgba(255, 255, 255, 0.72)', // Liquid Glass Base
+          borderWidth: 1.2,
+          borderColor: 'rgba(255, 255, 255, 0.65)', // Liquid Glossy Border
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.08,
+          shadowRadius: 24,
+          elevation: 8,
           
           transform: [
             {
@@ -186,6 +214,12 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
       ]}
       onLayout={onBarLayout}
     >
+      {/* Liquid Glass Effect Inner Blur */}
+      <BlurView 
+        intensity={35} 
+        tint="light" 
+        style={[StyleSheet.absoluteFillObject, { borderRadius: barHeight / 2, overflow: 'hidden' }]} 
+      />
       {barWidth > 0 && !isQrFocused && (
         <Animated.View
           pointerEvents="none"
@@ -303,6 +337,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
         );
       })}
     </Animated.View>
+    </>
   );
 }
 
@@ -312,4 +347,11 @@ const styles = StyleSheet.create({
   navButton: { flex: 1, height: 44, borderRadius: 18, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
   memberTriggerSlot: { flex: 1, height: 72, justifyContent: 'center', alignItems: 'center', zIndex: 3 },
   memberTriggerButton: { alignItems: 'center', justifyContent: 'center' },
+  bottomFadeOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    overflow: 'hidden',
+  },
 });
