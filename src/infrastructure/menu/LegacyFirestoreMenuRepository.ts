@@ -43,21 +43,16 @@ export class LegacyFirestoreMenuRepository implements MenuRepository {
   }
 
   private async loadOnce(): Promise<MenuRepositorySnapshot> {
-    const cachedItems = await this.cache.readItems();
-    const lastSyncTime = await this.cache.readSyncTime();
     const currentSyncTime = this.now();
 
     try {
-      const changedItems = await this.source.loadChanges(lastSyncTime);
-      const items = mergeMenuItems(cachedItems, changedItems);
-
-      if (changedItems.length > 0) {
-        await this.cache.writeItems(items);
-      }
+      const items = await this.source.loadChanges(0);
+      await this.cache.writeItems(items);
       await this.cache.writeSyncTime(currentSyncTime);
 
       return { items, stale: false };
     } catch {
+      const cachedItems = await this.cache.readItems();
       return { items: cachedItems, stale: true };
     }
   }

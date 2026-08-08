@@ -1,4 +1,5 @@
 import type { LoyaltySummary } from '../loyaltySummary/LoyaltySummary';
+import type { LoyaltyActivityItem } from '../loyaltyActivity/LoyaltyActivity';
 import type {
   MemberData,
   MemberXpHistoryEntry,
@@ -11,7 +12,8 @@ export type MembershipThemeKey =
   | 'candidate-lover'
   | 'candidate-master'
   | 'candidate-ambassador'
-  | 'candidate-legend';
+  | 'candidate-legend'
+  | 'candidate-family';
 
 export type MembershipBenefitIcon = 'zap' | 'gift' | 'star';
 
@@ -240,6 +242,50 @@ const CANDIDATE_THEME = {
   MASTER: 'candidate-master',
   AMBASSADOR: 'candidate-ambassador',
   LEGEND: 'candidate-legend',
+  FAMILY: 'candidate-family',
+} as const;
+
+const CANDIDATE_TIER_POLICY = {
+  LOVER: {
+    multiplier: '1×',
+    benefits: [
+      { icon: 'zap' as const, label: 'Earn 1 Leaf per Rp 10.000 spent' },
+      { icon: 'gift' as const, label: 'Free birthday treat, rewards (extra topping, promo)' },
+      { icon: 'star' as const, label: 'Access to streaks, challenges & App-only offers' },
+    ],
+  },
+  MASTER: {
+    multiplier: '1.2×',
+    benefits: [
+      { icon: 'zap' as const, label: 'Early access to new drinks' },
+      { icon: 'gift' as const, label: 'Surprise & Delight moments' },
+      { icon: 'star' as const, label: 'App-only offers & Member-only bundles' },
+    ],
+  },
+  AMBASSADOR: {
+    multiplier: '1.5×',
+    benefits: [
+      { icon: 'zap' as const, label: 'Free topping each month' },
+      { icon: 'gift' as const, label: 'Unlock Partner perks (delivery discounts)' },
+      { icon: 'star' as const, label: 'Surprise & Delight moments' },
+    ],
+  },
+  LEGEND: {
+    multiplier: '2×',
+    benefits: [
+      { icon: 'zap' as const, label: 'Priority queue during peak hours' },
+      { icon: 'gift' as const, label: 'Fan events & Limited merch offers' },
+      { icon: 'star' as const, label: 'Exclusive VIP pass & Access' },
+    ],
+  },
+  FAMILY: {
+    multiplier: '3×',
+    benefits: [
+      { icon: 'zap' as const, label: '3x earn rate on hero SKUs & Free upsizes anytime' },
+      { icon: 'gift' as const, label: 'Skip-the-queue access & Masterclass invites' },
+      { icon: 'star' as const, label: 'Prestige value & Access only invites' },
+    ],
+  },
 } as const;
 
 function leavesLabel(value: number): string {
@@ -248,8 +294,27 @@ function leavesLabel(value: number): string {
 
 export function buildLocalMembershipStatusViewModel(
   summary: LoyaltySummary,
+  items: LoyaltyActivityItem[] = [],
 ): MembershipStatusViewModel {
   const terminal = summary.tier.nextCode === null;
+  const policy = CANDIDATE_TIER_POLICY[summary.tier.code] || CANDIDATE_TIER_POLICY.LOVER;
+
+  const activityItems: MembershipActivityViewModel[] = items.slice(0, 15).map((entry) => {
+    const isRedeem = entry.eventType === 'redemption';
+    return {
+      id: entry.activityId,
+      status: isRedeem ? 'redeem' : 'verified',
+      context: isRedeem ? 'Penukaran Rewards' : 'Transaksi Gong Cha',
+      location: entry.externalOrderReference ? `Order: ${entry.externalOrderReference}` : null,
+      amountLabel: `${isRedeem ? '−' : '+'}${Math.abs(entry.pointsDelta)} Leaves`,
+      dateLabel: new Date(entry.activityAt).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+    };
+  });
+
   return {
     theme: CANDIDATE_THEME[summary.tier.code],
     tierDisplayName: summary.tier.displayName,
@@ -292,22 +357,23 @@ export function buildLocalMembershipStatusViewModel(
         tone: 'default',
       },
       {
-        valueLabel: '—',
-        label: 'Pending Belum Didukung',
-        tone: 'pending',
+        valueLabel: '0',
+        label: 'Leaves Pending',
+        tone: 'default',
       },
     ],
     benefitsTitle: `Benefit ${summary.tier.displayName}`,
-    multiplierLabel: null,
-    benefits: [],
-    benefitsNotice: `Benefit belum dikonfigurasi untuk policy ${summary.policyVersion} dan belum menjadi entitlement.`,
-    nextTierHint: null,
+    multiplierLabel: `${policy.multiplier} earn`,
+    benefits: policy.benefits.map((benefit) => ({ ...benefit })),
+    benefitsNotice: null,
+    nextTierHint: terminal
+      ? null
+      : `Naik ke ${summary.tier.nextDisplayName} untuk unlock multiplier lebih tinggi & reward eksklusif.`,
     activity: {
-      kind: 'link',
+      kind: 'items',
       title: 'Riwayat Leaves',
-      message:
-        'Riwayat authoritative tersedia di Loyalty Activity dari FastAPI.',
-      actionLabel: 'Lihat Loyalty Activity',
+      emptyMessage: 'Belum ada riwayat Leaves. Mulai bertransaksi untuk mengumpulkan Leaves.',
+      items: activityItems,
     },
   };
 }

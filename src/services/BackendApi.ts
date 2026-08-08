@@ -1,7 +1,7 @@
 import { firebaseAuth } from '../config/firebase';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ||
-  'https://us-central1-gongcha-app-4691f.cloudfunctions.net';
+  'https://us-central1-gongcha-backend-neo.cloudfunctions.net';
 
 export interface VoucherRedeemResponse {
   success: boolean;

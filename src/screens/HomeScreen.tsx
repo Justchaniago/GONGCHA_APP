@@ -24,6 +24,7 @@ import { USE_FASTAPI_BACKEND } from '../config/flags';
 import { firebaseAuth } from '../config/firebase';
 import { NotificationService } from '../services/NotificationService';
 import { usePromotions } from '../composition/promotions';
+import { useStores } from '../composition/stores';
 import type { RootTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import type { NotificationItem } from '../types/types';
 
@@ -58,11 +59,22 @@ export default function HomeScreen() {
 
   const { member, loading: isMemberLoading } = useMember();
 
+  const formatMemberName = (name?: string) => {
+    if (!name) return 'Member';
+    const words = name.trim().split(/\s+/);
+    if (words.length > 2) {
+      return `${words[0]} ${words[1]}`;
+    }
+    return name;
+  };
+
   const summaryState = useLocalLoyaltySummary(
     localLoyaltySummaryController,
     member?.uid ?? null,
   );
   const summary = summaryState.phase === 'ready' ? summaryState.summary : null;
+
+  const { stores } = useStores(true);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
@@ -226,12 +238,18 @@ export default function HomeScreen() {
 
   const promos = useMemo(() => {
     if (carouselPromos.length > 0) {
-      return carouselPromos.map((p) => ({ color: '#F3F4F6', image: null, uri: p.imageUrl }));
+      return carouselPromos.map((p) => ({
+        color: '#F3F4F6',
+        image: null,
+        uri: p.imageUrl,
+        title: p.title,
+        subtitle: p.subtitle
+      }));
     }
     return [
-      { color: '#FFD1DC', image: require('../../assets/images/promo1.webp'), uri: null },
-      { color: '#FFF5E1', image: require('../../assets/images/promo2.webp'), uri: null },
-      { color: '#E0F7FA', image: require('../../assets/images/promo3.webp'), uri: null },
+      { color: '#FFD1DC', image: require('../../assets/images/promo1.webp'), uri: null, title: 'Fresh Milk Tea Series', subtitle: 'Experience the new standard of Gong Cha milk tea.' },
+      { color: '#FFF5E1', image: require('../../assets/images/promo2.webp'), uri: null, title: 'Buy 1 Get 1 Free', subtitle: 'Double the leaf, double the joy every Friday.' },
+      { color: '#E0F7FA', image: require('../../assets/images/promo3.webp'), uri: null, title: 'Download & Get Rewards', subtitle: 'Earn leaves and unlock legendary tier benefits.' },
     ];
   }, [carouselPromos]);
 
@@ -328,10 +346,10 @@ export default function HomeScreen() {
                     <Text
                       numberOfLines={1}
                       adjustsFontSizeToFit
-                      minimumFontScale={0.8}
+                      minimumFontScale={0.6}
                       style={[styles.name, { color: '#FFFFFF', textAlign: 'right' }]}
                     >
-                      {member?.fullName ?? 'Member'}
+                      {formatMemberName(member?.fullName)}
                     </Text>
                   )}
                 </View>
@@ -386,10 +404,6 @@ export default function HomeScreen() {
               refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor="#B91C2F" />}
             >
               {/* NEWS AND PROMOTIONS */}
-              <View style={styles.sectionHeader}>
-                <View style={[styles.redPill, { backgroundColor: colors.brand.primary }]} />
-                <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>News and Promotions</Text>
-              </View>
 
 
 
@@ -401,7 +415,17 @@ export default function HomeScreen() {
                 scrollEventThrottle={16}
               >
                 {extendedPromos.map((promo, idx) => (
-                  <View key={idx} style={[styles.promoCard, { width: promoCardWidth, backgroundColor: colors.surface.card }]}>
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.9}
+                    onPress={() => navigation.navigate('PromoDetail', {
+                      imageUrl: promo.uri || undefined,
+                      imageSource: promo.image || undefined,
+                      title: promo.title,
+                      subtitle: promo.subtitle || ''
+                    })}
+                    style={[styles.promoCard, { width: promoCardWidth, backgroundColor: colors.surface.card }]}
+                  >
                     {promo.uri ? (
                       <Image source={{ uri: promo.uri }} style={styles.promoImage} resizeMode="cover" />
                     ) : promo.image ? (
@@ -411,7 +435,7 @@ export default function HomeScreen() {
                         <Text style={{ color: '#8C7B75', fontWeight: 'bold' }}>Promo</Text>
                       </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
               <View style={styles.paginationDots}>
@@ -421,10 +445,11 @@ export default function HomeScreen() {
               {/* TWO BENTO BOXES ROW (FEATURED DRINKS & NEARBY COMPASS STORE) */}
               <View style={styles.bentoGridRow}>
                 <BentoFeaturedDrinks
-                  onPress={() => navigation.navigate('Rewards')}
+                  onPress={() => navigation.navigate('Menu')}
                 />
                 <BentoNearbyOutlet
                   onPress={() => navigation.navigate('StoreLocator')}
+                  stores={stores}
                 />
               </View>
 

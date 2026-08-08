@@ -150,17 +150,15 @@ export default function EditProfileScreen() {
       <DecorativeBackground />
 
       {/* Header */}
-      <View style={[styles.header, { marginTop: insets.top }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()} 
-          style={styles.backButton}
+          style={styles.backBtn}
         >
-          <View style={styles.backBtnCircle}>
-            <ChevronLeft size={24} color="#2A1F1F" />
-          </View>
+          <ChevronLeft size={20} color="#2A1F1F" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
-        <View style={{ width: 44 }} /> 
+        <View style={{ width: 40 }} /> 
       </View>
 
       <KeyboardAvoidingView
@@ -357,29 +355,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingBottom: 12,
   },
-  backButton: {
-    borderRadius: 20,
-  },
-  backBtnCircle: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#3A2E2A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFF1EA',
     borderWidth: 1,
-    borderColor: '#F3E9DC',
+    borderColor: '#F1DED4',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#2A1F1F',
   },
   
@@ -451,10 +441,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    height: 56,
+    borderColor: '#F1DED4',
+    height: 54,
     shadowColor: '#3A2E2A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,

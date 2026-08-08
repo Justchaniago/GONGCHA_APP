@@ -2,7 +2,10 @@ import type { Store } from './Store';
 
 export type StoreStatusKind = 'open' | 'closing-soon' | 'closed';
 
-function parseHoursRange(hours: string) {
+function parseHoursRange(hours: string | undefined | null) {
+  if (!hours || typeof hours !== 'string') {
+    return null;
+  }
   const matches = hours.match(/(\d{1,2})[:.](\d{2})/g);
   if (!matches || matches.length < 2) {
     return null;

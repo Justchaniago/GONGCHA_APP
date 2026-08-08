@@ -2,153 +2,93 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  LayoutChangeEvent,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Sparkles, Star, ChevronRight } from 'lucide-react-native';
 
-export interface FeaturedDrink {
-  id: string;
-  name: string;
-  category: string;
-  price: string;
-  leaves: string;
-  imageUrl: string;
-}
-
-const FEATURED_DRINKS: FeaturedDrink[] = [
-  {
-    id: '1',
-    name: 'Earl Grey Milk Tea 3J',
-    category: 'Best Seller',
-    price: 'Rp 32.000',
-    leaves: '50 Leaves',
-    imageUrl: 'https://images.unsplash.com/photo-1558857563-b371033873b8?w=500&auto=format&fit=crop&q=80',
-  },
-  {
-    id: '2',
-    name: 'Brown Sugar Fresh Milk',
-    category: 'Trending',
-    price: 'Rp 35.000',
-    leaves: '60 Leaves',
-    imageUrl: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=500&auto=format&fit=crop&q=80',
-  },
-  {
-    id: '3',
-    name: 'Taro Milk Tea w/ Red Bean',
-    category: 'Favorite',
-    price: 'Rp 30.000',
-    leaves: '45 Leaves',
-    imageUrl: 'https://images.unsplash.com/photo-1541658016709-82535e94bc69?w=500&auto=format&fit=crop&q=80',
-  },
+const DRINK_IMAGES = [
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/01-black-tea-with-milk-foam.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/02-green-tea-with-milk-foam.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/03-oolong-tea-with-milk-foam.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/11-black-milk-tea.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/12-green-milk-tea.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/13-oolong-milk-tea.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/14-earl-grey-milk-tea.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/15-matcha-milk-tea.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/21-taro-milk.png',
+  'https://xsixfedgszaswcggsulq.supabase.co/storage/v1/object/public/catalog/images/21-strawberry-milk.png',
 ];
 
 interface BentoFeaturedDrinksProps {
-  onPress?: (drink: FeaturedDrink) => void;
+  onPress?: () => void;
 }
 
 export default function BentoFeaturedDrinks({ onPress }: BentoFeaturedDrinksProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(100);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const translateYAnim = useRef(new Animated.Value(0)).current;
+  // Measure container layout to calculate slide distance dynamically
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    if (width > 0) {
+      setContainerWidth(width);
+    }
+  };
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      // Fade out & slide up
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateYAnim, {
-          toValue: -8,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setCurrentIndex((prev) => (prev + 1) % FEATURED_DRINKS.length);
-        translateYAnim.setValue(8);
+    if (containerWidth <= 0) return;
 
-        // Fade in & slide back to origin
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateYAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]).start();
+    const timer = setInterval(() => {
+      // Slide out current to the left
+      Animated.timing(slideAnim, {
+        toValue: -containerWidth,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        // Change image index
+        setCurrentIndex((prev) => (prev + 1) % DRINK_IMAGES.length);
+        // Reset slide position to the right
+        slideAnim.setValue(containerWidth);
+        
+        // Slide in from the right to center
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
       });
-    }, 4000);
+    }, 3000);
 
     return () => clearInterval(timer);
-  }, [fadeAnim, translateYAnim]);
-
-  const currentDrink = FEATURED_DRINKS[currentIndex];
+  }, [containerWidth, currentIndex, slideAnim]);
 
   return (
     <TouchableOpacity
       style={styles.card}
-      activeOpacity={0.9}
-      onPress={() => onPress && onPress(currentDrink)}
+      activeOpacity={0.95}
+      onPress={onPress}
     >
-      {/* HEADER BADGE */}
-      <View style={styles.headerRow}>
-        <View style={styles.badgePill}>
-          <Sparkles size={10} color="#B91C2F" />
-          <Text style={styles.badgeText}>{currentDrink.category}</Text>
-        </View>
-        <ChevronRight size={14} color="#A08F88" />
-      </View>
-
-      {/* DRINK DISPLAY CONTENT */}
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: translateYAnim }],
-          },
-        ]}
-      >
-        <View style={styles.imageWrap}>
-          <Image
-            source={{ uri: currentDrink.imageUrl }}
-            style={styles.drinkImage}
-            resizeMode="cover"
-          />
-        </View>
-
-        <View style={styles.textDetails}>
-          <Text style={styles.drinkName} numberOfLines={2}>
-            {currentDrink.name}
-          </Text>
-          <View style={styles.priceRow}>
-            <Star size={10} color="#B91C2F" fill="#B91C2F" />
-            <Text style={styles.leavesText}>{currentDrink.leaves}</Text>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* ROTATING INDICATOR DOTS */}
-      <View style={styles.indicatorRow}>
-        {FEATURED_DRINKS.map((_, idx) => (
-          <View
-            key={idx}
+      {/* Rounded stamp border styled with uniform 16px margin on all sides for perfect symmetry */}
+      <View style={styles.stampBorder}>
+        <View style={styles.carouselViewport} onLayout={handleLayout}>
+          <Animated.View
             style={[
-              styles.dot,
-              idx === currentIndex && styles.activeDot,
+              styles.slideWrapper,
+              {
+                transform: [{ translateX: slideAnim }],
+              },
             ]}
-          />
-        ))}
+          >
+            <Image
+              source={{ uri: DRINK_IMAGES[currentIndex] }}
+              style={styles.drinkImage}
+              resizeMode="contain"
+            />
+          </Animated.View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -156,96 +96,34 @@ export default function BentoFeaturedDrinks({ onPress }: BentoFeaturedDrinksProp
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
-    height: 175,
-    backgroundColor: '#FFFFFF',
+    flex: 1, // Symmetrical 50/50 split
+    height: 180,
+    backgroundColor: '#B91C2F', // Gong Cha Red
     borderRadius: 22,
-    padding: 12,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#F0E8E2',
-    shadowColor: '#2A1F1F',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
     position: 'relative',
+  },
+  stampBorder: {
+    flex: 1,
+    margin: 16, // Forces exactly 16px padding/margin on all sides for absolute symmetry
+    borderRadius: 14, // Concentric corner radius matching the outer 22px card radius
+    borderWidth: 3.5, // Thick brand stamp border
+    borderColor: '#FFFFFF',
     overflow: 'hidden',
   },
-  headerRow: {
-    flexDirection: 'row',
+  carouselViewport: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  badgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF1F3',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
-  },
-  badgeText: {
-    color: '#B91C2F',
-    fontSize: 9,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 6,
-  },
-  imageWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: '#FFF1F3',
     overflow: 'hidden',
   },
-  drinkImage: {
+  slideWrapper: {
     width: '100%',
     height: '100%',
-  },
-  textDetails: {
-    flex: 1,
-  },
-  drinkName: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#2A1F1F',
-    lineHeight: 17,
-    marginBottom: 4,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  leavesText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#B91C2F',
-  },
-  indicatorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    marginTop: 4,
+    alignItems: 'center',
   },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#E5E7EB',
-  },
-  activeDot: {
-    width: 14,
-    backgroundColor: '#B91C2F',
+  drinkImage: {
+    width: '115%', // Perfectly sized transparent drink
+    height: '115%',
   },
 });

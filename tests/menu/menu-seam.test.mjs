@@ -71,19 +71,19 @@ function createCache(items = [], syncTime = 0) {
   };
 }
 
-test('repository uses cache for zero changes and advances sync time', async () => {
+test('repository overwrites cache with fresh changes and advances sync time', async () => {
   const cache = createCache([tea], 50);
   const source = {
     async loadChanges(since) {
-      assert.equal(since, 50);
-      return [];
+      assert.equal(since, 0);
+      return [tea];
     },
   };
 
   const result = await new LegacyFirestoreMenuRepository(source, cache, () => 100).load();
 
   assert.deepEqual(result, { items: [tea], stale: false });
-  assert.equal(cache.itemWrites, 0);
+  assert.equal(cache.itemWrites, 1);
   assert.equal(cache.syncTime, 100);
 });
 
@@ -122,7 +122,7 @@ test('repository coalesces overlapping refreshes', async () => {
 
   assert.deepEqual(await first, await second);
   assert.equal(sourceCalls, 1);
-  assert.deepEqual(cache.items, [tea, coffee]);
+  assert.deepEqual(cache.items, [coffee]);
 });
 
 test('GetMenu exposes sorted visible data from repository snapshot', async () => {

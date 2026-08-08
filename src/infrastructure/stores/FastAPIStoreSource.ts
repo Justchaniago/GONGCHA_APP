@@ -22,6 +22,7 @@ export class FastAPIStoreSource implements StoreSource {
         address: item.address || '',
         phone: item.phone || '',
         operatingHours: item.operating_hours || item.operatingHours || '10:00 - 22:00',
+        openHours: item.operating_hours || item.operatingHours || '10:00 - 22:00',
         latitude: item.latitude || 0,
         longitude: item.longitude || 0,
         features: item.features || ['Dine In', 'Takeaway'],

@@ -12,28 +12,46 @@ import { StatusBar } from 'expo-status-bar';
 
 import { buildLocalMembershipStatusViewModel } from '../application/membershipStatus/MembershipStatusViewModel';
 import { createLocalLoyaltySummaryController } from '../composition/loyaltySummary';
+import { createLocalLoyaltyActivityController } from '../composition/loyaltyActivity';
 import { useMember } from '../context/MemberContext';
 import type { LocalStackParamList } from '../navigation/LocalAppNavigator';
 import MembershipStatusView from '../presentation/membershipStatus/MembershipStatusView';
 import { useLocalLoyaltySummary } from '../presentation/loyaltySummary/useLocalLoyaltySummary';
+import { useLocalLoyaltyActivity } from '../presentation/loyaltyActivity/useLocalLoyaltyActivity';
 import { colors } from '../theme/colorTokens';
 
 export default function LocalMembershipStatusScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
   const { member } = useMember();
+  const uid = member?.uid ?? null;
+
   const controller = useMemo(
     () => createLocalLoyaltySummaryController(),
     [],
   );
-  const state = useLocalLoyaltySummary(controller, member?.uid ?? null);
+  const activityController = useMemo(
+    () => createLocalLoyaltyActivityController(),
+    [],
+  );
+
+  const state = useLocalLoyaltySummary(controller, uid);
+  const activityState = useLocalLoyaltyActivity(activityController, uid);
+
   const model = useMemo(
     () =>
       state.phase === 'ready'
-        ? buildLocalMembershipStatusViewModel(state.summary)
+        ? buildLocalMembershipStatusViewModel(state.summary, activityState.items)
         : null,
-    [state],
+    [state, activityState.items],
   );
+
+  const refreshAll = () => {
+    void Promise.all([
+      controller.refresh(),
+      activityController.refresh(),
+    ]);
+  };
 
   if (state.phase === 'idle' || state.phase === 'loading') {
     return (
@@ -71,8 +89,8 @@ export default function LocalMembershipStatusScreen() {
   return (
     <MembershipStatusView
       model={model}
-      refreshing={state.refreshing}
-      onRefresh={() => void controller.refresh()}
+      refreshing={state.refreshing || activityState.refreshing}
+      onRefresh={refreshAll}
       onBack={() => navigation.goBack()}
       onActivityPress={() => navigation.navigate('LocalLoyaltyActivity')}
     />

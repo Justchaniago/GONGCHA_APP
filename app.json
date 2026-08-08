@@ -17,6 +17,7 @@
       "bundleIdentifier": "com.gongcha.id.pilot",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to show the nearest Gong Cha stores.",
+        "NSFaceIDUsageDescription": "We use Face ID to secure your loyalty account.",
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
           "comgooglemaps-x-callback",
@@ -52,7 +53,7 @@
       "expo-location",
       "expo-secure-store",
       ["@react-native-google-signin/google-signin", {
-        "iosUrlScheme": "com.googleusercontent.apps.808600152798-92q0798lo4f49plfniu99bor57108uqd"
+        "iosUrlScheme": "com.googleusercontent.apps.353793177534-pi67g3k2jf9dc8de07lll35aa4j5qhh2"
       }]
     ],
     "extra": {

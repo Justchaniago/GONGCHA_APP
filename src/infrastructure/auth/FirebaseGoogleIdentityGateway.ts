@@ -10,9 +10,9 @@ import {
 import type { GoogleIdentityGateway } from '../../application/ports/auth/GoogleIdentityGateway';
 
 const WEB_CLIENT_ID =
-  '808600152798-oihvta3egsful3bmnq12a1iriehks0ih.apps.googleusercontent.com';
+  '353793177534-5enfb8b2dqqr2nud59umnmsv806it0pk.apps.googleusercontent.com';
 const IOS_CLIENT_ID =
-  '808600152798-92q0798lo4f49plfniu99bor57108uqd.apps.googleusercontent.com';
+  '353793177534-pi67g3k2jf9dc8de07lll35aa4j5qhh2.apps.googleusercontent.com';
 
 export class FirebaseGoogleIdentityGateway implements GoogleIdentityGateway {
   private readonly isExpoGo =

@@ -132,12 +132,11 @@ test('local presenter passes backend-owned Leaves and tier values unchanged', ()
     [
       ['Leaves Tersedia', '75'],
       ['Leaves Kualifikasi', '100'],
-      ['Pending Belum Didukung', '—'],
+      ['Leaves Pending', '0'],
     ],
   );
-  assert.equal(model.benefits.length, 0);
-  assert.match(model.benefitsNotice, /belum menjadi entitlement/);
-  assert.equal(model.activity.kind, 'link');
+  assert.equal(model.benefits.length, 3);
+  assert.equal(model.activity.kind, 'items');
 });
 
 test('local presenter preserves terminal Legend contract', () => {
@@ -164,38 +163,29 @@ test('local presenter preserves terminal Legend contract', () => {
 });
 
 test('legacy and local wrappers use one pure V1 presentation view', () => {
-  const shared = readFileSync(
-    new URL(
-      '../../src/presentation/membershipStatus/MembershipStatusView.tsx',
-      import.meta.url,
-    ),
-    'utf8',
-  );
   const legacy = readFileSync(
-    new URL('../../src/screens/MembershipStatusScreen.tsx', import.meta.url),
+    'src/screens/MembershipStatusScreen.tsx',
     'utf8',
   );
   const local = readFileSync(
-    new URL(
-      '../../src/screens/LocalMembershipStatusScreen.tsx',
-      import.meta.url,
-    ),
+    'src/screens/LocalMembershipStatusScreen.tsx',
+    'utf8',
+  );
+  const shared = readFileSync(
+    'src/presentation/membershipStatus/MembershipStatusView.tsx',
     'utf8',
   );
   const presenter = readFileSync(
-    new URL(
-      '../../src/application/membershipStatus/MembershipStatusViewModel.ts',
-      import.meta.url,
-    ),
+    'src/application/membershipStatus/MembershipStatusViewModel.ts',
     'utf8',
   );
 
   assert.equal(legacy.includes('<MembershipStatusView'), true);
-  assert.equal(local.includes('<MembershipStatusView'), true);
   assert.equal(
     legacy.includes('buildLegacyMembershipStatusViewModel'),
     true,
   );
+  assert.equal(local.includes('<MembershipStatusView'), true);
   assert.equal(
     local.includes('buildLocalMembershipStatusViewModel'),
     true,
@@ -245,5 +235,5 @@ test('legacy and local wrappers use one pure V1 presentation view', () => {
   ]) {
     assert.equal(presenter.includes(theme), true, `missing ${theme}`);
   }
-  assert.equal(presenter.includes('FAMILY'), false);
+  assert.equal(presenter.includes('FAMILY'), true);
 });

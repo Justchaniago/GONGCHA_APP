@@ -4,6 +4,7 @@ export interface Promotion {
   id: string;
   type: PromotionType;
   title: string;
+  subtitle?: string;
   imageUrl: string;
   order: number;
   isActive: boolean;

@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Eye, EyeOff, Lock, CheckCircle } from 'lucide-react-native';
+import { Eye, EyeOff, Lock, CheckCircle, ChevronLeft } from 'lucide-react-native';
 import { AuthService } from '../services/AuthService';
 import { colors } from '../theme/colorTokens';
 
@@ -148,16 +148,20 @@ export default function UpdatePasswordScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backArrow}>←</Text>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <ChevronLeft size={20} color="#2A1F1F" />
           </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {isResetMode ? 'Reset Password' : 'Ganti Password'}
+          </Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.headerIntro}>
           <View style={styles.iconWrapper}>
             <Lock size={32} color="#B91C2F" />
           </View>
-          <Text style={styles.title}>
-            {isResetMode ? 'Reset Password' : 'Ganti Password'}
-          </Text>
           <Text style={styles.subtitle}>
             {isResetMode
               ? 'Masukkan password baru kamu. Pastikan mudah diingat namun sulit ditebak.'
@@ -297,18 +301,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
   },
-  header: {
-    marginBottom: 32,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 16,
+    marginBottom: 16,
   },
-  backButton: {
-    marginBottom: 24,
+  backBtn: {
     width: 40,
     height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFF1EA',
+    borderWidth: 1,
+    borderColor: '#F1DED4',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#1A1A1A',
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2A1F1F',
+  },
+  headerIntro: {
+    marginBottom: 24,
+    alignItems: 'center',
   },
   iconWrapper: {
     width: 64,
@@ -319,16 +336,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 8,
-  },
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 22,
+    textAlign: 'center',
   },
   formContainer: {
     gap: 4,
@@ -345,14 +357,14 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFF',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F1DED4',
     height: 54,
   },
   inputWrapperFocused: {
-    borderColor: '#10B981',
+    borderColor: '#C8102E',
   },
   inputWrapperError: {
     borderColor: '#EF4444',

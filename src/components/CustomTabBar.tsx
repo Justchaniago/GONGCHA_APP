@@ -140,7 +140,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
   };
 
   const tabCount = state.routes.length || 1;
-  const bottomOffset = 34;
+  const bottomOffset = insets.bottom > 0 ? insets.bottom - 14 : 12; // Lowered to sit closer to the bottom edge
   const hideTranslateY = barHeight + bottomOffset + 60; 
 
   const handleTabLayout = (routeKey: string, event: LayoutChangeEvent) => {

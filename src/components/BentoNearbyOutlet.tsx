@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -17,37 +17,6 @@ interface StoreOutlet {
   lng: number;
   openHours: string;
 }
-
-const GONGCHA_STORES: StoreOutlet[] = [
-  {
-    id: 'gi',
-    name: 'Grand Indonesia',
-    lat: -6.1950,
-    lng: 106.8230,
-    openHours: '08:00 - 22:00',
-  },
-  {
-    id: 'cp',
-    name: 'Central Park',
-    lat: -6.1774,
-    lng: 106.7907,
-    openHours: '10:00 - 22:00',
-  },
-  {
-    id: 'sencity',
-    name: 'Senayan City',
-    lat: -6.2272,
-    lng: 106.7972,
-    openHours: '10:00 - 22:00',
-  },
-  {
-    id: 'tp6',
-    name: 'Tunjungan Plaza 6',
-    lat: -7.2622,
-    lng: 112.7394,
-    openHours: '10:00 - 22:00',
-  },
-];
 
 // Calculate Haversine distance in km
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -78,15 +47,36 @@ function calculateBearing(lat1: number, lon1: number, lat2: number, lon2: number
 
 interface BentoNearbyOutletProps {
   onPress?: (store: StoreOutlet) => void;
+  stores?: any[];
 }
 
-export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
-  const [nearestStore, setNearestStore] = useState<StoreOutlet>(GONGCHA_STORES[0]);
+export default function BentoNearbyOutlet({ onPress, stores }: BentoNearbyOutletProps) {
+  const activeStores = useMemo(() => {
+    if (stores && stores.length > 0) {
+      return stores.map((s) => ({
+        id: s.id,
+        name: s.name.startsWith('Gong Cha ') ? s.name.substring(9) : s.name,
+        lat: s.latitude,
+        lng: s.longitude,
+        openHours: s.openHours || '10:00 - 22:00',
+      }));
+    }
+    return [];
+  }, [stores]);
+
+  const [nearestStore, setNearestStore] = useState<StoreOutlet | null>(null);
   const [distanceKm, setDistanceKm] = useState<number>(0.8);
   const [bearingDeg, setBearingDeg] = useState<number>(45);
 
   const rotateAnim = useRef(new Animated.Value(45)).current;
   const radarPulse = useRef(new Animated.Value(0)).current;
+
+  // Sync nearest store when activeStores changes (before location updates or if permissions denied)
+  useEffect(() => {
+    if (activeStores.length > 0) {
+      setNearestStore(activeStores[0]);
+    }
+  }, [activeStores]);
 
   // Radar Pulse Effect
   useEffect(() => {
@@ -109,6 +99,7 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
 
   // Request Location & Heading
   useEffect(() => {
+    if (activeStores.length === 0) return;
     let headingSub: Location.LocationSubscription | null = null;
 
     (async () => {
@@ -120,10 +111,10 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
           const userLng = loc.coords.longitude;
 
           // Find closest store
-          let closest = GONGCHA_STORES[0];
+          let closest = activeStores[0];
           let minD = Infinity;
 
-          GONGCHA_STORES.forEach((store) => {
+          activeStores.forEach((store) => {
             const d = calculateDistanceKm(userLat, userLng, store.lat, store.lng);
             if (d < minD) {
               minD = d;
@@ -162,7 +153,7 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
     return () => {
       if (headingSub) headingSub.remove();
     };
-  }, [rotateAnim]);
+  }, [rotateAnim, activeStores]);
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 360],
@@ -182,6 +173,16 @@ export default function BentoNearbyOutlet({ onPress }: BentoNearbyOutletProps) {
   const formattedDistance = distanceKm >= 1 
     ? `${distanceKm.toFixed(1)} km` 
     : `${Math.round(distanceKm * 1000)} m`;
+
+  if (!nearestStore) {
+    return (
+      <View style={styles.card}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 11, color: '#A08F88', fontWeight: '700' }}>LOADING OUTLETS...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <TouchableOpacity

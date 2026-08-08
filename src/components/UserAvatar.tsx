@@ -48,8 +48,9 @@ const getInitials = (name: string): string => {
 };
 
 export default function UserAvatar({ name, photoURL, size = 100, fontSize }: UserAvatarProps) {
-  const initials = getInitials(name);
-  const backgroundColor = getColorFromName(name);
+  const safeName = typeof name === 'string' ? name : 'User';
+  const initials = getInitials(safeName);
+  const backgroundColor = getColorFromName(safeName);
   const calculatedFontSize = fontSize || size * 0.4;
 
   // Jika ada photoURL, render Image

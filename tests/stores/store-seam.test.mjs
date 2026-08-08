@@ -234,7 +234,7 @@ test('repository coalesces overlapping loads and prevents cache overwrite', asyn
 
   assert.deepEqual(await first, await second);
   assert.equal(sourceCalls, 1);
-  assert.deepEqual(cache.stores, [jakarta, bandung]);
+  assert.deepEqual(cache.stores, [bandung]);
 });
 
 test('GetStores preserves cached fallback order and permission state', async () => {

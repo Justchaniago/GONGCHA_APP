@@ -266,12 +266,27 @@ export default function HelpCenterScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingBottom: 12, backgroundColor: SURFACE,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: TEXT_PRIMARY },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFF1EA',
+    borderWidth: 1,
+    borderColor: '#F1DED4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2A1F1F',
+  },
   scroll: { padding: 20 },
 
   hero: { alignItems: 'center', paddingVertical: 24, marginBottom: 8 },

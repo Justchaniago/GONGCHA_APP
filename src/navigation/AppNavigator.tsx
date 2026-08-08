@@ -33,6 +33,7 @@ import LocalProfileScreen from '../screens/LocalProfileScreen';
 import LocalStoreLocatorScreen from '../screens/LocalStoreLocatorScreen';
 import LocalMembershipStatusScreen from '../screens/LocalMembershipStatusScreen';
 import LocalLoyaltyActivityScreen from '../screens/LocalLoyaltyActivityScreen';
+import PromoDetailScreen from '../screens/PromoDetailScreen';
 
 export type RootStackParamList = {
   LocationPermission: undefined;
@@ -48,6 +49,7 @@ export type RootStackParamList = {
   HelpCenter: undefined;
   LocalDashboard: undefined;
   LocalLoyaltyActivity: undefined;
+  PromoDetail: { imageUrl?: string; imageSource?: any; title: string; subtitle?: string };
 };
 
 export type RootTabParamList = {
@@ -128,6 +130,7 @@ export default function AppNavigator() {
             <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="LocalDashboard" component={LocalDashboardScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="LocalLoyaltyActivity" component={LocalLoyaltyActivityScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="PromoDetail" component={PromoDetailScreen} options={{ animation: 'slide_from_right' }} />
           </>
 
       ) : (

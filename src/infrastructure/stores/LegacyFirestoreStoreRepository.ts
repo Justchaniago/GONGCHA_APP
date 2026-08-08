@@ -49,26 +49,16 @@ export class LegacyFirestoreStoreRepository implements StoreRepository {
   }
 
   private async loadOnce(mode: StoreLoadMode): Promise<StoreRepositorySnapshot> {
-    const cachedStores = await this.cache.readStores();
-    const lastSyncTime = await this.cache.readSyncTime();
     const currentSyncTime = this.now();
 
     try {
-      const effectiveMode =
-        mode === 'full' || cachedStores.length === 0 ? 'full' : 'delta';
-      const fetchedStores = await this.source.load(
-        effectiveMode,
-        effectiveMode === 'full' ? 0 : lastSyncTime,
-      );
-      const stores = mergeStores(cachedStores, fetchedStores, effectiveMode);
-
-      if (fetchedStores.length > 0) {
-        await this.cache.writeStores(stores);
-      }
+      const stores = await this.source.load('full', 0);
+      await this.cache.writeStores(stores);
       await this.cache.writeSyncTime(currentSyncTime);
 
       return { stores, stale: false };
     } catch {
+      const cachedStores = await this.cache.readStores();
       return { stores: cachedStores, stale: true };
     }
   }

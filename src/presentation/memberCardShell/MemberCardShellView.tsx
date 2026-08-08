@@ -17,6 +17,16 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { MemberCardShellViewModel } from '../../application/memberCardShell/MemberCardShellViewModel';
 
+const CARD_BACKGROUND_IMAGES: Record<string, any> = {
+  LOVER: require('../../../assets/images/Lovermembercard.png'),
+  MASTER: require('../../../assets/images/Mastermembercard.png'),
+  AMBASSADOR: require('../../../assets/images/card1.webp'),
+  LEGEND: require('../../../assets/images/card1.webp'),
+  SILVER: require('../../../assets/images/card1.webp'),
+  GOLD: require('../../../assets/images/card1.webp'),
+  PLATINUM: require('../../../assets/images/card1.webp'),
+};
+
 export interface MemberCardShellViewProps {
   viewModel: MemberCardShellViewModel;
   onClose: () => void;
@@ -271,7 +281,7 @@ export function MemberCardShellView({ viewModel, onClose }: MemberCardShellViewP
           >
             {/* Background Image */}
             <Image
-              source={require('../../../assets/images/card1.webp')}
+              source={CARD_BACKGROUND_IMAGES[viewModel.tierName] ?? require('../../../assets/images/card1.webp')}
               style={{
                 position: 'absolute',
                 width: cardWidth,

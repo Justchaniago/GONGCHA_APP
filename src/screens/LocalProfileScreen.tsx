@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -7,9 +7,21 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
+  Alert,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { History, ChevronRight } from 'lucide-react-native';
+import {
+  User,
+  History,
+  ChevronRight,
+  Lock,
+  ShieldCheck,
+  MapPin,
+  HelpCircle,
+  LogOut,
+  ScanFace,
+} from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,22 +31,103 @@ import { createLocalLoyaltyActivityController } from '../composition/loyaltyActi
 import { createLocalLoyaltySummaryController } from '../composition/loyaltySummary';
 import DecorativeBackground from '../components/DecorativeBackground';
 import { useMember } from '../context/MemberContext';
-import type { LocalStackParamList } from '../navigation/LocalAppNavigator';
+import { useSecurity } from '../context/SecurityContext';
+import { AuthService } from '../services/AuthService';
 import { useLocalLoyaltyActivity } from '../presentation/loyaltyActivity/useLocalLoyaltyActivity';
 import { useLocalLoyaltySummary } from '../presentation/loyaltySummary/useLocalLoyaltySummary';
+import { savedLoginCredentialCapability } from '../composition/auth';
 import {
   ProfileHistorySheet,
   ProfileIdentityStatsView,
 } from '../presentation/profileParity/ProfileParityView';
 import { colors } from '../theme/colorTokens';
 
+// ==========================================
+// SUB-KOMPONEN MENU ITEM
+// ==========================================
+const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false }: any) => (
+  <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+    <View style={[styles.menuIcon, { backgroundColor: isDestructive ? colors.brand.primary : '#FFF0E0' }]}>
+      <Icon size={20} color={isDestructive ? '#FFF' : colors.brand.primary} />
+    </View>
+    <View style={styles.menuTextContainer}>
+      <Text style={[styles.menuTitle, { color: isDestructive ? colors.brand.primary : colors.text.primary }]}>{title}</Text>
+      {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+    </View>
+    {!isDestructive && <ChevronRight size={16} color={colors.text.tertiary} />}
+  </TouchableOpacity>
+);
+
 export default function LocalProfileScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { member, loading: memberLoading } = useMember();
+  const { openSecuritySettings, pinEnabled, biometricEnabled, appLockEnabled } = useSecurity();
   const uid = member?.uid ?? null;
+
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioHasCreds, setBioHasCreds] = useState(false);
+
+  useEffect(() => {
+    async function checkBio() {
+      const available = await savedLoginCredentialCapability.isAvailable();
+      setBioAvailable(available);
+      if (available) {
+        const hasCreds = await savedLoginCredentialCapability.hasSavedCredentials();
+        setBioHasCreds(hasCreds);
+      }
+    }
+    checkBio();
+  }, []);
+
+  const handleToggleBioLogin = async () => {
+    if (bioHasCreds) {
+      Alert.alert(
+        'Disable Face ID Login',
+        'Are you sure you want to turn off Face ID login on this device?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable',
+            style: 'destructive',
+            onPress: async () => {
+              await savedLoginCredentialCapability.clearCredentials();
+              setBioHasCreds(false);
+            },
+          },
+        ]
+      );
+    } else {
+      if (!member?.email) return;
+      const success = await savedLoginCredentialCapability.authenticate('Verify Face ID to enable login');
+      if (!success) return;
+
+      if (Platform.OS === 'ios') {
+        Alert.prompt(
+          'Enable Face ID Login',
+          'Enter your password to secure Face ID login for ' + member.email + ':',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Enable',
+              onPress: async (password: string | undefined) => {
+                if (password) {
+                  await savedLoginCredentialCapability.saveCredentials(member.email, password);
+                  setBioHasCreds(true);
+                  Alert.alert('Face ID Enabled', 'You can now log in with Face ID next time.');
+                }
+              },
+            },
+          ],
+          'secure-text'
+        );
+      } else {
+        Alert.alert('Unsupported', 'Please activate Face ID on the login page next time you log in.');
+      }
+    }
+  };
+
   const summaryController = useMemo(
     () => createLocalLoyaltySummaryController(),
     [],
@@ -57,12 +150,14 @@ export default function LocalProfileScreen() {
       ),
     [activityState, member, summaryState],
   );
+
   const loading =
     memberLoading ||
     summaryState.phase === 'idle' ||
     summaryState.phase === 'loading';
   const historyLoading =
     activityState.phase === 'idle' || activityState.phase === 'loading';
+
   const rootError =
     summaryState.phase === 'error'
       ? 'Profile loyalty gagal dimuat. Nilai nol tidak ditampilkan.'
@@ -73,6 +168,7 @@ export default function LocalProfileScreen() {
       : activityState.pageError
         ? 'Sebagian activity gagal dimuat. Data sebelumnya tetap ditampilkan.'
         : null;
+
   const horizontalPadding = width < 360 ? 14 : 20;
   const avatarSize = width < 360 ? 88 : 100;
 
@@ -91,6 +187,14 @@ export default function LocalProfileScreen() {
     summaryController,
     summaryState.phase,
   ]);
+
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: () => void AuthService.logout() },
+    ]);
+  };
+
   const ignoreTabBar = useCallback(() => undefined, []);
 
   return (
@@ -102,7 +206,7 @@ export default function LocalProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: 80 + insets.bottom },
+            { paddingBottom: 100 + insets.bottom },
           ]}
           refreshControl={
             <RefreshControl
@@ -129,7 +233,7 @@ export default function LocalProfileScreen() {
             loading={loading}
             avatarSize={avatarSize}
             horizontalPadding={horizontalPadding}
-            onEdit={null}
+            onEdit={() => navigation.navigate('EditProfile')}
           />
 
           {rootError ? (
@@ -149,40 +253,83 @@ export default function LocalProfileScreen() {
             </View>
           ) : null}
 
-          <View
-            style={[
-              styles.menuSection,
-              { paddingHorizontal: horizontalPadding },
-            ]}
-          >
+          {/* ACCOUNT SECTION */}
+          <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
             <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>
               Account
             </Text>
-            <TouchableOpacity
-              style={styles.menuItem}
-              activeOpacity={0.7}
-              onPress={() => setHistoryVisible(true)}
-            >
-              <View style={styles.menuIcon}>
-                <History size={20} color={colors.brand.primary} />
-              </View>
-              <View style={styles.menuText}>
-                <Text style={[styles.menuTitle, { color: colors.text.primary }]}>
-                  Loyalty Activity
-                </Text>
-                <Text style={styles.menuSubtitle}>
-                  Riwayat authoritative dari FastAPI
-                </Text>
-              </View>
-              <ChevronRight size={16} color={colors.text.tertiary} />
-            </TouchableOpacity>
-            <View style={styles.notice}>
-              <Text style={styles.noticeText}>
-                Edit profile, avatar, provider linking, notification, dan
-                destructive account action belum diaktifkan di local mode.
-              </Text>
-            </View>
+            
+            <MenuItem 
+              icon={User} 
+              title="Edit Profile" 
+              subtitle="Name, Phone, Email & Photo" 
+              onPress={() => navigation.navigate('EditProfile')} 
+            />
+
+            <MenuItem 
+              icon={Lock} 
+              title="Change Password" 
+              subtitle="Update your account password" 
+              onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} 
+            />
+
+            <MenuItem
+              icon={ShieldCheck}
+              title="Security PIN"
+              subtitle={
+                pinEnabled
+                  ? biometricEnabled
+                    ? appLockEnabled
+                      ? 'PIN and biometrics enabled, with app relock active'
+                      : 'PIN and biometrics enabled'
+                    : appLockEnabled
+                      ? 'PIN enabled, with app relock active'
+                      : 'PIN enabled for sensitive actions'
+                  : 'Protect redemption, vouchers, and your member QR'
+              }
+              onPress={openSecuritySettings}
+            />
+
+            {bioAvailable && (
+              <MenuItem
+                icon={ScanFace}
+                title="Face ID Login"
+                subtitle={bioHasCreds ? 'Enabled for ' + member?.email : 'Enable login with Face ID'}
+                onPress={handleToggleBioLogin}
+              />
+            )}
+
+
+
+            <MenuItem 
+              icon={MapPin} 
+              title="Find a Store" 
+              subtitle="Locate nearest Gong Cha" 
+              onPress={() => navigation.navigate('StoreLocator')} 
+            />
           </View>
+
+          {/* SUPPORT SECTION */}
+          <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
+            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>
+              Support
+            </Text>
+            <MenuItem 
+              icon={HelpCircle} 
+              title="Help Center" 
+              onPress={() => navigation.navigate('HelpCenter')} 
+            />
+            <MenuItem 
+              icon={LogOut} 
+              title="Log Out" 
+              isDestructive 
+              onPress={handleLogout} 
+            />
+          </View>
+
+          <Text style={[styles.versionText, { color: colors.text.secondary }]}>
+            App Version 1.0.3 (FastAPI Core)
+          </Text>
         </ScrollView>
       </View>
 
@@ -205,7 +352,7 @@ export default function LocalProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 80 },
+  scrollContent: { paddingBottom: 100 },
   backButton: {
     alignSelf: 'flex-start',
     paddingHorizontal: 20,
@@ -255,13 +402,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
     backgroundColor: '#FFF0E0',
   },
-  menuText: { flex: 1 },
+  menuTextContainer: { flex: 1 },
   menuTitle: { fontSize: 16, fontWeight: '600' },
   menuSubtitle: { color: '#6B7280', fontSize: 12, marginTop: 2 },
-  notice: {
-    backgroundColor: '#FFF7E6',
-    borderRadius: 14,
-    padding: 16,
+  versionText: {
+    textAlign: 'center',
+    fontSize: 12,
+    opacity: 0.5,
+    marginBottom: 20,
   },
-  noticeText: { color: '#8A5A16', fontSize: 12, lineHeight: 18 },
 });

@@ -60,6 +60,11 @@ const TIER_THEME: Record<MembershipThemeKey, ThemeConfig> = {
     heroBg: ['#F3F4F6', '#D1D5DB'],
     accentColor: '#111827',
   },
+  'candidate-family': {
+    gradient: ['#34D399', '#059669'],
+    heroBg: ['#ECFDF5', '#D1FAE5'],
+    accentColor: '#047857',
+  },
 };
 
 const BENEFIT_ICON = {

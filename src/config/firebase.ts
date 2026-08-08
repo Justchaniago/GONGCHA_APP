@@ -13,13 +13,13 @@ const getReactNativePersistence = (FirebaseAuth as any).getReactNativePersistenc
 
 // Config Project Gong Cha (Sesuai yang kamu kirim)
 const firebaseConfig = {
-  apiKey: 'AIzaSyCpCLkG0gjvcHMghrgbUcw6N0Cbr79UlBo',
-  authDomain: 'gongcha-backend.firebaseapp.com',
-  projectId: 'gongcha-backend',
-  storageBucket: 'gongcha-backend.firebasestorage.app',
-  messagingSenderId: '79343384792',
-  appId: '1:79343384792:web:9ff7405f35686988eb7fad',
-  measurementId: 'G-1S597BNPD1',
+  apiKey: 'AIzaSyCvEEadV2j1dx1pzK4yeZDBS4dRPEoM2Uo',
+  authDomain: 'gongcha-backend-neo.firebaseapp.com',
+  projectId: 'gongcha-backend-neo',
+  storageBucket: 'gongcha-backend-neo.firebasestorage.app',
+  messagingSenderId: '353793177534',
+  appId: '1:353793177534:web:798ddd7c16acf221e1ebef',
+  measurementId: 'G-HBYY1WDWN8',
 };
 
 // 1. Init App (Singleton Pattern)
