@@ -104,6 +104,12 @@ export default function HomeScreen() {
   const contentTranslateY = useRef(new Animated.Value(35)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
+  // Scroll value for sticky header fade morphing
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Shimmering animation value for custom pull to refresh text
+  const shimmerOpacity = useRef(new Animated.Value(1)).current;
+
   // Track scroll for auto-hiding tab bar
   const lastScrollY = useRef(0);
   const isTabBarHiddenRef = useRef(false);
@@ -111,6 +117,11 @@ export default function HomeScreen() {
   const handleScroll = (event: any) => {
     const currentY = event.nativeEvent.contentOffset.y;
     const diff = currentY - lastScrollY.current;
+
+    // Custom Pull to Refresh trigger (when pulled down past 85px)
+    if (currentY < -85 && !isRefreshing) {
+      onRefresh();
+    }
 
     if (currentY <= 10) {
       // User is at the top, show the tab bar
@@ -133,6 +144,35 @@ export default function HomeScreen() {
     }
     lastScrollY.current = currentY;
   };
+
+  // Loop breathing/shimmer animation during refresh
+  useEffect(() => {
+    let anim: Animated.CompositeAnimation | null = null;
+    if (isRefreshing) {
+      anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerOpacity, {
+            toValue: 1,
+            duration: 650,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerOpacity, {
+            toValue: 0.3,
+            duration: 650,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      anim.start();
+    } else {
+      shimmerOpacity.setValue(1);
+    }
+    return () => {
+      if (anim) {
+        anim.stop();
+      }
+    };
+  }, [isRefreshing, shimmerOpacity]);
 
   useEffect(() => {
     // Synchronize with Custom Splash Screen exit timing (t = 1100ms)
@@ -310,99 +350,148 @@ export default function HomeScreen() {
         <DecorativeBackground />
 
         <View style={styles.mainLayout}>
-          {/* HEADER (SLIDE-DOWN ENTRANCE) */}
-          <Animated.View style={[
-            styles.fixedHeaderContainer,
-            {
-              paddingTop: 62,
-              paddingHorizontal: 16,
-              paddingBottom: 16,
-              backgroundColor: colors.brand.primary,
-              borderBottomLeftRadius: 36,
-              borderBottomRightRadius: 36,
-              borderCurve: 'continuous',
-              zIndex: 20,
-              opacity: headerOpacity,
-              transform: [{ translateY: headerTranslateY }],
-            },
-          ]}>
-            <View style={styles.headerContent}>
-              {/* LEFT AREA: Gongcha Logo */}
-              <View style={styles.headerLeftLogoContainer}>
-                <Image
-                  source={require('../../assets/images/GongchaLogo.png')}
-                  style={styles.gongchaHeaderLogo}
-                  resizeMode="contain"
-                />
-              </View>
-
-              {/* RIGHT AREA: Greeting and Bell Button */}
-              <View style={styles.headerRightContainer}>
-                <View style={styles.headerGreetingTextContainer}>
-                  <Text style={[styles.greeting, { color: 'rgba(255, 255, 255, 0.82)', textAlign: 'right' }]}>{getGreeting()},</Text>
-                  {isMemberLoading ? (
-                    <SkeletonLoader width={80} height={16} style={{ marginTop: 2, alignSelf: 'flex-end' }} />
-                  ) : (
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
-                      style={[styles.name, { color: '#FFFFFF', textAlign: 'right' }]}
-                    >
-                      {formatMemberName(member?.fullName)}
-                    </Text>
-                  )}
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.notificationBtn,
-                    styles.notificationBtnShell,
-                    {
-                      width: headerIconSize,
-                      height: headerIconSize,
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => setShowNotifications(true)}
-                >
-                  <Bell size={22} color="#FFFFFF" strokeWidth={2.5} />
-                  {notifications.some((n) => !n.isRead) && (
-                    <View style={[styles.notificationBadge, { backgroundColor: '#FFFFFF', borderColor: colors.brand.primary }]}>
-                      <Text style={[styles.notificationBadgeText, { color: colors.brand.primary }]}>
-                        {notifications.filter((n) => !n.isRead).length}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* MEMBERSHIP STATUS CARD INSIDE RED HEADER */}
-            <View style={{ marginTop: 14 }}>
-              <HomeMembershipRegion
-                model={loyaltyModel}
-                loading={isMemberLoading}
-                onPress={() => navigation.navigate('MembershipStatus')}
-              />
-            </View>
-
-
-          </Animated.View>
-
           {/* SCROLLABLE BENTO CONTENT (SLIDE-UP STAGGERED ENTRANCE) */}
           <Animated.View style={{ flex: 1, opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
-            <ScrollView
+            <Animated.ScrollView
               showsVerticalScrollIndicator={false}
               style={styles.scrollView}
-              contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding, paddingBottom: 120 + insets.bottom, paddingTop: 16 }]}
-              onScroll={handleScroll}
+              contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                {
+                  useNativeDriver: true,
+                  listener: handleScroll,
+                }
+              )}
               scrollEventThrottle={16}
-              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#B91C2F']} tintColor="#B91C2F" />}
             >
+              {/* TOP OVERSCROLL FILLER (iOS RUBBERBAND AREA) */}
+              <View style={{
+                position: 'absolute',
+                top: -1000,
+                left: 0,
+                right: 0,
+                height: 1000,
+                backgroundColor: colors.brand.primary,
+              }} />
+
+              {/* CUSTOM SHIMMER REFRESH TEXT */}
+              <Animated.View style={{
+                position: 'absolute',
+                top: -45,
+                left: 0,
+                right: 0,
+                height: 30,
+                justifyContent: 'center',
+                alignItems: 'center',
+                opacity: scrollY.interpolate({
+                  inputRange: [-90, -35],
+                  outputRange: [1, 0],
+                  extrapolate: 'clamp',
+                }),
+              }}>
+                <Animated.Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 11,
+                  fontWeight: '900',
+                  letterSpacing: 1.5,
+                  opacity: shimmerOpacity,
+                }}>
+                  {isRefreshing ? 'REFRESHING...' : 'PULL TO REFRESH'}
+                </Animated.Text>
+              </Animated.View>
+
+              {/* BIG HEADER CARD (SCROLLS AWAY) */}
+              <Animated.View style={[
+                styles.fixedHeaderContainer,
+                {
+                  paddingTop: insets.top > 0 ? insets.top + 16 : 44,
+                  paddingHorizontal: 16,
+                  paddingBottom: 24,
+                  backgroundColor: colors.brand.primary,
+                  borderBottomLeftRadius: 36,
+                  borderBottomRightRadius: 36,
+                  borderCurve: 'continuous',
+                  opacity: headerOpacity,
+                  transform: [{ translateY: headerTranslateY }],
+                },
+              ]}>
+                <Animated.View style={{
+                  flex: 1,
+                  opacity: scrollY.interpolate({
+                    inputRange: [0, 80], // Graceful fade-out as it scrolls up
+                    outputRange: [1, 0],
+                    extrapolate: 'clamp',
+                  })
+                }}>
+                  <View style={styles.headerContent}>
+                    {/* LEFT AREA: Gongcha Logo */}
+                    <View style={styles.headerLeftLogoContainer}>
+                      <Image
+                        source={require('../../assets/images/GongchaLogo.png')}
+                        style={styles.gongchaHeaderLogo}
+                        resizeMode="contain"
+                      />
+                    </View>
+
+                    {/* RIGHT AREA: Greeting and Bell Button */}
+                    <View style={styles.headerRightContainer}>
+                      <View style={styles.headerGreetingTextContainer}>
+                        <Text style={[styles.greeting, { color: 'rgba(255, 255, 255, 0.82)', textAlign: 'right' }]}>{getGreeting()},</Text>
+                        {isMemberLoading ? (
+                          <SkeletonLoader width={80} height={16} style={{ marginTop: 2, alignSelf: 'flex-end' }} />
+                        ) : (
+                          <Text
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.6}
+                            style={[styles.name, { color: '#FFFFFF', textAlign: 'right' }]}
+                          >
+                            {formatMemberName(member?.fullName)}
+                          </Text>
+                        )}
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.notificationBtn,
+                          styles.notificationBtnShell,
+                          {
+                            width: headerIconSize,
+                            height: headerIconSize,
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255, 255, 255, 0.3)',
+                          },
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => setShowNotifications(true)}
+                      >
+                        <Bell size={22} color="#FFFFFF" strokeWidth={2.5} />
+                        {notifications.some((n) => !n.isRead) && (
+                          <View style={[styles.notificationBadge, { backgroundColor: '#FFFFFF', borderColor: colors.brand.primary }]}>
+                            <Text style={[styles.notificationBadgeText, { color: colors.brand.primary }]}>
+                              {notifications.filter((n) => !n.isRead).length}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* MEMBERSHIP STATUS CARD INSIDE HEADER */}
+                  <View style={{ marginTop: 14 }}>
+                    <HomeMembershipRegion
+                      model={loyaltyModel}
+                      loading={isMemberLoading}
+                      onPress={() => navigation.navigate('MembershipStatus')}
+                    />
+                  </View>
+                </Animated.View>
+              </Animated.View>
+
+              {/* SCROLLABLE BENTO BOX CONTENT WRAPPER */}
+              <View style={{ paddingHorizontal: horizontalPadding, paddingTop: 16 }}>
               {/* NEWS AND PROMOTIONS */}
 
 
@@ -455,7 +544,8 @@ export default function HomeScreen() {
 
               {/* RECTANGULAR BENTO: DAILY CHECK-IN REWARD */}
               <BentoDailyCheckIn />
-            </ScrollView>
+              </View>
+            </Animated.ScrollView>
 
           </Animated.View>
 
@@ -485,6 +575,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 6,
+  },
+  stickyNavbar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.brand.primary,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    zIndex: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
 
