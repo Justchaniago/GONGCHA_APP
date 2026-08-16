@@ -456,7 +456,7 @@ export default function LoginScreen() {
                           disabled={phoneNumber.length < 9}
                         >
                           <View style={styles.buttonInner}>
-                            <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>Get OTP</Text>
+                            <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>{t('login.getOtp2')}</Text>
                           </View>
                         </BouncyPressable>
                       </>
