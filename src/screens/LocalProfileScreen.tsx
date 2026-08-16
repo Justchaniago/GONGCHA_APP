@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../hooks/useLanguage';
 import {
   RefreshControl,
   ScrollView,
@@ -21,6 +23,7 @@ import {
   HelpCircle,
   LogOut,
   ScanFace,
+  Globe,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -59,6 +62,8 @@ const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false 
 );
 
 export default function LocalProfileScreen() {
+  const { t } = useTranslation();
+  const { language, changeLanguage } = useLanguage();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -84,12 +89,12 @@ export default function LocalProfileScreen() {
   const handleToggleBioLogin = async () => {
     if (bioHasCreds) {
       Alert.alert(
-        'Disable Face ID Login',
-        'Are you sure you want to turn off Face ID login on this device?',
+        t('profile.disableFaceId'),
+        t('profile.disableFaceIdMsg'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('profile.cancel'), style: 'cancel' },
           {
-            text: 'Disable',
+            text: t('profile.disable'),
             style: 'destructive',
             onPress: async () => {
               await savedLoginCredentialCapability.clearCredentials();
@@ -100,17 +105,17 @@ export default function LocalProfileScreen() {
       );
     } else {
       if (!member?.email) return;
-      const success = await savedLoginCredentialCapability.authenticate('Verify Face ID to enable login');
+      const success = await savedLoginCredentialCapability.authenticate(t('profile.verifyFaceId'));
       if (!success) return;
 
       if (Platform.OS === 'ios') {
         Alert.prompt(
-          'Enable Face ID Login',
-          'Enter your password to secure Face ID login for ' + member.email + ':',
+          t('profile.enableFaceId'),
+          t('profile.enableFaceIdMsg') + member.email + ':',
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: t('profile.cancel'), style: 'cancel' },
             {
-              text: 'Enable',
+              text: t('profile.enable'),
               onPress: async (password: string | undefined) => {
                 if (password) {
                   await savedLoginCredentialCapability.saveCredentials(member.email, password);
@@ -160,13 +165,13 @@ export default function LocalProfileScreen() {
 
   const rootError =
     summaryState.phase === 'error'
-      ? 'Profile loyalty gagal dimuat. Nilai nol tidak ditampilkan.'
+      ? t('profile.profileLoadError')
       : null;
   const historyError =
     activityState.phase === 'error'
-      ? 'Loyalty activity gagal dimuat dari FastAPI.'
+      ? t('profile.activityLoadError')
       : activityState.pageError
-        ? 'Sebagian activity gagal dimuat. Data sebelumnya tetap ditampilkan.'
+        ? t('profile.activityPartialError')
         : null;
 
   const horizontalPadding = width < 360 ? 14 : 20;
@@ -189,9 +194,9 @@ export default function LocalProfileScreen() {
   ]);
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: () => void AuthService.logout() },
+    Alert.alert(t('profile.logOut'), t('profile.logOutConfirm'), [
+      { text: t('profile.cancel'), style: 'cancel' },
+      { text: t('profile.logOut'), style: 'destructive', onPress: () => void AuthService.logout() },
     ]);
   };
 
@@ -261,31 +266,31 @@ export default function LocalProfileScreen() {
             
             <MenuItem 
               icon={User} 
-              title="Edit Profile" 
-              subtitle="Name, Phone, Email & Photo" 
+              title={t('profile.editProfile')}
+              subtitle={t('profile.editProfileSub')}
               onPress={() => navigation.navigate('EditProfile')} 
             />
 
             <MenuItem 
               icon={Lock} 
-              title="Change Password" 
-              subtitle="Update your account password" 
+              title={t('profile.changePassword')}
+              subtitle={t('profile.changePasswordSub')}
               onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} 
             />
 
             <MenuItem
               icon={ShieldCheck}
-              title="Security PIN"
+              title={t('profile.securityPin')}
               subtitle={
                 pinEnabled
                   ? biometricEnabled
                     ? appLockEnabled
-                      ? 'PIN and biometrics enabled, with app relock active'
-                      : 'PIN and biometrics enabled'
+                      ? t('profile.pinBioRelock')
+                      : t('profile.pinBio')
                     : appLockEnabled
-                      ? 'PIN enabled, with app relock active'
-                      : 'PIN enabled for sensitive actions'
-                  : 'Protect redemption, vouchers, and your member QR'
+                      ? t('profile.pinRelock')
+                      : t('profile.pinOnly')
+                  : t('profile.pinOff')
               }
               onPress={openSecuritySettings}
             />
@@ -293,8 +298,8 @@ export default function LocalProfileScreen() {
             {bioAvailable && (
               <MenuItem
                 icon={ScanFace}
-                title="Face ID Login"
-                subtitle={bioHasCreds ? 'Enabled for ' + member?.email : 'Enable login with Face ID'}
+                title={t('profile.faceIdLogin')}
+                subtitle={bioHasCreds ? t('profile.faceIdEnabledFor') + member?.email : t('profile.faceIdEnable')}
                 onPress={handleToggleBioLogin}
               />
             )}
@@ -303,25 +308,31 @@ export default function LocalProfileScreen() {
 
             <MenuItem 
               icon={MapPin} 
-              title="Find a Store" 
-              subtitle="Locate nearest Gong Cha" 
-              onPress={() => navigation.navigate('StoreLocator')} 
+              title={t('profile.findStore')}
+              subtitle={t('profile.findStoreSub')}
+              onPress={() => navigation.navigate('StoreLocator')}
+            />
+            <MenuItem
+              icon={Globe}
+              title={t('profile.language')}
+              subtitle={language === 'en' ? 'English' : 'Bahasa Indonesia'}
+              onPress={() => changeLanguage(language === 'en' ? 'id' : 'en')}
             />
           </View>
 
           {/* SUPPORT SECTION */}
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
             <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>
-              Support
+              {t('profile.support')}
             </Text>
             <MenuItem 
               icon={HelpCircle} 
-              title="Help Center" 
+              title={t('profile.helpCenter')}
               onPress={() => navigation.navigate('HelpCenter')} 
             />
             <MenuItem 
               icon={LogOut} 
-              title="Log Out" 
+              title={t('profile.logOut')}
               isDestructive 
               onPress={handleLogout} 
             />

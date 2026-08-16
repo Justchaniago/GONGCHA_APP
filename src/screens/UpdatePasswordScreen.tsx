@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -30,6 +31,7 @@ type UpdatePasswordNavProp = NativeStackNavigationProp<RootStackParamList, 'Upda
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export default function UpdatePasswordScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<UpdatePasswordNavProp>();
   const route = useRoute<UpdatePasswordRouteProp>();
@@ -114,8 +116,8 @@ export default function UpdatePasswordScreen() {
           <Text style={styles.successTitle}>Password Berhasil Diubah!</Text>
           <Text style={styles.successSubtext}>
             {isResetMode
-              ? 'Password kamu sudah diperbarui. Silakan login dengan password baru.'
-              : 'Password kamu sudah berhasil diubah.'}
+              ? t('updatePassword.successResetMsg')
+              : t('updatePassword.successChangeMsg')}
           </Text>
           <TouchableOpacity
             style={styles.primaryButton}
@@ -128,7 +130,7 @@ export default function UpdatePasswordScreen() {
             }}
           >
             <Text style={styles.primaryButtonText}>
-              {isResetMode ? 'Kembali ke Login' : 'Selesai'}
+              {isResetMode ? t('updatePassword.backToLogin') : t('updatePassword.done')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -153,7 +155,7 @@ export default function UpdatePasswordScreen() {
             <ChevronLeft size={20} color="#2A1F1F" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {isResetMode ? 'Reset Password' : 'Ganti Password'}
+            {isResetMode ? t('updatePassword.resetTitle') : t('updatePassword.changeTitle')}
           </Text>
           <View style={{ width: 40 }} />
         </View>
@@ -164,8 +166,8 @@ export default function UpdatePasswordScreen() {
           </View>
           <Text style={styles.subtitle}>
             {isResetMode
-              ? 'Masukkan password baru kamu. Pastikan mudah diingat namun sulit ditebak.'
-              : 'Masukkan password saat ini dan password baru kamu.'}
+              ? t('updatePassword.resetSubtitle')
+              : t('updatePassword.changeSubtitle')}
           </Text>
         </View>
 
@@ -179,7 +181,7 @@ export default function UpdatePasswordScreen() {
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
-                  placeholder="Masukkan password saat ini"
+                  placeholder={t('updatePassword.currentPasswordPlaceholder')}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showCurrent}
                   autoCapitalize="none"
@@ -203,7 +205,7 @@ export default function UpdatePasswordScreen() {
             <View style={styles.inputWrapper}>
               <TextInput
                 style={styles.input}
-                placeholder="Minimal 6 karakter"
+                placeholder={t('updatePassword.newPasswordPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showNew}
                 autoCapitalize="none"
@@ -239,7 +241,7 @@ export default function UpdatePasswordScreen() {
             ]}>
               <TextInput
                 style={styles.input}
-                placeholder="Ulangi password baru"
+                placeholder={t('updatePassword.confirmPasswordPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showConfirm}
                 autoCapitalize="none"

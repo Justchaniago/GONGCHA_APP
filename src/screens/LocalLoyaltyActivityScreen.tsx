@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import {
   ActivityIndicator,
   FlatList,
@@ -26,9 +28,9 @@ import type { LocalStackParamList } from '../navigation/LocalAppNavigator';
 import { useLocalLoyaltyActivity } from '../presentation/loyaltyActivity/useLocalLoyaltyActivity';
 
 const EVENT_LABELS: Record<LoyaltyActivityEventType, string> = {
-  earn: 'Points earned',
-  refund_reversal: 'Points reversed',
-  redemption: 'Reward redemption',
+  earn: i18n.t('loyaltyActivity.earn'),
+  refund_reversal: i18n.t('loyaltyActivity.refundReversal'),
+  redemption: i18n.t('loyaltyActivity.redemption'),
 };
 
 function formatActivityDate(value: string): string {
@@ -85,6 +87,7 @@ function ActivityRow({ item }: { item: LoyaltyActivityItem }) {
 }
 
 export default function LocalLoyaltyActivityScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
@@ -155,10 +158,10 @@ export default function LocalLoyaltyActivityScreen() {
         <Text style={styles.pendingTitle}>Pending points</Text>
         <Text style={styles.pendingText}>
           {state.pendingAvailability === 'loading'
-            ? 'Memeriksa status pending...'
+            ? t('loyaltyActivity.pendingLoading')
             : state.pendingAvailability === 'unsupported'
-              ? 'Pending points belum tersedia di local backend.'
-              : 'Status pending gagal dimuat. Tarik ke bawah untuk mencoba lagi.'}
+              ? t('loyaltyActivity.pendingUnsupported')
+              : t('loyaltyActivity.pendingError')}
         </Text>
       </View>
 
@@ -192,8 +195,8 @@ export default function LocalLoyaltyActivityScreen() {
           ) : (
             <Text style={styles.fixtureButtonText}>
               {fixturePhase === 'error'
-                ? 'Coba Lagi Muat Demo Activity'
-                : 'Muat Demo Activity'}
+                ? t('loyaltyActivity.retryDemo')
+                : t('loyaltyActivity.loadDemo')}
             </Text>
           )}
         </TouchableOpacity>

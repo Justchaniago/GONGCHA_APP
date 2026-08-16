@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -32,6 +33,7 @@ type RootStackParamList = {
 type ProfileCompletionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ProfileCompletion'>;
 
 export default function ProfileCompletionScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<ProfileCompletionScreenNavigationProp>();
   const insets = useSafeAreaInsets();
   
@@ -148,7 +150,7 @@ export default function ProfileCompletionScreen() {
                   <User size={20} color="rgba(255, 255, 255, 0.7)" style={styles.inputIcon} />
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Ketik nama Anda"
+                    placeholder={t('profileCompletion.namePlaceholder')}
                     placeholderTextColor="rgba(255, 255, 255, 0.4)"
                     value={fullName}
                     onChangeText={setFullName}
@@ -175,7 +177,7 @@ export default function ProfileCompletionScreen() {
                   >
                     <TextInput
                       style={styles.dateTextInput}
-                      placeholder="DD"
+                      placeholder={t('profileCompletion.dayPlaceholder')}
                       placeholderTextColor="rgba(255, 255, 255, 0.4)"
                       value={day}
                       onChangeText={handleDayChange}
@@ -198,7 +200,7 @@ export default function ProfileCompletionScreen() {
                     <TextInput
                       ref={monthInputRef}
                       style={styles.dateTextInput}
-                      placeholder="MM"
+                      placeholder={t('profileCompletion.monthPlaceholder')}
                       placeholderTextColor="rgba(255, 255, 255, 0.4)"
                       value={month}
                       onChangeText={handleMonthChange}
@@ -221,7 +223,7 @@ export default function ProfileCompletionScreen() {
                     <TextInput
                       ref={yearInputRef}
                       style={styles.dateTextInput}
-                      placeholder="YYYY"
+                      placeholder={t('profileCompletion.yearPlaceholder')}
                       placeholderTextColor="rgba(255, 255, 255, 0.4)"
                       value={year}
                       onChangeText={handleYearChange}
@@ -256,7 +258,7 @@ export default function ProfileCompletionScreen() {
                 activeOpacity={0.9}
               >
                 <Text style={styles.confirmButtonText}>
-                  {isSubmitting ? 'Menyimpan...' : 'Konfirmasi'}
+                  {isSubmitting ? t('profileCompletion.saving') : t('profileCompletion.confirm')}
                 </Text>
                 {!isSubmitting && <ArrowRight size={20} color={colors.brand.primary} />}
               </TouchableOpacity>

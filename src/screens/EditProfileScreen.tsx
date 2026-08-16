@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -25,6 +26,7 @@ import { UserProfile } from '../types/types';
 import { profileCommands } from '../composition/profile';
 
 export default function EditProfileScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   
@@ -67,7 +69,7 @@ export default function EditProfileScreen() {
   const handlePickImage = async () => {
     const result = await profileCommands.pickImage();
     if (result.kind === 'permission-denied') {
-      Alert.alert("Permission Required", "You need to allow access to your photos to change profile picture.");
+      Alert.alert(t('editProfile.permissionRequired'), t('editProfile.permissionMsg'));
       return;
     }
     if (result.kind === 'selected') {
@@ -189,7 +191,7 @@ export default function EditProfileScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            <Text style={styles.changePhotoText}>Change Profile Photo</Text>
+            <Text style={styles.changePhotoText}>{t('editProfile.changePhoto')}</Text>
           </View>
 
           {/* Form Fields */}
@@ -197,7 +199,7 @@ export default function EditProfileScreen() {
             
             {/* Name Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>{t('editProfile.fullName')}</Text>
               <View style={styles.inputWrapper}>
                 <View style={styles.iconBox}>
                   <User size={20} color="#B91C2F" />
@@ -206,7 +208,7 @@ export default function EditProfileScreen() {
                   style={styles.input}
                   value={name}
                   onChangeText={setName}
-                  placeholder="Enter your full name"
+                  placeholder={t('editProfile.namePlaceholder')}
                   placeholderTextColor="#C4B5B0"
                 />
               </View>
@@ -244,7 +246,7 @@ export default function EditProfileScreen() {
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="name@example.com"
+                  placeholder={t('editProfile.emailPlaceholder')}
                   keyboardType="email-address"
                   placeholderTextColor="#C4B5B0"
                   autoCapitalize="none"
@@ -309,7 +311,7 @@ export default function EditProfileScreen() {
 
             <TextInput
               style={styles.otpInput}
-              placeholder="1 2 3 4"
+              placeholder={t('editProfile.otpPlaceholder')}
               placeholderTextColor="#DDD"
               keyboardType="number-pad"
               maxLength={4}

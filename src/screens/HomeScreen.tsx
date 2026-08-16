@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, ScrollView, Image, TouchableOpacity,
   useWindowDimensions, StyleSheet, RefreshControl,
@@ -52,6 +53,7 @@ type HomeNav = CompositeNavigationProp<
 >;
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const isDark = false;
   const navigation = useNavigation<HomeNav>();
   const insets = useSafeAreaInsets();
@@ -304,10 +306,10 @@ export default function HomeScreen() {
 
   // On mount: silently jump to real first item (skip leading clone)
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       promoScrollRef.current?.scrollTo({ x: promoCardWidth, animated: false });
     }, 80);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [promoCardWidth]);
 
   // Auto-scroll — always moves forward
@@ -397,7 +399,7 @@ export default function HomeScreen() {
                   letterSpacing: 1.5,
                   opacity: shimmerOpacity,
                 }}>
-                  {isRefreshing ? 'REFRESHING...' : 'PULL TO REFRESH'}
+                  {isRefreshing ? t('home.refreshing') : t('home.pullToRefresh')}
                 </Animated.Text>
               </Animated.View>
 
@@ -524,12 +526,15 @@ export default function HomeScreen() {
                         <Text style={{ color: '#8C7B75', fontWeight: 'bold' }}>Promo</Text>
                       </View>
                     )}
+                    {/* Capsule counter overlay — inside banner, bottom-right */}
+                    <View style={styles.promoCapsule}>
+                      <Text style={styles.promoCapsuleText}>
+                        {activePromo + 1} / {promos.length}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-              <View style={styles.paginationDots}>
-                {promos.map((_, i) => <View key={i} style={[styles.dot, activePromo === i && { backgroundColor: colors.brand.primary, width: 24 }]} />)}
-              </View>
 
               {/* TWO BENTO BOXES ROW (FEATURED DRINKS & NEARBY COMPASS STORE) */}
               <View style={styles.bentoGridRow}>
@@ -636,8 +641,21 @@ const styles = StyleSheet.create({
   promoCard: { height: 180, borderRadius: 24, overflow: 'hidden', elevation: 5 },
   promoImage: { width: '100%', height: '100%' },
   promoPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  paginationDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: 16, gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E0D6CC' },
+  promoCapsule: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+  },
+  promoCapsuleText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   bentoGridRow: {
     flexDirection: 'row',
     alignItems: 'center',
