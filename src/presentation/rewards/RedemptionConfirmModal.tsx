@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Modal,
   Pressable,
@@ -20,12 +21,9 @@ interface RedemptionConfirmModalProps {
   onConfirm: () => void;
 }
 
-export function RedemptionConfirmModal({
-  visible,
-  item,
-  onClose,
-  onConfirm,
-}: RedemptionConfirmModalProps) {
+export function RedemptionConfirmModal(props: RedemptionConfirmModalProps) {
+  const { t } = useTranslation();
+  const { visible, item, onClose, onConfirm } = props;
   if (!item) return null;
 
   return (

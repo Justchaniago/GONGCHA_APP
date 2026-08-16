@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -38,15 +39,9 @@ export interface StoreLocatorViewProps {
 
 const FILTER_PILLS = ['Semua', 'Dine-in', 'Takeaway', 'Delivery'];
 
-export default function StoreLocatorView({
-  stores,
-  loading,
-  searchQuery,
-  onSearchChange,
-  selectedStore,
-  onSelectStore,
-  onBack,
-}: StoreLocatorViewProps) {
+export default function StoreLocatorView(props: StoreLocatorViewProps) {
+  const { t } = useTranslation();
+  const { stores, loading, searchQuery, onSearchChange, selectedStore, onSelectStore, onBack } = props;
   const insets = useSafeAreaInsets();
   const [selectedFeature, setSelectedFeature] = useState('Semua');
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Modal,
   Pressable,
@@ -18,11 +19,9 @@ interface VoucherDetailModalProps {
   onClose: () => void;
 }
 
-export function VoucherDetailModal({
-  visible,
-  voucher,
-  onClose,
-}: VoucherDetailModalProps) {
+export function VoucherDetailModal(props: VoucherDetailModalProps) {
+  const { t } = useTranslation();
+  const { visible, voucher, onClose } = props;
   const [copied, setCopied] = useState(false);
 
   if (!voucher) return null;
