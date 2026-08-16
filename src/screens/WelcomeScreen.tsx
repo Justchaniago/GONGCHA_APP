@@ -815,7 +815,7 @@ export default function WelcomeScreen() {
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={styles.phoneInput}
-                            placeholder="Email address"
+                            placeholder={t('welcome.emailAddressPlaceholder')}
                             placeholderTextColor="#9CA3AF"
                             keyboardType="email-address"
                             autoCapitalize="none"
@@ -899,7 +899,7 @@ export default function WelcomeScreen() {
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={styles.phoneInput}
-                            placeholder="Email address"
+                            placeholder={t('welcome.emailAddressPlaceholder')}
                             placeholderTextColor="#9CA3AF"
                             keyboardType="email-address"
                             autoCapitalize="none"
@@ -912,7 +912,7 @@ export default function WelcomeScreen() {
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={[styles.phoneInput, { flex: 1 }]}
-                            placeholder="Password (min. 6 characters)"
+                            placeholder={t('welcome.passwordMinPlaceholder')}
                             placeholderTextColor="#9CA3AF"
                             secureTextEntry={!showNewPassword}
                             autoCapitalize="none"
@@ -932,7 +932,7 @@ export default function WelcomeScreen() {
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={[styles.phoneInput, { flex: 1 }]}
-                            placeholder="Confirm password"
+                            placeholder={t('welcome.confirmPasswordPlaceholder')}
                             placeholderTextColor="#9CA3AF"
                             secureTextEntry={!showNewPasswordConfirm}
                             autoCapitalize="none"
