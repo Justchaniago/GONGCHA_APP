@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   StyleSheet,
   View,
@@ -50,7 +51,8 @@ const MOCK_PROMOS = [
   },
 ];
 
-export default function LocalPromotionsScreen({ navigation }: any) {
+export default function LocalPromotionsScreen() {
+  const { t } = useTranslation();
   const [modalVisible, setModalVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;

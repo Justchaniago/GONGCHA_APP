@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Image,
   ScrollView,
@@ -15,6 +16,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 type Props = NativeStackScreenProps<RootStackParamList, 'PromoDetail'>;
 
 export default function PromoDetailScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { imageUrl, imageSource, title, subtitle } = route.params;
   const insets = useSafeAreaInsets();
 

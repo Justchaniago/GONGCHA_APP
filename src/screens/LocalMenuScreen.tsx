@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { buildMenuViewModel } from '../application/menu/GetMenu';
 import MenuView from '../presentation/menu/MenuView';
@@ -107,6 +108,7 @@ const MOCK_ITEMS: MenuItem[] = [
 ];
 
 export default function LocalMenuScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
 
   const [selectedCategory, setSelectedCategory] = useState('Semua');

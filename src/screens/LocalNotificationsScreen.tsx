@@ -1,6 +1,7 @@
 // src/screens/LocalNotificationsScreen.tsx
 
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Platform,
   SafeAreaView,
@@ -48,6 +49,7 @@ const INITIAL_MOCK_NOTIFICATIONS = [
 ];
 
 export default function LocalNotificationsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
 

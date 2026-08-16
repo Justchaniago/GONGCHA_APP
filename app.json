@@ -52,9 +52,14 @@
       "expo-asset",
       "expo-location",
       "expo-secure-store",
-      ["@react-native-google-signin/google-signin", {
-        "iosUrlScheme": "com.googleusercontent.apps.353793177534-pi67g3k2jf9dc8de07lll35aa4j5qhh2"
-      }]
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.353793177534-pi67g3k2jf9dc8de07lll35aa4j5qhh2"
+        }
+      ],
+      "expo-maps",
+      "expo-localization"
     ],
     "extra": {
       "eas": {

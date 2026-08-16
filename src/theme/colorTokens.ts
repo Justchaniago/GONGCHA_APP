@@ -15,11 +15,13 @@ export const colors = {
   surface: {
     card: '#FFFFFF',
     paper: '#FFFFFF',
+    redTint: '#FFF1F3', // brand accent surface — image placeholder, pill bg
   },
   text: {
     primary: '#2A1F1F',
     secondary: '#8C7B75',
     tertiary: '#9CA3AF',
+    inverse: '#FFFFFF', // white text on dark backgrounds
   },
   border: {
     light: '#F0E8E2',

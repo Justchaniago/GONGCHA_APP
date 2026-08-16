@@ -123,7 +123,7 @@ export default function AppNavigator() {
           // Authenticated AND Profile Complete -> Welcome home
           <>
             <Stack.Screen name="MainApp" component={MainTabNavigator} />
-            <Stack.Screen name="StoreLocator" component={USE_FASTAPI_BACKEND ? LocalStoreLocatorScreen : StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="MembershipStatus" component={USE_FASTAPI_BACKEND ? LocalMembershipStatusScreen : MembershipStatusScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
