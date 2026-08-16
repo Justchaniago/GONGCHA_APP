@@ -14,6 +14,8 @@ import useCustomFonts from '../hooks/useCustomFonts';
 import { preloadAppAssets } from '../utils/preloadAppAssets';
 
 import CustomAnimatedSplashScreen from '../components/CustomAnimatedSplashScreen';
+import '../i18n';
+import { restoreLanguage } from '../hooks/useLanguage';
 
 configureGoogleSignIn();
 LogBox.ignoreLogs([
@@ -26,6 +28,10 @@ export default function LegacyApp() {
   const fontsLoaded = useCustomFonts();
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    void restoreLanguage();
+  }, []);
 
   useEffect(() => {
     void preloadAppAssets()

@@ -4,6 +4,7 @@ import { MapPin } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import PermissionPrimerScreen from '../components/PermissionPrimerScreen';
 
 type RootStackParamList = {
@@ -12,6 +13,7 @@ type RootStackParamList = {
 };
 
 export default function LocationPermissionScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -19,21 +21,23 @@ export default function LocationPermissionScreen() {
 
   const handleAllowLocation = async () => {
     if (isSubmitting) return;
-
     try {
       setIsSubmitting(true);
-      const currentPermission = await Location.getForegroundPermissionsAsync();
-      if (currentPermission.status !== 'granted') {
-        const requestResult = await Location.requestForegroundPermissionsAsync();
-        if (requestResult.status !== 'granted') {
+      const current = await Location.getForegroundPermissionsAsync();
+      if (current.status !== 'granted') {
+        const result = await Location.requestForegroundPermissionsAsync();
+        if (result.status !== 'granted') {
           Alert.alert(
-            'Location access skipped',
-            'You can still browse the app and enable location later from Settings.',
+            t('locationPermission.skippedTitle'),
+            t('locationPermission.skippedMessage'),
           );
         }
       }
     } catch (error: any) {
-      Alert.alert('Location unavailable', String(error?.message || 'Please try again later.'));
+      Alert.alert(
+        t('locationPermission.unavailableTitle'),
+        String(error?.message || t('common.tryAgain')),
+      );
     } finally {
       setIsSubmitting(false);
       goNext();
@@ -43,15 +47,11 @@ export default function LocationPermissionScreen() {
   return (
     <PermissionPrimerScreen
       icon={<MapPin size={36} color="#B91C2F" strokeWidth={2.2} />}
-      title="Find Gong Cha near you"
-      description="Turn on location to surface the closest stores, smoother pickup flows, and more relevant local offers."
-      bullets={[
-        'See nearby stores first instead of browsing the full list.',
-        'Make pickup and visit planning faster when you are on the go.',
-        'Keep the experience relevant without forcing location every time.',
-      ]}
-      primaryLabel={isSubmitting ? 'Checking access...' : 'Allow Location Access'}
-      secondaryLabel="Not Now"
+      title={t('locationPermission.title')}
+      description={t('locationPermission.description')}
+      bullets={t('locationPermission.bullets', { returnObjects: true }) as string[]}
+      primaryLabel={isSubmitting ? t('common.checkingAccess') : t('locationPermission.primaryLabel')}
+      secondaryLabel={t('locationPermission.secondaryLabel')}
       onPrimary={handleAllowLocation}
       onSecondary={goNext}
     />

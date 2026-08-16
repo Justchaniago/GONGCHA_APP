@@ -7,14 +7,19 @@ import * as SplashScreen from 'expo-splash-screen';
 import { MemberProvider } from '../context/MemberContext';
 import useCustomFonts from '../hooks/useCustomFonts';
 import LocalAppNavigator from '../navigation/LocalAppNavigator';
-
 import CustomAnimatedSplashScreen from '../components/CustomAnimatedSplashScreen';
+import '../i18n';
+import { restoreLanguage } from '../hooks/useLanguage';
 
 void SplashScreen.preventAutoHideAsync();
 
 export default function LocalEmulatorApp() {
   const fontsLoaded = useCustomFonts();
   const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    void restoreLanguage();
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded) {

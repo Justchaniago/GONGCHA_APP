@@ -4,6 +4,7 @@ import { Bell } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import PermissionPrimerScreen from '../components/PermissionPrimerScreen';
 import { markGuestOnboardingCompleted } from '../utils/guestOnboarding';
 
@@ -13,34 +14,34 @@ type RootStackParamList = {
 };
 
 export default function NotificationPermissionScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const finishOnboarding = async () => {
     await markGuestOnboardingCompleted();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Welcome' }],
-    });
+    navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
   };
 
   const handleAllowNotifications = async () => {
     if (isSubmitting) return;
-
     try {
       setIsSubmitting(true);
-      const currentPermission = await Notifications.getPermissionsAsync();
-      if (currentPermission.status !== 'granted') {
-        const requestResult = await Notifications.requestPermissionsAsync();
-        if (requestResult.status !== 'granted') {
+      const current = await Notifications.getPermissionsAsync();
+      if (current.status !== 'granted') {
+        const result = await Notifications.requestPermissionsAsync();
+        if (result.status !== 'granted') {
           Alert.alert(
-            'Notifications skipped',
-            'You can enable notifications later if you want promo updates and order reminders.',
+            t('notificationPermission.skippedTitle'),
+            t('notificationPermission.skippedMessage'),
           );
         }
       }
     } catch (error: any) {
-      Alert.alert('Notifications unavailable', String(error?.message || 'Please try again later.'));
+      Alert.alert(
+        t('notificationPermission.unavailableTitle'),
+        String(error?.message || t('common.tryAgain')),
+      );
     } finally {
       setIsSubmitting(false);
       await finishOnboarding();
@@ -50,15 +51,11 @@ export default function NotificationPermissionScreen() {
   return (
     <PermissionPrimerScreen
       icon={<Bell size={36} color="#B91C2F" strokeWidth={2.2} />}
-      title="Stay in the loop"
-      description="Enable notifications for promo drops, reward reminders, and updates that actually matter while your membership grows."
-      bullets={[
-        'Get notified when limited offers and vouchers are live.',
-        'Receive timely reminders for points, rewards, and account activity.',
-        'Keep updates lightweight so the app stays useful, not noisy.',
-      ]}
-      primaryLabel={isSubmitting ? 'Checking access...' : 'Enable Notifications'}
-      secondaryLabel="Maybe Later"
+      title={t('notificationPermission.title')}
+      description={t('notificationPermission.description')}
+      bullets={t('notificationPermission.bullets', { returnObjects: true }) as string[]}
+      primaryLabel={isSubmitting ? t('common.checkingAccess') : t('notificationPermission.primaryLabel')}
+      secondaryLabel={t('notificationPermission.secondaryLabel')}
       onPrimary={handleAllowNotifications}
       onSecondary={finishOnboarding}
     />
