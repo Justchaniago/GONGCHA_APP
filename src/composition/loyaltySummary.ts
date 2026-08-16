@@ -8,7 +8,7 @@ import { USE_FASTAPI_BACKEND, FASTAPI_BASE_URL } from '../config/flags';
 const backendBaseUrl =
   runtimeConfig.mode === 'local_emulator'
     ? runtimeConfig.backendBaseUrl
-    : 'https://gongcha-backend-79343384792.asia-southeast1.run.app';
+    : FASTAPI_BASE_URL;
 
 const auth = USE_FASTAPI_BACKEND ? firebaseAuth : firebaseLocalAuth;
 const baseUrl = USE_FASTAPI_BACKEND ? FASTAPI_BASE_URL : backendBaseUrl;

@@ -38,9 +38,9 @@ export async function loginLocalMember(
 
   const data = await response.json();
   return {
-    accessToken: data.access_token || data.accessToken || 'mock-jwt-token',
+    accessToken: data.access_token || data.accessToken,
     tokenType: data.token_type || data.tokenType || 'bearer',
-    memberUid: data.member_uid || data.memberUid || 'mem-101',
+    memberUid: data.member_uid || data.memberUid,
   };
 }
 

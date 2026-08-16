@@ -9,7 +9,7 @@ import { USE_FASTAPI_BACKEND, FASTAPI_BASE_URL } from '../config/flags';
 const localBackendBaseUrl =
   runtimeConfig.mode === 'local_emulator'
     ? runtimeConfig.backendBaseUrl
-    : 'https://gongcha-backend-79343384792.asia-southeast1.run.app';
+    : FASTAPI_BASE_URL;
 
 export function createLocalLoyaltyActivityController(): LoyaltyActivityController {
   const auth = USE_FASTAPI_BACKEND
