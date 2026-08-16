@@ -11,6 +11,11 @@ interface MemberResponse {
   created_at: string;
 }
 
+interface LoyaltySummaryResponse {
+  available_leaves: number;
+  qualifying_leaves: number;
+}
+
 type FetchLike = (
   input: string,
   init: {
@@ -122,14 +127,32 @@ export class FastApiMemberRepository implements MemberRepository {
       throw new Error('member_api_read_failed');
     }
     const member = parseMemberResponse(await current.json());
+
+    // Fetch loyalty summary in parallel to populate currentPoints
+    let availableLeaves = 0;
+    let qualifyingLeaves = 0;
+    try {
+      const summaryRes = await this.asyncFetch(
+        `${this.baseUrl}/api/v1/member/loyalty-summary`,
+        { method: 'GET', headers },
+      );
+      if (summaryRes.ok) {
+        const summaryData = await summaryRes.json() as Record<string, unknown>;
+        availableLeaves = typeof summaryData.available_leaves === 'number' ? summaryData.available_leaves : 0;
+        qualifyingLeaves = typeof summaryData.qualifying_leaves === 'number' ? summaryData.qualifying_leaves : 0;
+      }
+    } catch {
+      // ponytail: silent fallback — loyalty-summary optional here; RewardsScreen shows 0 if unavailable
+    }
+
     return {
       name: member.display_name ?? 'Member',
       profileComplete: member.profile_completed,
       joinedDate: member.created_at,
-      currentPoints: 0,
+      currentPoints: availableLeaves,
       pendingPoints: 0,
-      lifetimePoints: 0,
-      tierXp: 0,
+      lifetimePoints: qualifyingLeaves,
+      tierXp: qualifyingLeaves,
       tier: 'Silver',
       vouchers: [],
       xpHistory: [],
