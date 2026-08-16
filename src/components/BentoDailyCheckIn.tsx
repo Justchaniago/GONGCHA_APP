@@ -11,7 +11,7 @@ const DARK     = '#1D1D1D';
 const NEUTRAL  = '#F5F5F5';
 const MUTED    = '#7C6E68';
 const BORDER   = '#EFECE7';
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://192.168.1.42:8000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://gongcha-backend-353793177534.asia-southeast1.run.app';
 
 export default function BentoDailyCheckIn() {
   const { t } = useTranslation();
@@ -48,11 +48,11 @@ export default function BentoDailyCheckIn() {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Gagal check-in');
+      if (!res.ok) throw new Error(data.detail || t('checkIn.failed'));
       
       setStreakCount(data.streak_count);
       setCheckedInToday(true);
-      Alert.alert(data.reward_unlocked ? 'Selamat!' : 'Berhasil', data.message);
+      Alert.alert(data.reward_unlocked ? t('checkIn.rewardUnlocked') : t('checkIn.success'), data.message);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     }
@@ -63,12 +63,12 @@ export default function BentoDailyCheckIn() {
       <View style={styles.headerRow}>
         <View style={styles.titleContainer}>
           <View style={styles.iconBg}><Calendar size={14} color={RED} /></View>
-          <Text style={styles.headerTitle}>Daily Check-In</Text>
+          <Text style={styles.headerTitle}>{t('checkIn.title')}</Text>
         </View>
-        <View style={styles.streakPill}><Text style={styles.streakText}>{streakCount}/7 Hari</Text></View>
+        <View style={styles.streakPill}><Text style={styles.streakText}>{streakCount}/{t('checkIn.streak')(7).replace('7 ', '')}</Text></View>
       </View>
       <View style={styles.body}>
-        <Text style={styles.subtitle}>Klaim <Text style={styles.boldText}>Topping Gratis</Text> setiap kelipatan 7 hari check-in berturut-turut.</Text>
+        <Text style={styles.subtitle}>{t('checkIn.claim')} <Text style={styles.boldText}>{t('checkIn.reward')}</Text> setiap kelipatan 7 hari check-in berturut-turut.</Text>
       </View>
       <TouchableOpacity
         style={[styles.actionBtn, checkedInToday && styles.actionBtnDisabled]}
