@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Animated,
@@ -32,15 +33,9 @@ export interface RewardsViewProps {
   onBack?: () => void;
 }
 
-export function RewardsView({
-  model,
-  loading,
-  isRefreshing,
-  redeemingId,
-  onRefresh,
-  onRedeemReward,
-  onBack,
-}: RewardsViewProps) {
+export function RewardsView(props: RewardsViewProps) {
+  const { t } = useTranslation();
+  const { model, loading, isRefreshing, redeemingId, onRefresh, onRedeemReward, onBack } = props;
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'catalog' | 'vouchers'>('catalog');
   const [showUsedVouchers, setShowUsedVouchers] = useState(false);

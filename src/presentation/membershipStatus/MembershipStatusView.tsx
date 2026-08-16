@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Animated, Easing, Image, View, Text, ScrollView, StyleSheet, TouchableOpacity,
   useWindowDimensions, RefreshControl,
@@ -108,13 +109,9 @@ interface MembershipStatusViewProps {
   onActivityPress?: () => void;
 }
 
-export default function MembershipStatusView({
-  model,
-  refreshing,
-  onRefresh,
-  onBack,
-  onActivityPress,
-}: MembershipStatusViewProps) {
+export default function MembershipStatusView(props: MembershipStatusViewProps) {
+  const { t } = useTranslation();
+  const { model, refreshing, onRefresh, onBack, onActivityPress } = props;
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
