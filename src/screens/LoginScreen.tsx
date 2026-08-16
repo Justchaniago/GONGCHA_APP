@@ -183,8 +183,8 @@ export default function LoginScreen() {
     if (!biometricHasCreds) {
       animateFade(() => setLoginMethod('email'));
       Alert.alert(
-        'Setup Face ID',
-        'Login dengan email sekali, lalu Face ID akan aktif otomatis untuk login berikutnya.',
+        t('login.setupFaceId'),
+        t('login.setupFaceIdMsg'),
       );
       return;
     }
@@ -199,7 +199,7 @@ export default function LoginScreen() {
       }
       await AuthService.loginWithEmail(creds.email, creds.password);
     } catch {
-      Alert.alert('Login gagal', 'Coba masuk dengan email dan password.');
+      Alert.alert(t('login.loginFailedBiometric'), t('login.loginFailedBiometricMsg'));
     } finally {
       setBiometricLoading(false);
     }
@@ -211,12 +211,12 @@ export default function LoginScreen() {
     const hasCreds = await savedLoginCredentialCapability.hasSavedCredentials();
     if (hasCreds) return;
     Alert.alert(
-      'Aktifkan Face ID?',
-      'Login lebih cepat dengan Face ID di lain waktu.',
+      t('login.enableFaceId'),
+      t('login.enableFaceIdMsg'),
       [
-        { text: 'Nanti saja', style: 'cancel' },
+        { text: t('login.notNowCancel'), style: 'cancel' },
         {
-          text: 'Aktifkan',
+          text: t('login.enable'),
           onPress: async () => {
             await savedLoginCredentialCapability.saveCredentials(email, password);
             setBiometricHasCreds(true);
@@ -258,11 +258,11 @@ export default function LoginScreen() {
       const message = String(error?.message || 'Login gagal.');
       if (message === 'email_not_verified') {
         Alert.alert(
-          'Email belum diverifikasi 📧',
-          'Klik link verifikasi di email kamu sebelum login. Belum menerima email?',
+          t('login.emailNotVerifiedLogin'),
+          t('login.emailNotVerifiedLoginMsg'),
           [
             {
-              text: 'Kirim Ulang', onPress: async () => {
+              text: t('login.resendCode2'), onPress: async () => {
                 try {
                   await AuthService.resendVerificationEmail(loginEmail.trim(), loginPassword);
                   Alert.alert('Terkirim!', `Link verifikasi dikirim ulang ke ${loginEmail.trim()}.`);
@@ -510,7 +510,7 @@ export default function LoginScreen() {
                         >
                           <View style={styles.buttonInner}>
                             <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
-                              {isEmailSubmitting ? 'Signing in...' : 'Login'}
+                              {isEmailSubmitting ? t('login.signingIn2') : t('login.login2')}
                             </Text>
                           </View>
                         </BouncyPressable>
@@ -541,10 +541,10 @@ export default function LoginScreen() {
                           <ScanFace size={20} color={biometricLoading ? colors.text.tertiary : colors.brand.primary} />
                           <Text style={[styles.biometricText, { color: biometricLoading ? colors.text.tertiary : colors.text.primary }]}>
                             {biometricLoading
-                              ? 'Memverifikasi...'
+                              ? t('login.verifying2')
                               : biometricHasCreds
-                                ? 'Masuk dengan Face ID'
-                                : 'Aktifkan Face ID'}
+                                ? t('login.signInWithFaceId')
+                                : t('login.activateFaceId')}
                           </Text>
                         </View>
                       </BouncyPressable>
@@ -565,7 +565,7 @@ export default function LoginScreen() {
                       <View style={styles.buttonInner}>
                         <Text style={styles.googleG}>G</Text>
                         <Text style={[styles.biometricText, { color: colors.text.primary }]}>
-                          {googleLoading ? 'Menghubungkan...' : 'Masuk dengan Google'}
+                          {googleLoading ? t('login.connecting') : t('login.signInWithGoogle')}
                         </Text>
                       </View>
                     </BouncyPressable>

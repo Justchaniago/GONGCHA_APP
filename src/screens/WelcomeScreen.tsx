@@ -346,7 +346,7 @@ export default function WelcomeScreen() {
     const email = mapPhoneToEmail(phoneNumber);
     try {
       setIsAuthSubmitting(true);
-      setAuthProgressMessage('Signing in securely...');
+      setAuthProgressMessage(t('welcome.signingInSecurely'));
       await AuthService.login(email, OTP_AUTH_PASSWORD);
     } catch (error: any) {
       const message = String(error?.message || 'Login gagal.');
@@ -357,7 +357,7 @@ export default function WelcomeScreen() {
         message.includes('auth/user-not-found')
       ) {
         try {
-          setAuthProgressMessage('Creating profile...');
+          setAuthProgressMessage(t('welcome.creatingProfile'));
           await AuthService.register(email, OTP_AUTH_PASSWORD, 'Member', phoneNumber);
           return;
         } catch (regErr: any) {
@@ -426,10 +426,10 @@ export default function WelcomeScreen() {
       const message = String(error?.message || 'Login gagal.');
       if (message === 'email_not_verified') {
         Alert.alert(
-          'Email belum diverifikasi 📧',
-          'Klik link verifikasi di email kamu sebelum login. Belum menerima email?',
+          t('welcome.emailNotVerified'),
+          t('welcome.emailNotVerifiedMsg'),
           [
-            { text: 'Kirim Ulang', onPress: async () => {
+            { text: t('welcome.resend'), onPress: async () => {
               try {
                 await AuthService.resendVerificationEmail(loginEmail.trim(), loginPassword);
                 Alert.alert('Terkirim!', `Link verifikasi dikirim ulang ke ${loginEmail.trim()}.`);
@@ -550,23 +550,23 @@ export default function WelcomeScreen() {
     const profileName = 'Member';
     try {
       setIsAuthSubmitting(true);
-      setAuthProgressMessage('Creating account...');
+      setAuthProgressMessage(t('welcome.creatingAccount'));
       await AuthService.register(email, OTP_AUTH_PASSWORD, profileName, normalizedPhone);
     } catch (error: any) {
       const message = String(error?.message || 'Registrasi gagal.');
       if (message.includes('timed out')) Alert.alert('Koneksi bermasalah', 'Request terlalu lama. Cek internet.');
       else if (message.includes('auth/email-already-in-use')) {
         try {
-          setAuthProgressMessage('Account exists, signing in...');
+          setAuthProgressMessage(t('welcome.accountExistsSigning'));
           await AuthService.login(email, OTP_AUTH_PASSWORD);
           return;
         } catch {
           Alert.alert(
-            'Akun Sudah Terdaftar',
-            'Nomor HP ini sudah terdaftar. Silakan login dengan nomor HP Anda.',
+            t('welcome.accountExists'),
+            t('welcome.accountExistsMsg'),
             [
               {
-                text: 'Ke Halaman Login',
+                text: t('welcome.goToLogin'),
                 onPress: () => {
                   setPhoneNumber(signupPhone);
                   setLoginEntryMode('phone');
@@ -796,7 +796,7 @@ export default function WelcomeScreen() {
                         </View>
                         <BouncyPressable style={styles.primaryButton} onPress={handleGetOtp}>
                           <View style={styles.buttonInner}>
-                            <Text style={styles.primaryButtonText}>Get OTP</Text>
+                            <Text style={styles.primaryButtonText}>{t('welcome.getOtp')}</Text>
                           </View>
                         </BouncyPressable>
                       </>
@@ -827,7 +827,7 @@ export default function WelcomeScreen() {
                         <View style={styles.textInputContainer}>
                           <TextInput
                             style={[styles.phoneInput, { flex: 1 }]}
-                            placeholder="Password"
+                            placeholder={t('welcome.passwordPlaceholder')}
                             placeholderTextColor="#9CA3AF"
                             secureTextEntry={!showLoginPassword}
                             autoCapitalize="none"
@@ -854,7 +854,7 @@ export default function WelcomeScreen() {
                         >
                           <View style={styles.buttonInner}>
                             <Text style={[styles.primaryButtonText, isEmailLoginSubmitting && { color: '#9CA3AF' }]}>
-                              {isEmailLoginSubmitting ? 'Signing in...' : 'Login'}
+                              {isEmailLoginSubmitting ? t('welcome.signingIn') : t('welcome.login')}
                             </Text>
                           </View>
                         </BouncyPressable>
@@ -888,7 +888,7 @@ export default function WelcomeScreen() {
                           <TextInput style={styles.phoneInput} placeholder="812 3456 7890" placeholderTextColor="#9CA3AF" keyboardType="default" value={signupPhone} onChangeText={setSignupPhone} />
                         </View>
                         <TouchableOpacity style={styles.primaryButton} onPress={handleSignUpGetOtp}>
-                          <Text style={styles.primaryButtonText}>Get OTP</Text>
+                          <Text style={styles.primaryButtonText}>{t('welcome.getOtp')}</Text>
                         </TouchableOpacity>
                       </>
                     ) : (
@@ -955,7 +955,7 @@ export default function WelcomeScreen() {
                           disabled={isCreatingAccount}
                         >
                           <Text style={[styles.primaryButtonText, isCreatingAccount && { color: '#9CA3AF' }]}>
-                            {isCreatingAccount ? 'Creating account...' : 'Create Account'}
+                            {isCreatingAccount ? t('welcome.creatingAccount') : t('welcome.createAccount')}
                           </Text>
                         </TouchableOpacity>
                       </>
@@ -963,7 +963,7 @@ export default function WelcomeScreen() {
 
                     <View style={styles.dividerRow}>
                       <View style={styles.dividerLine} />
-                      <Text style={styles.dividerText}>or</Text>
+                      <Text style={styles.dividerText}>{t('welcome.or')}</Text>
                       <View style={styles.dividerLine} />
                     </View>
                     <TouchableOpacity style={styles.methodToggleButton} onPress={() => setSignupMethod(m => m === 'phone' ? 'email' : 'phone')}>
@@ -1052,7 +1052,7 @@ export default function WelcomeScreen() {
                       disabled={isResendingVerification}
                     >
                       <Text style={[styles.signUpButtonText, isResendingVerification && { color: '#9CA3AF' }]}>
-                        {isResendingVerification ? 'Mengirim...' : 'Kirim Ulang Link Verifikasi'}
+                        {isResendingVerification ? t('welcome.sending') : t('welcome.resendVerificationLink')}
                       </Text>
                     </TouchableOpacity>
                   </View>
