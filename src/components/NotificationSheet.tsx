@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActionSheetIOS,
   Alert,
@@ -168,15 +169,9 @@ interface Props {
   onNotificationPress?: (item: NotificationItem) => void;
 }
 
-export default function NotificationSheet({
-  visible,
-  notifications,
-  onClose,
-  onMarkAllRead,
-  onMarkRead,
-  onDelete,
-  onNotificationPress,
-}: Props) {
+export default function NotificationSheet(props: Props) {
+  const { t } = useTranslation();
+  const { visible, notifications, onClose, onMarkAllRead, onMarkRead, onDelete, onNotificationPress } = props;
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const [mounted, setMounted] = useState(visible);

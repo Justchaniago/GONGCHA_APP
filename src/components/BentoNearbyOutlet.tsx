@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Animated,
   Easing,
@@ -7,8 +8,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Navigation, MapPin, ChevronRight } from 'lucide-react-native';
+import { MapPin, Navigation } from 'lucide-react-native';
 import * as Location from 'expo-location';
+
+// ── Design tokens (sync: DESIGN_SYSTEM.html) ─────────────────────
+const RED     = '#B91C2F';
+const RED_L   = '#F9E8E9';
+const DARK    = '#1D1D1D';
+const NEUTRAL = '#F5F5F5';
+const MUTED   = '#7C6E68';
+const BORDER  = '#EFECE7';
+const WHITE   = '#FFFFFF';
 
 interface StoreOutlet {
   id: string;
@@ -18,333 +28,275 @@ interface StoreOutlet {
   openHours: string;
 }
 
-// Calculate Haversine distance in km
-function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // km
+function calculateDistanceKm(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Calculate Bearing in degrees
-function calculateBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
+function calculateBearing(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
   const y = Math.sin((lon2 - lon1) * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180));
   const x =
     Math.cos(lat1 * (Math.PI / 180)) * Math.sin(lat2 * (Math.PI / 180)) -
-    Math.sin(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.cos((lon2 - lon1) * (Math.PI / 180));
-  const brng = (Math.atan2(y, x) * 180) / Math.PI;
-  return (brng + 360) % 360;
+    Math.sin(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.cos((lon2 - lon1) * (Math.PI / 180));
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
 interface BentoNearbyOutletProps {
-  onPress?: (store: StoreOutlet) => void;
-  stores?: any[];
+  stores?: Array<{
+    id: string;
+    name: string;
+    latitude: number;
+    longitude: number;
+    openHours?: string;
+    isActive?: boolean;
+  }>;
+  onPress?: () => void;
 }
 
-export default function BentoNearbyOutlet({ onPress, stores }: BentoNearbyOutletProps) {
-  const activeStores = useMemo(() => {
-    if (stores && stores.length > 0) {
-      return stores.map((s) => ({
-        id: s.id,
-        name: s.name.startsWith('Gong Cha ') ? s.name.substring(9) : s.name,
-        lat: s.latitude,
-        lng: s.longitude,
-        openHours: s.openHours || '10:00 - 22:00',
-      }));
-    }
-    return [];
-  }, [stores]);
+export default function BentoNearbyOutlet(props: BentoNearbyOutletProps) {
+  const { t } = useTranslation();
+  const { stores = [], onPress } = props;
+  const activeStores: StoreOutlet[] = useMemo(
+    () =>
+      stores
+        .filter((s) => s.isActive !== false)
+        .map((s) => ({
+          id: s.id,
+          name: s.name.startsWith('Gong Cha ') ? s.name.substring(9) : s.name,
+          lat: s.latitude,
+          lng: s.longitude,
+          openHours: s.openHours ?? '10:00 – 22:00',
+        })),
+    [stores],
+  );
 
-  const [nearestStore, setNearestStore] = useState<StoreOutlet | null>(null);
-  const [distanceKm, setDistanceKm] = useState<number>(0.8);
-  const [bearingDeg, setBearingDeg] = useState<number>(45);
+  const [nearestStore, setNearestStore] = useState<StoreOutlet | null>(
+    activeStores[0] ?? null,
+  );
+  const [distanceKm, setDistanceKm]         = useState<number>(0.8);
+  const [bearing, setBearing]               = useState<number>(45);
+  const [compassHeading, setCompassHeading] = useState<number>(0);
 
-  const rotateAnim = useRef(new Animated.Value(45)).current;
-  const radarPulse = useRef(new Animated.Value(0)).current;
+  const radarPulse  = useRef(new Animated.Value(0)).current;
+  const arrowRotate = useRef(new Animated.Value(45)).current;
 
-  // Sync nearest store when activeStores changes (before location updates or if permissions denied)
   useEffect(() => {
-    if (activeStores.length > 0) {
-      setNearestStore(activeStores[0]);
-    }
+    if (activeStores.length > 0) setNearestStore(activeStores[0]);
   }, [activeStores]);
 
-  // Radar Pulse Effect
+  // Pulse loop
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(radarPulse, {
-          toValue: 1,
-          duration: 2000,
+          toValue: 1, duration: 2000,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(radarPulse, {
-          toValue: 0,
-          duration: 0,
+          toValue: 0, duration: 0,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [radarPulse]);
 
-  // Request Location & Heading
+  // Location + heading
   useEffect(() => {
     if (activeStores.length === 0) return;
     let headingSub: Location.LocationSubscription | null = null;
-
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          const userLat = loc.coords.latitude;
-          const userLng = loc.coords.longitude;
-
-          // Find closest store
-          let closest = activeStores[0];
-          let minD = Infinity;
-
-          activeStores.forEach((store) => {
-            const d = calculateDistanceKm(userLat, userLng, store.lat, store.lng);
-            if (d < minD) {
-              minD = d;
-              closest = store;
-            }
-          });
-
-          setNearestStore(closest);
-          setDistanceKm(Math.round(minD * 10) / 10 || 0.8);
-
-          const bearing = calculateBearing(userLat, userLng, closest.lat, closest.lng);
-          setBearingDeg(bearing);
-
-          // Watch heading for compass rotation
-          headingSub = await Location.watchHeadingAsync((headingData) => {
-            const mag = headingData.trueHeading > 0 ? headingData.trueHeading : headingData.magHeading;
-            const targetAngle = (bearing - mag + 360) % 360;
-
-            Animated.spring(rotateAnim, {
-              toValue: targetAngle,
-              friction: 8,
-              tension: 40,
-              useNativeDriver: true,
-            }).start();
-          });
-        }
-      } catch (err) {
-        // Fallback to default simulated compass angle
-        Animated.spring(rotateAnim, {
-          toValue: 45,
-          useNativeDriver: true,
-        }).start();
-      }
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const { latitude: userLat, longitude: userLng } = loc.coords;
+        let closest = activeStores[0];
+        let minD = Infinity;
+        activeStores.forEach((store) => {
+          const d = calculateDistanceKm(userLat, userLng, store.lat, store.lng);
+          if (d < minD) { minD = d; closest = store; }
+        });
+        setNearestStore(closest);
+        setDistanceKm(minD);
+        setBearing(calculateBearing(userLat, userLng, closest.lat, closest.lng));
+        headingSub = await Location.watchHeadingAsync((h) => {
+          setCompassHeading(h.trueHeading ?? h.magHeading);
+        });
+      } catch (_) { /* fallback to static */ }
     })();
+    return () => { headingSub?.remove(); };
+  }, [activeStores]);
 
-    return () => {
-      if (headingSub) headingSub.remove();
-    };
-  }, [rotateAnim, activeStores]);
+  // Compass arrow spring
+  useEffect(() => {
+    Animated.spring(arrowRotate, {
+      toValue: (bearing - compassHeading + 360) % 360,
+      useNativeDriver: true,
+      damping: 12, stiffness: 80,
+    }).start();
+  }, [bearing, compassHeading]);
 
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 360],
-    outputRange: ['0deg', '360deg'],
-  });
+  const pulseScale   = radarPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
+  const pulseOpacity = radarPulse.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0.3, 0.15, 0] });
+  const arrowStyle   = {
+    transform: [{
+      rotate: arrowRotate.interpolate({
+        inputRange: [0, 360], outputRange: ['0deg', '360deg'],
+      }),
+    }],
+  };
 
-  const pulseScale = radarPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.3],
-  });
+  if (!nearestStore) return null;
 
-  const pulseOpacity = radarPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.5, 0],
-  });
-
-  const formattedDistance = distanceKm >= 1 
-    ? `${distanceKm.toFixed(1)} km` 
-    : `${Math.round(distanceKm * 1000)} m`;
-
-  if (!nearestStore) {
-    return (
-      <View style={styles.card}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: '#A08F88', fontWeight: '700' }}>LOADING OUTLETS...</Text>
-        </View>
-      </View>
-    );
-  }
+  const distLabel = distanceKm < 1
+    ? `${Math.round(distanceKm * 1000)} m`
+    : `${distanceKm.toFixed(1)} km`;
 
   return (
     <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.9}
-      onPress={() => onPress && onPress(nearestStore)}
+      style={styles.container}
+      activeOpacity={0.88}
+      onPress={onPress}
     >
-      {/* HEADER ROW */}
-      <View style={styles.headerRow}>
-        <View style={styles.badgePill}>
-          <MapPin size={10} color="#166534" />
-          <Text style={styles.badgeText}>OUTLET TERDEKAT</Text>
+      {/* LABEL ROW */}
+      <View style={styles.labelRow}>
+        <View style={styles.iconBg}>
+          <MapPin size={12} color={RED} />
         </View>
-        <ChevronRight size={14} color="#A08F88" />
+        <Text style={styles.label}>Outlet Terdekat</Text>
       </View>
 
-      {/* COMPASS RADAR CENTERED AREA */}
-      <View style={styles.radarSection}>
-        {/* Pulsing Outer Ring */}
-        <Animated.View
-          style={[
-            styles.pulseRing,
-            {
-              transform: [{ scale: pulseScale }],
-              opacity: pulseOpacity,
-            },
-          ]}
-        />
-
-        {/* Outer Ring Container */}
-        <View style={styles.outerRing}>
-          {/* Big Dominant Center Distance Text */}
-          <Text style={styles.bigDistanceText}>{formattedDistance}</Text>
+      {/* DISTANCE — large focal number */}
+      <View style={styles.distRow}>
+        <Text style={styles.distNumber}>{distLabel}</Text>
+        {/* animated compass arrow */}
+        <View style={styles.compassWrap}>
+          <Animated.View
+            style={[styles.pulse, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
+          />
+          <View style={styles.compassCircle}>
+            <Animated.View style={arrowStyle}>
+              <Navigation size={16} color={RED} strokeWidth={2.5} />
+            </Animated.View>
+          </View>
         </View>
       </View>
 
-      {/* STORE NAME & STATUS */}
-      <View style={styles.storeDetails}>
-        <Text style={styles.storeName} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
-          Gong Cha {nearestStore.name}
-        </Text>
-        <View style={styles.statusRow}>
-          <View style={styles.openDot} />
-          <Text style={styles.statusText}>Buka s/d 22:00</Text>
-        </View>
-      </View>
+      {/* STORE NAME — no prefix duplication; name already stripped at normalise step */}
+      <Text style={styles.storeName} numberOfLines={2}>
+        {nearestStore.name}
+      </Text>
+
+      {/* OPEN HOURS */}
+      <Text style={styles.openHours}>{nearestStore.openHours}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
     flex: 1,
-    height: 185,
-    backgroundColor: '#FFFFFF',
+    height: 180,
+    backgroundColor: WHITE,
     borderRadius: 22,
-    padding: 12,
-    justifyContent: 'space-between',
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#F0E8E2',
-    shadowColor: '#2A1F1F',
+    borderColor: BORDER,
+    shadowColor: DARK,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.07,
     shadowRadius: 10,
     elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
+    justifyContent: 'space-between',
   },
-  headerRow: {
+
+  // top label
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  iconBg: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: RED_L,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: MUTED,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+
+  // distance row: big number + compass
+  distRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  badgePill: {
-    flexDirection: 'row',
+  distNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: DARK,
+    letterSpacing: -1,
+    lineHeight: 36,
+  },
+  compassWrap: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
+  },
+  pulse: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: RED_L,
+  },
+  compassCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: NEUTRAL,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-  },
-  badgeText: {
-    color: '#166534',
-    fontSize: 9,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  radarSection: {
-    alignItems: 'center',
+    borderColor: BORDER,
     justifyContent: 'center',
-    position: 'relative',
-    height: 84,
-    marginVertical: 4,
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: 'rgba(185, 28, 47, 0.08)',
-  },
-  outerRing: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#FAF8F5',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#EFECE7',
-    shadowColor: '#2A1F1F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-    position: 'relative',
   },
-  bigDistanceText: {
-    color: '#2A1F1F',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: -0.2,
-    textAlign: 'center',
-  },
-  compassArrowPointer: {
-    position: 'absolute',
-    top: -5,
-    left: '50%',
-    marginLeft: -6,
-    zIndex: 10,
-  },
-  storeDetails: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 38,
-  },
+
+  // store name + hours
   storeName: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#2A1F1F',
-    textAlign: 'center',
-    lineHeight: 15,
-    paddingHorizontal: 2,
+    fontSize: 13,
+    fontWeight: '700',
+    color: DARK,
+    letterSpacing: 0.1,
+    lineHeight: 18,
   },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  openDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#16A34A',
-  },
-  statusText: {
+  openHours: {
     fontSize: 10,
-    color: '#6C5F5A',
-    fontWeight: '600',
+    fontWeight: '500',
+    color: MUTED,
   },
 });

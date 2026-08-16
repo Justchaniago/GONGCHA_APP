@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, Animated, Easing, LayoutChangeEvent, useWindowDimensions, DeviceEventEmitter } from 'react-native';
 import { Home, Coffee, QrCode, Trophy, User } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -20,7 +21,9 @@ const bottomNavColors = {
   inactive: colors.text.secondary
 };
 
-export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export default function CustomTabBar(props: BottomTabBarProps) {
+  const { t } = useTranslation();
+  const { state, descriptors, navigation } = props;
   // --- STATE UNTUK VISIBILITY ---
   const [isTabBarHidden, setIsTabBarHidden] = useState(false);
 
