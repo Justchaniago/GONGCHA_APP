@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -72,6 +73,7 @@ function AppleIcon({ size = 28, color = '#000' }: { size?: number; color?: strin
 }
 
 export default function WelcomeScreen() {
+  const { t } = useTranslation();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
@@ -517,11 +519,11 @@ export default function WelcomeScreen() {
   };
 
   const handleAppleLogin = () => {
-    Alert.alert('Coming soon', 'Apple sign in will be available in a future update.');
+    Alert.alert(t('welcome.comingSoon'), t('welcome.appleSignInComingSoon'));
   };
 
   const handleOpenTerms = () => {
-    Alert.alert('Terms & Conditions', 'The full terms page will be added in a future update.');
+    Alert.alert(t('welcome.termsAndConditions'), t('welcome.termsComingSoon'));
   };
 
   // ─── Phone Signup ─────────────────────────────────────────────────────────
@@ -682,7 +684,7 @@ export default function WelcomeScreen() {
         >
           <BouncyPressable style={styles.getStartedButton} onPress={handleGetStarted} pressScale={0.97}>
             <View style={styles.buttonInner}>
-              <Text style={styles.getStartedText}>Get started</Text>
+              <Text style={styles.getStartedText}>{t('welcome.getStarted')}</Text>
             </View>
           </BouncyPressable>
         </Animated.View>
@@ -722,7 +724,7 @@ export default function WelcomeScreen() {
                           </TouchableOpacity>
                           <View>
                             <Text style={styles.formTitle}>{getGreeting()}</Text>
-                            <Text style={styles.formSubtext}>Choose how you want to sign in</Text>
+                            <Text style={styles.formSubtext}>{t('welcome.chooseSignIn')}</Text>
                           </View>
                         </View>
 
@@ -756,13 +758,13 @@ export default function WelcomeScreen() {
 
                         <BouncyPressable style={[styles.signUpButton, { marginTop: 8 }]} onPress={handleOpenSignUp}>
                           <View style={styles.buttonInner}>
-                            <Text style={styles.signUpButtonText}>Sign Up</Text>
+                            <Text style={styles.signUpButtonText}>{t('welcome.signUp')}</Text>
                           </View>
                         </BouncyPressable>
 
                         <BouncyPressable style={styles.termsButton} onPress={handleOpenTerms} pressScale={0.98}>
                           <View style={styles.buttonInner}>
-                            <Text style={styles.termsButtonText}>Terms & Conditions</Text>
+                            <Text style={styles.termsButtonText}>{t('welcome.termsAndConditions')}</Text>
                           </View>
                         </BouncyPressable>
                       </>
@@ -774,7 +776,7 @@ export default function WelcomeScreen() {
                           </TouchableOpacity>
                           <View style={styles.headerCopy}>
                             <Text style={styles.formTitle}>{getGreeting()}</Text>
-                            <Text style={styles.formSubtext}>Enter your phone number to continue</Text>
+                            <Text style={styles.formSubtext}>{t('welcome.enterPhoneToContinue')}</Text>
                           </View>
                         </View>
 
@@ -806,7 +808,7 @@ export default function WelcomeScreen() {
                           </TouchableOpacity>
                           <View style={styles.headerCopy}>
                             <Text style={styles.formTitle}>{getGreeting()}</Text>
-                            <Text style={styles.formSubtext}>Continue with your email</Text>
+                            <Text style={styles.formSubtext}>{t('welcome.continueWithEmail')}</Text>
                           </View>
                         </View>
 
@@ -843,7 +845,7 @@ export default function WelcomeScreen() {
                           </TouchableOpacity>
                         </View>
                         <TouchableOpacity onPress={handleForgotPassword} style={{ alignSelf: 'flex-end', marginBottom: 16 }}>
-                          <Text style={{ color: '#B91C2F', fontSize: 13, fontWeight: '500' }}>Forgot password?</Text>
+                          <Text style={{ color: '#B91C2F', fontSize: 13, fontWeight: '500' }}>{t('welcome.forgotPassword')}</Text>
                         </TouchableOpacity>
                         <BouncyPressable
                           style={[styles.primaryButton, isEmailLoginSubmitting && { backgroundColor: '#E5E7EB' }]}
@@ -869,9 +871,9 @@ export default function WelcomeScreen() {
                         <Text style={{ fontSize: 20, color: '#1A1A1A' }}>←</Text>
                       </TouchableOpacity>
                       <View>
-                        <Text style={styles.formTitle}>Create Account</Text>
+                        <Text style={styles.formTitle}>{t('welcome.createAccount')}</Text>
                         <Text style={styles.formSubtext}>
-                          {signupMethod === 'phone' ? 'Enter your phone number' : 'Sign up with your email'}
+                          {signupMethod === 'phone' ? t('welcome.signUpWithPhone') : t('welcome.signUpWithEmail')}
                         </Text>
                       </View>
                     </View>
@@ -966,7 +968,7 @@ export default function WelcomeScreen() {
                     </View>
                     <TouchableOpacity style={styles.methodToggleButton} onPress={() => setSignupMethod(m => m === 'phone' ? 'email' : 'phone')}>
                       <Text style={styles.methodToggleText}>
-                        {signupMethod === 'phone' ? 'Sign up with email instead' : 'Sign up with phone instead'}
+                        {signupMethod === 'phone' ? t('welcome.signUpWithEmailInstead') : t('welcome.signUpWithPhoneInstead')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -981,7 +983,7 @@ export default function WelcomeScreen() {
                     onChange={(text, index) => handleOtpDigitChange(text, index, loginOtp, setLoginOtp, loginOtpRefs)}
                     onBack={handleLoginOtpBack}
                     onVerify={handleLoginOtpVerify}
-                    verifyLabel={isAuthSubmitting ? 'Processing...' : 'Verify & Login'}
+                    verifyLabel={isAuthSubmitting ? t('welcome.processing') : t('welcome.verifyAndLogin')}
                     progressMessage={authProgressMessage}
                     resendTimer={loginResendTimer}
                     onResend={handleLoginResend}
@@ -998,7 +1000,7 @@ export default function WelcomeScreen() {
                     onChange={(text, index) => handleOtpDigitChange(text, index, signupOtp, setSignupOtp, signupOtpRefs)}
                     onBack={handleSignupOtpBack}
                     onVerify={handleSignupOtpVerify}
-                    verifyLabel={isAuthSubmitting ? 'Processing...' : 'Verify & Create Account'}
+                    verifyLabel={isAuthSubmitting ? t('welcome.processing') : t('welcome.verifyAndCreateAccount')}
                     progressMessage={authProgressMessage}
                     resendTimer={signupResendTimer}
                     onResend={handleSignupResend}
@@ -1040,7 +1042,7 @@ export default function WelcomeScreen() {
                         });
                       }}
                     >
-                      <Text style={styles.primaryButtonText}>Sudah Verifikasi? Login</Text>
+                      <Text style={styles.primaryButtonText}>{t('welcome.alreadyVerifiedLogin')}</Text>
                     </TouchableOpacity>
 
                     {/* Tombol Kirim Ulang */}

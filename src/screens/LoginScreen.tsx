@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -38,6 +39,7 @@ type RootStackParamList = {
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -361,8 +363,8 @@ export default function LoginScreen() {
                       {/* 🔥 Tombol Theme Dihapus */}
                     </View>
 
-                    <Text style={[styles.header, { color: colors.text.primary }]}>Verify Phone</Text>
-                    <Text style={[styles.subtext, { color: colors.text.secondary }]}>Code sent to +62 {phoneNumber}</Text>
+                    <Text style={[styles.header, { color: colors.text.primary }]}>{t('login.verifyPhone')}</Text>
+                    <Text style={[styles.subtext, { color: colors.text.secondary }]}>{t('login.codeSentTo')} +62 {phoneNumber}</Text>
 
                     <View style={styles.otpContainer}>
                       {otp.map((digit, index) => (
@@ -397,7 +399,7 @@ export default function LoginScreen() {
                     >
                       <View style={styles.buttonInner}>
                         <Text style={[styles.primaryButtonText, { color: '#FFF' }]}>
-                          {verifying ? 'Verifying...' : 'Verify & Login'}
+                          {verifying ? t('login.verifying') : t('login.verifyAndLogin')}
                         </Text>
                       </View>
                     </BouncyPressable>
@@ -405,11 +407,11 @@ export default function LoginScreen() {
                     <View style={{ alignItems: 'center', marginTop: 16 }}>
                       {resendTimer > 0 ? (
                         <Text style={{ color: colors.text.tertiary }}>
-                          Resend in 00:{resendTimer.toString().padStart(2, '0')}
+                          {t('login.resendInTimer', { seconds: resendTimer.toString().padStart(2, '0') })}
                         </Text>
                       ) : (
                         <TouchableOpacity onPress={() => startResendTimer()}>
-                          <Text style={{ color: colors.brand.primary, fontWeight: '600' }}>Resend Code</Text>
+                          <Text style={{ color: colors.brand.primary, fontWeight: '600' }}>{t('login.resendCode')}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -418,11 +420,11 @@ export default function LoginScreen() {
                   <>
                     {/* ── Header Tanpa Theme Toggle ── */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <Text style={[styles.header, { color: colors.text.primary, marginBottom: 0 }]}>Welcome Back</Text>
+                      <Text style={[styles.header, { color: colors.text.primary, marginBottom: 0 }]}>{t('login.welcomeBack')}</Text>
                     </View>
 
                     <Text style={[styles.subtext, { color: colors.text.secondary }]}>
-                      {loginMethod === 'phone' ? 'Enter your mobile number to continue' : 'Sign in with your email'}
+                      {loginMethod === 'phone' ? t('login.enterMobileToContinue') : t('login.signInWithEmail')}
                     </Text>
 
                     {/* ── Phone method ── */}
@@ -466,7 +468,7 @@ export default function LoginScreen() {
                         <View style={[styles.emailInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.light }]}>
                           <TextInput
                             style={[styles.phoneInput, { color: colors.text.primary }]}
-                            placeholder="Email address"
+                            placeholder={t('login.emailAddressPlaceholder')}
                             placeholderTextColor={colors.text.tertiary}
                             keyboardType="email-address"
                             autoCapitalize="none"
@@ -478,7 +480,7 @@ export default function LoginScreen() {
                         <View style={[styles.emailInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.light }]}>
                           <TextInput
                             style={[styles.phoneInput, { color: colors.text.primary, flex: 1 }]}
-                            placeholder="Password"
+                            placeholder={t('login.passwordPlaceholder')}
                             placeholderTextColor={colors.text.tertiary}
                             secureTextEntry={!showPassword}
                             autoCapitalize="none"
@@ -496,7 +498,7 @@ export default function LoginScreen() {
                           </TouchableOpacity>
                         </View>
                         <TouchableOpacity onPress={handleForgotPassword} style={{ alignSelf: 'flex-end', marginBottom: 16 }}>
-                          <Text style={{ color: colors.brand.primary, fontSize: 13, fontWeight: '500' }}>Forgot password?</Text>
+                          <Text style={{ color: colors.brand.primary, fontSize: 13, fontWeight: '500' }}>{t('login.forgotPassword')}</Text>
                         </TouchableOpacity>
                         <BouncyPressable
                           style={[
@@ -518,7 +520,7 @@ export default function LoginScreen() {
                     {/* ── Method toggle ── */}
                     <View style={styles.dividerRow}>
                       <View style={[styles.dividerLine, { backgroundColor: colors.border.light }]} />
-                      <Text style={[styles.dividerText, { color: colors.text.tertiary }]}>or</Text>
+                      <Text style={[styles.dividerText, { color: colors.text.tertiary }]}>{t('login.or')}</Text>
                       <View style={[styles.dividerLine, { backgroundColor: colors.border.light }]} />
                     </View>
 
@@ -574,7 +576,7 @@ export default function LoginScreen() {
                     >
                       <View style={styles.buttonInner}>
                         <Text style={[styles.methodToggleText, { color: colors.text.secondary }]}>
-                          {loginMethod === 'phone' ? 'Continue with email instead' : 'Continue with phone instead'}
+                          {loginMethod === 'phone' ? t('login.continueWithEmailInstead') : t('login.continueWithPhoneInstead')}
                         </Text>
                       </View>
                     </BouncyPressable>
