@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -21,6 +22,7 @@ import { useLocalLoyaltyActivity } from '../presentation/loyaltyActivity/useLoca
 import { colors } from '../theme/colorTokens';
 
 export default function LocalMembershipStatusScreen() {
+  const { t } = useTranslation();
   const navigation =
     useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
   const { member } = useMember();

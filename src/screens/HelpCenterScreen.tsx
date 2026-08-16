@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Linking, Platform,
@@ -173,6 +174,7 @@ function ContactCard({
 // ─── MAIN SCREEN ────────────────────────────────────────────────────────────
 
 export default function HelpCenterScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 

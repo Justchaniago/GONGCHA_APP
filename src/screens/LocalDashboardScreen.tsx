@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -27,6 +28,7 @@ import {
 import { useLocalLoyaltySummary } from '../presentation/loyaltySummary/useLocalLoyaltySummary';
 
 export default function LocalDashboardScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
