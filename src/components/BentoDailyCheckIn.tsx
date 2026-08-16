@@ -65,7 +65,7 @@ export default function BentoDailyCheckIn() {
           <View style={styles.iconBg}><Calendar size={14} color={RED} /></View>
           <Text style={styles.headerTitle}>{t('checkIn.title')}</Text>
         </View>
-        <View style={styles.streakPill}><Text style={styles.streakText}>{streakCount}/{t('checkIn.streak')(7).replace('7 ', '')}</Text></View>
+        <View style={styles.streakPill}><Text style={styles.streakText}>{streakCount}/{t('checkIn.streak', { count: 7 })} {t('checkIn.streakUnit')}</Text></View>
       </View>
       <View style={styles.body}>
         <Text style={styles.subtitle}>{t('checkIn.claim')} <Text style={styles.boldText}>{t('checkIn.reward')}</Text> setiap kelipatan 7 hari check-in berturut-turut.</Text>
