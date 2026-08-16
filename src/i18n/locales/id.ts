@@ -54,7 +54,7 @@ const id = {
     sendOtp: 'Kirim OTP',
     verify: 'Verifikasi',
     resendOtp: 'Kirim Ulang OTP',
-    resendIn: 'Kirim ulang dalam {{seconds}}d',
+    resendIn: 'Kirim ulang dalam {{seconds}}s',
     continueWithGoogle: 'Lanjut dengan Google',
     continueWithApple: 'Lanjut dengan Apple',
     signIn: 'Masuk',
