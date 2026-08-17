@@ -542,7 +542,7 @@ export default function HomeScreen() {
                   onPress={() => navigation.navigate('Menu')}
                 />
                 <BentoNearbyOutlet
-                  onPress={() => navigation.navigate('StoreLocator')}
+                  onPress={() => navigation.navigate('StoreLocator', { autoSelectNearest: true })}
                   stores={stores}
                 />
               </View>

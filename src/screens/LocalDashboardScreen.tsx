@@ -148,7 +148,7 @@ export default function LocalDashboardScreen() {
           accessibilityRole="button"
           accessibilityLabel="Buka store locator lokal"
           style={styles.storeLocatorButton}
-          onPress={() => navigation.navigate('LocalStoreLocator')}
+          onPress={() => navigation.navigate('LocalStoreLocator', { autoSelectNearest: true })}
         >
           <Text style={styles.storeLocatorButtonText}>
             📍 Buka Store Locator V1

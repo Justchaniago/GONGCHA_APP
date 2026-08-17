@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
 
@@ -12,10 +12,14 @@ import StoreLocatorView from '../presentation/stores/StoreLocatorView';
 
 export default function LocalStoreLocatorScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<LocalStackParamList>>();
+  const route = useRoute<any>();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStore, setSelectedStore] = useState<StoreDisplayItem | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
+
+  const autoSelectNearest = route.params?.autoSelectNearest;
+  const autoSelectTriggered = useRef(false);
 
   const { stores, loading: storesLoading } = useStores(true);
 
@@ -41,6 +45,13 @@ export default function LocalStoreLocatorScreen() {
   const orderedStores = visibleOrderedStores(stores, userLocation);
   const mappedStores = buildStoresViewModel(orderedStores, userLocation);
   const loading = locationLoading || storesLoading;
+
+  useEffect(() => {
+    if (autoSelectNearest && !loading && mappedStores.length > 0 && !autoSelectTriggered.current) {
+      autoSelectTriggered.current = true;
+      setSelectedStore(mappedStores[0]);
+    }
+  }, [autoSelectNearest, loading, mappedStores]);
 
   return (
     <ScreenFadeTransition>

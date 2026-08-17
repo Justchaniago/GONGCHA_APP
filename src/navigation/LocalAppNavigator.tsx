@@ -37,8 +37,8 @@ export type LocalStackParamList = {
   LocalProfile: undefined;
   LocalRewards: undefined;
   LocalMenu: undefined;
-  LocalStoreLocator: undefined;
-  StoreLocator: undefined;
+  LocalStoreLocator: { autoSelectNearest?: boolean } | undefined;
+  StoreLocator: { autoSelectNearest?: boolean } | undefined;
   LocalNotifications: undefined;
   LocalPromotions: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };

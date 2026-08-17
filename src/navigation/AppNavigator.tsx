@@ -42,7 +42,7 @@ export type RootStackParamList = {
   Login: { initialStep?: 'phone' | 'otp' };
   MainApp: undefined;
   ProfileCompletion: undefined;
-  StoreLocator: undefined;
+  StoreLocator: { autoSelectNearest?: boolean } | undefined;
   EditProfile: undefined;
   UpdatePassword: { oobCode?: string; mode?: 'reset' | 'change' };
   MembershipStatus: undefined;

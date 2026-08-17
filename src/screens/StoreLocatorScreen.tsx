@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, FlatList, ActivityIndicator, TextInput } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, FlatList, ActivityIndicator, TextInput, Linking, Animated, Dimensions, Image } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { useTranslation } from 'react-i18next';
-import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, MapPin, Navigation as NavIcon, Search, X, Plus, Minus, Locate, Clock } from 'lucide-react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { ArrowLeft, MapPin, Navigation as NavIcon, Search, X, Plus, Minus, Locate, Clock, Phone, ChevronRight } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { useStores } from '../composition/stores';
 import { buildStoresViewModel, visibleOrderedStores, type StoreDisplayItem } from '../application/stores/GetStores';
 import { openStoreMaps } from '../presentation/stores/openStoreMaps';
+
+const { height: screenHeight } = Dimensions.get('window');
 
 function decodePolyline(encoded: string) {
   const points = [];
@@ -39,17 +41,23 @@ function decodePolyline(encoded: string) {
 export default function StoreLocatorScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const route = useRoute<any>();
   const mapRef = useRef<MapView>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStore, setSelectedStore] = useState<StoreDisplayItem | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
 
-  // Polyline & Route ETA state
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [etaLabel, setEtaLabel] = useState('');
   const [routeDistance, setRouteDistance] = useState('');
   const [routingLoading, setRoutingLoading] = useState(false);
+
+  const listSheetTranslateY = useRef(new Animated.Value(0)).current;
+  const detailSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  const autoSelectNearest = route.params?.autoSelectNearest;
+  const autoSelectTriggered = useRef(false);
 
   const { stores, loading: storesLoading } = useStores(true);
 
@@ -83,6 +91,13 @@ export default function StoreLocatorScreen() {
   }, [mappedStores, searchQuery]);
 
   const loading = locationLoading || storesLoading;
+
+  useEffect(() => {
+    if (autoSelectNearest && !loading && filteredStores.length > 0 && !autoSelectTriggered.current) {
+      autoSelectTriggered.current = true;
+      handleSelectStore(filteredStores[0]);
+    }
+  }, [autoSelectNearest, loading, filteredStores]);
 
   const initialRegion = useMemo(() => {
     if (userLocation) {
@@ -157,43 +172,32 @@ export default function StoreLocatorScreen() {
           routingPreference: 'TRAFFIC_AWARE',
         }),
       });
-      console.warn('Google Routes API v2 response status:', res.status, res.statusText);
       const text = await res.text();
       let data;
       try {
         data = JSON.parse(text);
       } catch (err) {
-        console.warn('Google Routes API v2 returned non-JSON response:', text);
         generateSimulatedRoute(storeLat, storeLng);
         return;
       }
-
       if (!res.ok) {
-        console.warn('Google Routes API v2 responded with error:', JSON.stringify(data));
         generateSimulatedRoute(storeLat, storeLng);
         return;
       }
-
       if (data.routes && data.routes.length > 0) {
         const route = data.routes[0];
         const points = decodePolyline(route.polyline.encodedPolyline);
         setRouteCoords(points);
-
-        // Convert duration string (e.g. "720s") to minutes
         const secs = parseInt(route.duration.replace('s', '')) || 0;
         const mins = Math.max(1, Math.round(secs / 60));
         setEtaLabel(`${mins} mnt`);
-
-        // Convert distance in meters to km
         const meters = route.distanceMeters || 0;
         const km = (meters / 1000).toFixed(1);
         setRouteDistance(`${km} km`);
       } else {
-        console.warn('Google Routes API v2 returned OK but empty routes list.');
         generateSimulatedRoute(storeLat, storeLng);
       }
     } catch (e) {
-      console.warn('Network or script error calling Google Routes API v2:', e);
       generateSimulatedRoute(storeLat, storeLng);
     } finally {
       setRoutingLoading(false);
@@ -208,7 +212,40 @@ export default function StoreLocatorScreen() {
       latitudeDelta: 0.015,
       longitudeDelta: 0.015,
     }, 600);
+
+    Animated.parallel([
+      Animated.timing(listSheetTranslateY, {
+        toValue: 350,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(detailSheetTranslateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start();
+
     fetchRoute(store.latitude, store.longitude);
+  };
+
+  const handleCloseDetail = () => {
+    Animated.parallel([
+      Animated.timing(listSheetTranslateY, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(detailSheetTranslateY, {
+        toValue: 300,
+        duration: 250,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setRouteCoords([]);
+      setEtaLabel('');
+      setRouteDistance('');
+    });
   };
 
   const handleZoomIn = async () => {
@@ -251,6 +288,8 @@ export default function StoreLocatorScreen() {
     setEtaLabel('');
     setRouteDistance('');
     setSelectedStore(null);
+    listSheetTranslateY.setValue(0);
+    detailSheetTranslateY.setValue(300);
   }, [searchQuery]);
 
   return (
@@ -289,16 +328,19 @@ export default function StoreLocatorScreen() {
           showsUserLocation={!!userLocation}
           mapPadding={{ top: 10, right: 10, bottom: 310, left: 10 }}
         >
-          {filteredStores.map((store) => (
-            <Marker
-              key={store.id}
-              coordinate={{ latitude: store.latitude, longitude: store.longitude }}
-              title={store.name}
-              description={store.address}
-              pinColor={selectedStore?.id === store.id ? '#B91C2F' : '#3E342F'}
-              onPress={() => handleSelectStore(store)}
-            />
-          ))}
+          {filteredStores.map((store) => {
+            const isSelected = selectedStore?.id === store.id;
+            return (
+              <Marker
+                key={store.id}
+                coordinate={{ latitude: store.latitude, longitude: store.longitude }}
+                title={store.name}
+                description={store.address}
+                pinColor={isSelected ? '#B91C2F' : '#D32F2F'}
+                onPress={() => handleSelectStore(store)}
+              />
+            );
+          })}
           {routeCoords.length > 0 && (
             <Polyline
               coordinates={routeCoords}
@@ -323,9 +365,8 @@ export default function StoreLocatorScreen() {
         </View>
       </View>
 
-      <View style={styles.bottomSheet}>
+      <Animated.View style={[styles.bottomSheet, { transform: [{ translateY: listSheetTranslateY }] }]}>
         <View style={styles.dragHandle} />
-        
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="small" color="#B91C2F" />
@@ -338,51 +379,80 @@ export default function StoreLocatorScreen() {
               data={filteredStores}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const isSelected = selectedStore?.id === item.id;
-                return (
-                  <TouchableOpacity
-                    style={[styles.storeItem, isSelected && styles.storeItemSelected]}
-                    onPress={() => handleSelectStore(item)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.storeInfoRow}>
-                      <MapPin size={20} color={isSelected ? '#B91C2F' : '#8C7B75'} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.storeName, isSelected && styles.storeNameSelected]}>
-                          {item.name}
-                        </Text>
-                        <Text style={styles.storeAddress} numberOfLines={1}>
-                          {item.address}
-                        </Text>
-                        {isSelected && (etaLabel || routeDistance) ? (
-                          <View style={styles.etaContainer}>
-                            <Clock size={12} color="#B91C2F" />
-                            <Text style={styles.etaText}>
-                              {routingLoading ? 'Menghitung rute...' : `${etaLabel} (${routeDistance})`}
-                            </Text>
-                          </View>
-                        ) : (
-                          <Text style={styles.storeMeta}>
-                            {item.distanceLabel ? `${item.distanceLabel} • ` : ''}
-                            {item.isOpen ? 'Buka' : 'Tutup'}
-                          </Text>
-                        )}
-                      </View>
-                      <TouchableOpacity
-                        style={styles.directionButton}
-                        onPress={() => openStoreMaps(item.latitude, item.longitude, item.name, item.address)}
-                      >
-                        <NavIcon size={16} color="#FFF" />
-                      </TouchableOpacity>
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.storeItem}
+                  onPress={() => handleSelectStore(item)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.storeInfoRow}>
+                    <MapPin size={20} color="#B91C2F" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.storeName}>{item.name}</Text>
+                      <Text style={styles.storeAddress} numberOfLines={1}>{item.address}</Text>
+                      <Text style={styles.storeMeta}>
+                        {item.distanceLabel ? `${item.distanceLabel} • ` : ''}
+                        {item.isOpen ? 'Buka' : 'Tutup'}
+                      </Text>
                     </View>
-                  </TouchableOpacity>
-                );
-              }}
+                    <ChevronRight size={18} color="#8C7B75" />
+                  </View>
+                </TouchableOpacity>
+              )}
             />
           </View>
         )}
-      </View>
+      </Animated.View>
+
+      <Animated.View style={[styles.detailSheet, { transform: [{ translateY: detailSheetTranslateY }] }]}>
+        <View style={styles.dragHandle} />
+        {selectedStore && (
+          <View style={{ flex: 1 }}>
+            <View style={styles.detailHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailTitle} numberOfLines={1}>{selectedStore.name}</Text>
+                {routingLoading ? (
+                  <Text style={styles.detailEta}>Menghitung rute...</Text>
+                ) : etaLabel ? (
+                  <Text style={styles.detailEtaNeutral}>{routeDistance} • {etaLabel.replace('mnt', 'menit')} berkendara</Text>
+                ) : (
+                  <Text style={styles.detailEta}>
+                    {selectedStore.distanceLabel ? `${selectedStore.distanceLabel} • ` : ''}
+                    {selectedStore.isOpen ? 'Buka' : 'Tutup'}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={handleCloseDetail} style={styles.closeButton}>
+                <X size={20} color="#1D1D1F" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.cardDivider} />
+            <View style={styles.infoList}>
+              <Text style={styles.infoAddressText} numberOfLines={2}>
+                {selectedStore.address}
+              </Text>
+              <Text style={styles.infoMetaText}>
+                Jam buka {selectedStore.operatingHours}  •  Telepon {selectedStore.phone}
+              </Text>
+            </View>
+            <Text style={styles.orderLabel}>Pesan Online</Text>
+            <View style={styles.deliveryRow}>
+              <TouchableOpacity style={styles.deliveryBtn} onPress={() => Linking.openURL(`https://gofood.link/a/u/gongcha`)}>
+                <Image source={require('../../assets/images/gofood.png')} style={[styles.deliveryLogo, { height: 38 }]} resizeMode="contain" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deliveryBtn} onPress={() => Linking.openURL(`https://grab.onelink.me/gongcha`)}>
+                <Image source={require('../../assets/images/grabfood.png')} style={[styles.deliveryLogo, { height: 36 }]} resizeMode="contain" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deliveryBtn} onPress={() => Linking.openURL(`https://shopee.co.id/gongcha`)}>
+                <Image source={require('../../assets/images/shopeefood.png')} style={[styles.deliveryLogo, { height: 44 }]} resizeMode="contain" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.primaryDirectionBtn} onPress={() => openStoreMaps(selectedStore.latitude, selectedStore.longitude, selectedStore.name, selectedStore.address)}>
+              <Text style={styles.primaryDirectionBtnText}>Petunjuk Arah</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
     </View>
   );
 }
@@ -401,19 +471,31 @@ const styles = StyleSheet.create({
   mapControls: { position: 'absolute', right: 16, top: 16, gap: 8 },
   controlButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
   locateButton: { marginTop: 8 },
-  bottomSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 310, backgroundColor: '#FAF8F5', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 },
+  bottomSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 310, backgroundColor: '#FAF8F5', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10, zIndex: 20 },
   dragHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
   sheetTitle: { fontSize: 16, fontWeight: '700', color: '#1D1D1F', marginBottom: 12 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 8, fontSize: 13, color: '#8C7B75' },
   storeItem: { padding: 14, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: '#EFECE7', marginBottom: 10 },
-  storeItemSelected: { borderColor: '#B91C2F', backgroundColor: '#FFF8F8' },
   storeInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   storeName: { fontSize: 14, fontWeight: '700', color: '#1D1D1F' },
-  storeNameSelected: { color: '#B91C2F' },
-  storeAddress: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  storeAddress: { fontSize: 12, color: '#6B7280', marginTop: 2, lineHeight: 16 },
   storeMeta: { fontSize: 11, fontWeight: '600', color: '#8C7B75', marginTop: 4 },
-  etaContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  etaText: { fontSize: 11, fontWeight: '700', color: '#B91C2F' },
-  directionButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#B91C2F', alignItems: 'center', justifyContent: 'center' },
+  detailSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 300, backgroundColor: '#FAF8F5', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10, zIndex: 30 },
+  detailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
+  detailTitle: { fontSize: 16, fontWeight: '800', color: '#1D1D1F', marginRight: 10 },
+  detailEta: { fontSize: 12, fontWeight: '700', color: '#B91C2F', marginTop: 2 },
+  detailEtaNeutral: { fontSize: 12, fontWeight: '600', color: '#8C7B75', marginTop: 2 },
+  closeButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFECE7', alignItems: 'center', justifyContent: 'center' },
+  cardDivider: { height: 1, backgroundColor: '#EFECE7', marginVertical: 8 },
+  infoList: { gap: 4, marginBottom: 12 },
+  infoAddressText: { fontSize: 13, color: '#1D1D1F', fontWeight: '600', lineHeight: 18 },
+  infoMetaText: { fontSize: 12, color: '#8C7B75', fontWeight: '500' },
+  orderLabel: { fontSize: 10, fontWeight: '800', color: '#8C7B75', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6 },
+  deliveryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  deliveryBtn: { flex: 1, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#EFECE7', backgroundColor: '#FFF' },
+  deliveryBtnText: { fontSize: 12, fontWeight: '700' },
+  deliveryLogo: { width: '90%', height: 38 },
+  primaryDirectionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#B91C2F', height: 44, borderRadius: 12, gap: 8 },
+  primaryDirectionBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
 });
