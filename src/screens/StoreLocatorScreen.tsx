@@ -142,7 +142,7 @@ export default function StoreLocatorScreen() {
     if (!userLocation) return;
     setRoutingLoading(true);
     try {
-      const apiKey = 'AIzaSyCM35_9b4XTSjJkYYR3rbTXbJxDz0tRMcc';
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY || '';
       const url = 'https://routes.googleapis.com/directions/v2:computeRoutes';
       const res = await fetch(url, {
         method: 'POST',
