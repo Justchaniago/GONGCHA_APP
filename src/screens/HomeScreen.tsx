@@ -118,31 +118,10 @@ export default function HomeScreen() {
 
   const handleScroll = (event: any) => {
     const currentY = event.nativeEvent.contentOffset.y;
-    const diff = currentY - lastScrollY.current;
 
     // Custom Pull to Refresh trigger (when pulled down past 85px)
     if (currentY < -85 && !isRefreshing) {
       onRefresh();
-    }
-
-    if (currentY <= 10) {
-      // User is at the top, show the tab bar
-      if (isTabBarHiddenRef.current) {
-        DeviceEventEmitter.emit('TOGGLE_TAB_BAR', false);
-        isTabBarHiddenRef.current = false;
-      }
-    } else if (diff > 15 && currentY > 60) {
-      // User is scrolling down, hide the tab bar
-      if (!isTabBarHiddenRef.current) {
-        DeviceEventEmitter.emit('TOGGLE_TAB_BAR', true);
-        isTabBarHiddenRef.current = true;
-      }
-    } else if (diff < -15) {
-      // User is scrolling up, show the tab bar
-      if (isTabBarHiddenRef.current) {
-        DeviceEventEmitter.emit('TOGGLE_TAB_BAR', false);
-        isTabBarHiddenRef.current = false;
-      }
     }
     lastScrollY.current = currentY;
   };
@@ -189,25 +168,28 @@ export default function HomeScreen() {
         useNativeDriver: true,
       }).start();
 
-      // 2. Red Header Slides Down Smoothly as Splash Screen dissolves
-      Animated.parallel([
-        Animated.timing(headerTranslateY, {
-          toValue: 0,
-          duration: 750,
-          easing: Easing.bezier(0.16, 1, 0.3, 1),
-          useNativeDriver: true,
-        }),
-        Animated.timing(headerOpacity, {
-          toValue: 1,
-          duration: 550,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
+      // 2. Red Header Slides Down & Fades In with a premium 220ms delay
+      Animated.sequence([
+        Animated.delay(220),
+        Animated.parallel([
+          Animated.timing(headerTranslateY, {
+            toValue: 0,
+            duration: 750,
+            easing: Easing.bezier(0.16, 1, 0.3, 1),
+            useNativeDriver: true,
+          }),
+          Animated.timing(headerOpacity, {
+            toValue: 1,
+            duration: 550,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ])
       ]).start();
 
-      // 3. Staggered Bento Grid Content Slides Up
+      // 3. Staggered Bento Grid Content Slides Up with a delayed 400ms offset
       Animated.sequence([
-        Animated.delay(180),
+        Animated.delay(400),
         Animated.parallel([
           Animated.timing(contentTranslateY, {
             toValue: 0,
@@ -218,6 +200,7 @@ export default function HomeScreen() {
           Animated.timing(contentOpacity, {
             toValue: 1,
             duration: 600,
+            easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
         ]),
