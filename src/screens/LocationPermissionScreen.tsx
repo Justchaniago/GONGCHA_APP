@@ -12,6 +12,8 @@ type RootStackParamList = {
   NotificationPermission: undefined;
 };
 
+import LottieView from 'lottie-react-native';
+
 export default function LocationPermissionScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -46,7 +48,15 @@ export default function LocationPermissionScreen() {
 
   return (
     <PermissionPrimerScreen
-      icon={<MapPin size={36} color="#B91C2F" strokeWidth={2.2} />}
+      noHalo
+      icon={
+        <LottieView
+          source={require('../../assets/animations/Seacrh.json')}
+          autoPlay
+          loop
+          style={{ width: 320, height: 320, marginVertical: -90 }}
+        />
+      }
       title={t('locationPermission.title')}
       description={t('locationPermission.description')}
       bullets={t('locationPermission.bullets', { returnObjects: true }) as string[]}

@@ -157,31 +157,19 @@ const en = {
     emailPlaceholder: 'Email address',
     passwordPlaceholder2: 'Password',
   },
-  home: {
-    refreshing: 'REFRESHING...',
-    pullToRefresh: 'PULL TO REFRESH',
-    greeting: {
-      morning: 'Good Morning',
-      afternoon: 'Good Afternoon',
-      evening: 'Good Evening',
-      night: 'Good Night',
-      member: 'Member',
+    'checkIn': {
+      title: 'Daily Check-In',
+      streak: '{{count}} days',
+      streakUnit: 'Streak',
+      claim: 'Claim your',
+      reward: 'reward',
+      subtitle: 'every 7 consecutive check-ins.',
+      checkInNow: 'Check-In Now',
+      alreadyCheckedIn: 'Already Checked In ✓',
+      failed: 'Check-in failed.',
+      rewardUnlocked: 'Reward Unlocked!',
+      success: 'Check-in successful!',
     },
-    promos: {
-      promo1: {
-        title: 'Fresh Milk Tea Series',
-        subtitle: 'Experience the new standard of Gong Cha milk tea.',
-      },
-      promo2: {
-        title: 'Buy 1 Get 1 Free',
-        subtitle: 'Double the leaf, double the joy every Friday.',
-      },
-      promo3: {
-        title: 'Download & Get Rewards',
-        subtitle: 'Earn leaves and unlock legendary tier benefits.',
-      },
-    },
-  },
   profile: {
     language: 'Language',
     editProfile: 'Edit Profile',
@@ -380,6 +368,10 @@ const en = {
         description: 'Potongan Rp 10.000 untuk minimal pembelian Rp 50.000',
       },
     },
+  },
+  permission: {
+    eyebrow: 'Before you continue',
+    footerNote: 'You can update this later in Settings.',
   },
 };
 

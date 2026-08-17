@@ -13,11 +13,14 @@ const MUTED    = '#7C6E68';
 const BORDER   = '#EFECE7';
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://gongcha-backend-353793177534.asia-southeast1.run.app';
 
+import CheckInSuccessModal from './CheckInSuccessModal';
+
 export default function BentoDailyCheckIn() {
   const { t } = useTranslation();
   const [streakCount, setStreakCount] = useState<number>(0);
   const [checkedInToday, setCheckedInToday] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
 
   const fetchStatus = async () => {
     try {
@@ -52,14 +55,19 @@ export default function BentoDailyCheckIn() {
       
       setStreakCount(data.streak_count);
       setCheckedInToday(true);
-      Alert.alert(data.reward_unlocked ? t('checkIn.rewardUnlocked') : t('checkIn.success'), data.message);
+      setModalVisible(true);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      Alert.alert(t('common.error'), e.message);
     }
   };
 
   return (
     <View style={styles.container}>
+      <CheckInSuccessModal 
+        visible={modalVisible} 
+        onClose={() => setModalVisible(false)} 
+        message={t('checkIn.success')}
+      />
       <View style={styles.headerRow}>
         <View style={styles.titleContainer}>
           <View style={styles.iconBg}><Calendar size={14} color={RED} /></View>
@@ -68,7 +76,7 @@ export default function BentoDailyCheckIn() {
         <View style={styles.streakPill}><Text style={styles.streakText}>{streakCount}/{t('checkIn.streak', { count: 7 })} {t('checkIn.streakUnit')}</Text></View>
       </View>
       <View style={styles.body}>
-        <Text style={styles.subtitle}>{t('checkIn.claim')} <Text style={styles.boldText}>{t('checkIn.reward')}</Text> setiap kelipatan 7 hari check-in berturut-turut.</Text>
+        <Text style={styles.subtitle}>{t('checkIn.claim')} <Text style={styles.boldText}>{t('checkIn.reward')}</Text> {t('checkIn.subtitle')}</Text>
       </View>
       <TouchableOpacity
         style={[styles.actionBtn, checkedInToday && styles.actionBtnDisabled]}
@@ -76,7 +84,7 @@ export default function BentoDailyCheckIn() {
         disabled={checkedInToday}
       >
         <Text style={[styles.actionBtnText, checkedInToday && styles.actionBtnTextDisabled]}>
-          {checkedInToday ? 'Sudah Check-In Hari Ini ✓' : 'Check-In Sekarang'}
+          {checkedInToday ? t('checkIn.alreadyCheckedIn') : t('checkIn.checkInNow')}
         </Text>
       </TouchableOpacity>
     </View>

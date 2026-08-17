@@ -69,11 +69,12 @@ export default function LocalRewardsScreen() {
 
   const model = useMemo(() => {
     return buildLocalRewardsViewModel(
+      t,
       summary,
       MOCK_CATALOG,
       localVouchers,
     );
-  }, [summary, localVouchers]);
+  }, [t, summary, localVouchers]);
 
   const handleRedeem = (item: RewardDisplayItem) => {
     if (model.availableLeavesValue < item.pointsRequired) {

@@ -3,6 +3,7 @@ import { FASTAPI_BASE_URL } from '../../config/flags';
 
 export interface RewardCatalogItem {
   id: string;
+  code: string;
   title: string;
   description: string;
   pointsrequired: number;

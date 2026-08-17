@@ -7,6 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import PermissionPrimerScreen from '../components/PermissionPrimerScreen';
 import { markGuestOnboardingCompleted } from '../utils/guestOnboarding';
+import LottieView from 'lottie-react-native';
 
 type RootStackParamList = {
   NotificationPermission: undefined;
@@ -50,7 +51,15 @@ export default function NotificationPermissionScreen() {
 
   return (
     <PermissionPrimerScreen
-      icon={<Bell size={36} color="#B91C2F" strokeWidth={2.2} />}
+      noHalo
+      icon={
+        <LottieView
+          source={require('../../assets/animations/Bell.json')}
+          autoPlay
+          loop
+          style={{ width: 180, height: 180 }}
+        />
+      }
       title={t('notificationPermission.title')}
       description={t('notificationPermission.description')}
       bullets={t('notificationPermission.bullets', { returnObjects: true }) as string[]}

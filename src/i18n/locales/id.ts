@@ -381,6 +381,10 @@ const id = {
       },
     },
   },
+  permission: {
+    eyebrow: 'Sebelum melanjutkan',
+    footerNote: 'Kamu bisa memperbarui ini nanti di Pengaturan.',
+  },
 };
 
 export default id;

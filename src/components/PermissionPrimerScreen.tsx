@@ -5,12 +5,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyPressable from './BouncyPressable';
 
 type PermissionPrimerScreenProps = {
   icon: React.ReactNode;
+  noHalo?: boolean;
   title: string;
   description: string;
   bullets: string[];
@@ -22,6 +24,7 @@ type PermissionPrimerScreenProps = {
 
 export default function PermissionPrimerScreen({
   icon,
+  noHalo,
   title,
   description,
   bullets,
@@ -30,6 +33,7 @@ export default function PermissionPrimerScreen({
   onPrimary,
   onSecondary,
 }: PermissionPrimerScreenProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   return (
@@ -52,19 +56,23 @@ export default function PermissionPrimerScreen({
         <View style={[styles.card, { paddingBottom: Math.max(insets.bottom + 18, 24) }]}>
           <View style={styles.eyebrowRow}>
             <View style={styles.eyebrowDot} />
-            <Text style={styles.eyebrowText}>Before you continue</Text>
+            <Text style={styles.eyebrowText}>{t('permission.eyebrow')}</Text>
           </View>
 
-          <View style={styles.iconHalo}>
-            <LinearGradient
-              colors={['#FFF3F4', '#FDEBEC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconHaloGradient}
-            >
-              {icon}
-            </LinearGradient>
-          </View>
+          {noHalo ? (
+            <View style={{ marginBottom: 18, alignItems: 'center' }}>{icon}</View>
+          ) : (
+            <View style={styles.iconHalo}>
+              <LinearGradient
+                colors={['#FFF3F4', '#FDEBEC']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.iconHaloGradient}
+              >
+                {icon}
+              </LinearGradient>
+            </View>
+          )}
 
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
@@ -90,7 +98,7 @@ export default function PermissionPrimerScreen({
             </View>
           </BouncyPressable>
 
-          <Text style={styles.footerNote}>You can update this later in Settings.</Text>
+          <Text style={styles.footerNote}>{t('permission.footerNote')}</Text>
         </View>
       </View>
     </View>

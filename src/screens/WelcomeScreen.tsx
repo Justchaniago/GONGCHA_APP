@@ -27,6 +27,7 @@ import { AuthService } from '../services/AuthService';
 import { getGreeting } from '../utils/greetingHelper';
 import { signInWithGoogle, statusCodes } from '../services/GoogleSignInService';
 import GoogleIcon from '../components/GoogleIcon';
+import { useLanguage } from '../hooks/useLanguage';
 
 type RootStackParamList = {
   Welcome: undefined;
@@ -74,6 +75,7 @@ function AppleIcon({ size = 28, color = '#000' }: { size?: number; color?: strin
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
+  const { language, changeLanguage } = useLanguage();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
@@ -687,6 +689,30 @@ export default function WelcomeScreen() {
               <Text style={styles.getStartedText}>{t('welcome.getStarted')}</Text>
             </View>
           </BouncyPressable>
+
+          <View style={styles.langSelectorRow}>
+            <TouchableOpacity
+              style={[styles.langPill, language === 'id' && styles.langPillActive]}
+              onPress={() => changeLanguage('id')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.langPillFlag}>🇮🇩</Text>
+              <Text style={[styles.langPillText, language === 'id' && styles.langPillTextActive]}>
+                Indonesia
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.langPill, language === 'en' && styles.langPillActive]}
+              onPress={() => changeLanguage('en')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.langPillFlag}>🇬🇧</Text>
+              <Text style={[styles.langPillText, language === 'en' && styles.langPillTextActive]}>
+                English
+              </Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Bottom Sheet */}
@@ -1159,4 +1185,38 @@ const styles = StyleSheet.create({
 
   methodToggleButton: { minHeight: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
   methodToggleText: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
+
+  langSelectorRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+  },
+  langPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    gap: 6,
+  },
+  langPillActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  langPillFlag: {
+    fontSize: 16,
+  },
+  langPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  langPillTextActive: {
+    color: '#B91C2F',
+  },
 });
