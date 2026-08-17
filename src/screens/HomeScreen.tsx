@@ -106,8 +106,24 @@ export default function HomeScreen() {
   const contentTranslateY = useRef(new Animated.Value(35)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
-  // Scroll value for sticky header fade morphing
+  // Scroll value for sticky header autohide slide animation
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Native Header Shrinking & Logo Parallax Lock
+  const headerScrollTranslateY = scrollY.interpolate({
+    inputRange: [0, 150],
+    outputRange: [0, -35], // Extra slide up to thin out the header on scroll
+    extrapolate: 'clamp',
+  });
+  const activeHeaderTranslateY = Animated.add(headerTranslateY, headerScrollTranslateY);
+
+  const activeLogoTranslateY = Animated.add(scrollY, Animated.multiply(headerScrollTranslateY, -1));
+  const logoSlideDown = scrollY.interpolate({
+    inputRange: [85, 125],
+    outputRange: [-15, 0], // Smooth slide-down into position
+    extrapolate: 'clamp',
+  });
+  const totalLogoTranslateY = Animated.add(activeLogoTranslateY, logoSlideDown);
 
   // Shimmering animation value for custom pull to refresh text
   const shimmerOpacity = useRef(new Animated.Value(1)).current;
@@ -398,29 +414,29 @@ export default function HomeScreen() {
                   borderBottomRightRadius: 36,
                   borderCurve: 'continuous',
                   opacity: headerOpacity,
-                  transform: [{ translateY: headerTranslateY }],
+                  transform: [{ translateY: activeHeaderTranslateY }],
                 },
               ]}>
                 {/* Centered Gongcha logo that stays fixed at the top on scroll */}
                 <Animated.View style={{
                   position: 'absolute',
-                  top: insets.top > 0 ? insets.top + 20 : 48,
+                  top: insets.top > 0 ? insets.top + 12 : 36,
                   left: 0,
                   right: 0,
                   alignItems: 'center',
                   justifyContent: 'center',
                   opacity: scrollY.interpolate({
-                    inputRange: [40, 100],
+                    inputRange: [85, 125],
                     outputRange: [0, 1],
                     extrapolate: 'clamp',
                   }),
                   transform: [
-                    { translateY: scrollY }
+                    { translateY: totalLogoTranslateY }
                   ]
                 }}>
                   <Image
                     source={require('../../assets/images/GongchaLogo.png')}
-                    style={{ width: 100, height: 28, tintColor: '#FFFFFF' }}
+                    style={{ width: 135, height: 38, tintColor: '#FFFFFF' }}
                     resizeMode="contain"
                   />
                 </Animated.View>
