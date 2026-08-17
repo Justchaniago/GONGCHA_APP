@@ -334,6 +334,35 @@ export default function HomeScreen() {
         <StatusBar style="light" translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
+        {/* STICKY MIDDLE LOGO NAVBAR (FADES IN ON SCROLL) */}
+        <Animated.View style={[
+          styles.stickyNavbar,
+          {
+            paddingTop: insets.top > 0 ? insets.top : 20,
+            height: (insets.top > 0 ? insets.top : 20) + 50,
+            opacity: scrollY.interpolate({
+              inputRange: [80, 140],
+              outputRange: [0, 1],
+              extrapolate: 'clamp',
+            }),
+            transform: [{
+              translateY: scrollY.interpolate({
+                inputRange: [80, 140],
+                outputRange: [-10, 0],
+                extrapolate: 'clamp',
+              })
+            }]
+          }
+        ]}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Image
+              source={require('../../assets/images/GongchaLogo.png')}
+              style={{ width: 100, height: 28, tintColor: '#FFFFFF' }}
+              resizeMode="contain"
+            />
+          </View>
+        </Animated.View>
+
         <View style={styles.mainLayout}>
           {/* SCROLLABLE BENTO CONTENT (SLIDE-UP STAGGERED ENTRANCE) */}
           <Animated.View style={{ flex: 1, opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
