@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { useMenu } from '../composition/menu';
 import { buildMenuViewModel } from '../application/menu/GetMenu';
-import MenuView from '../presentation/menu/MenuView';
-import type { MenuItemDisplay } from '../application/menu/GetMenu';
+import { MenuMorphScreen } from '../components/MenuMorphScreen';
 
 export default function MenuScreen() {
   const { items: gongchaMenu, isLoading, isRefreshing, refresh } = useMenu();
 
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedItem, setSelectedItem] = useState<MenuItemDisplay | null>(null);
 
   const model = buildMenuViewModel(gongchaMenu, selectedCategory);
 
@@ -19,19 +17,16 @@ export default function MenuScreen() {
       )
     : model.items;
 
+  const stringCategories = model.categories.map((c) => c.id);
+
   return (
-    <MenuView
-      categories={model.categories}
+    <MenuMorphScreen
+      categories={stringCategories}
       items={filteredItems}
       selectedCategory={selectedCategory}
       onSelectCategory={setSelectedCategory}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
-      selectedItem={selectedItem}
-      onSelectItem={setSelectedItem}
-      loading={isLoading}
-      refreshing={isRefreshing}
-      onRefresh={refresh}
     />
   );
 }

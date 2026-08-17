@@ -9,4 +9,7 @@ export interface MenuItem {
   imageUrl?: string;
   rating?: number;
   isAvailable?: boolean;
+  code?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
 }

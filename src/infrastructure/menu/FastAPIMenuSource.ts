@@ -20,13 +20,16 @@ export class FastAPIMenuSource implements MenuSource {
             id: item.id || item.code,
             name: item.name || 'Gong Cha Drink',
             category: cat.name || 'Milk Tea',
-            basePrice: item.price || item.price_minor || 30000,
+            basePrice: item.price_minor ?? item.price ?? 30000,
             isLargeAvailable: true,
             isHotAvailable: true,
             description: item.description || '',
             imageUrl: item.image_url || item.imageUrl || '',
             rating: 4.8,
             isAvailable: true,
+            code: item.code || '',
+            isPopular: item.is_popular ?? false,
+            isNew: item.is_new ?? false,
           });
         }
       }
