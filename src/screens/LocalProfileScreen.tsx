@@ -253,7 +253,7 @@ export default function LocalProfileScreen() {
                 style={styles.retryButton}
                 onPress={() => void summaryController.retry()}
               >
-                <Text style={styles.retryText}>Coba Lagi</Text>
+                <Text style={styles.retryText}>{t('common.retry')}</Text>
               </TouchableOpacity>
             </View>
           ) : null}

@@ -62,7 +62,7 @@ export default function HomeScreen() {
   const { member, loading: isMemberLoading } = useMember();
 
   const formatMemberName = (name?: string) => {
-    if (!name) return 'Member';
+    if (!name) return t('home.greeting.member');
     const words = name.trim().split(/\s+/);
     if (words.length > 2) {
       return `${words[0]} ${words[1]}`;
@@ -289,9 +289,9 @@ export default function HomeScreen() {
       }));
     }
     return [
-      { color: '#FFD1DC', image: require('../../assets/images/promo1.webp'), uri: null, title: 'Fresh Milk Tea Series', subtitle: 'Experience the new standard of Gong Cha milk tea.' },
-      { color: '#FFF5E1', image: require('../../assets/images/promo2.webp'), uri: null, title: 'Buy 1 Get 1 Free', subtitle: 'Double the leaf, double the joy every Friday.' },
-      { color: '#E0F7FA', image: require('../../assets/images/promo3.webp'), uri: null, title: 'Download & Get Rewards', subtitle: 'Earn leaves and unlock legendary tier benefits.' },
+      { color: '#FFD1DC', image: require('../../assets/images/promo1.webp'), uri: null, title: t('home.promos.promo1.title'), subtitle: t('home.promos.promo1.subtitle') },
+      { color: '#FFF5E1', image: require('../../assets/images/promo2.webp'), uri: null, title: t('home.promos.promo2.title'), subtitle: t('home.promos.promo2.subtitle') },
+      { color: '#E0F7FA', image: require('../../assets/images/promo3.webp'), uri: null, title: t('home.promos.promo3.title'), subtitle: t('home.promos.promo3.subtitle') },
     ];
   }, [carouselPromos]);
 
@@ -439,7 +439,7 @@ export default function HomeScreen() {
                     {/* RIGHT AREA: Greeting and Bell Button */}
                     <View style={styles.headerRightContainer}>
                       <View style={styles.headerGreetingTextContainer}>
-                        <Text style={[styles.greeting, { color: 'rgba(255, 255, 255, 0.82)', textAlign: 'right' }]}>{getGreeting()},</Text>
+                        <Text style={[styles.greeting, { color: 'rgba(255, 255, 255, 0.82)', textAlign: 'right' }]}>{t(getGreeting())},</Text>
                         {isMemberLoading ? (
                           <SkeletonLoader width={80} height={16} style={{ marginTop: 2, alignSelf: 'flex-end' }} />
                         ) : (

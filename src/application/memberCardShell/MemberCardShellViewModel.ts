@@ -1,4 +1,4 @@
-import { generateDynamicMemberQrPayload } from './GetDynamicMemberQr.ts';
+import { generateDynamicMemberQrPayload } from './GetDynamicMemberQr';
 
 export interface CardAnchor {
   x: number;
@@ -13,10 +13,10 @@ export interface TierTheme {
 }
 
 export const CANDIDATE_TIER_THEMES: Record<string, TierTheme> = {
-  LOVER: { gradient: ['#FCA5A5', '#EF4444'], text: '#FFFFFF', glow: '#EF4444' },
-  MASTER: { gradient: ['#E8E8E8', '#B8B8B8'], text: '#1A1A1A', glow: '#E8E8E8' },
-  AMBASSADOR: { gradient: ['#FDE68A', '#F59E0B'], text: '#1A1A1A', glow: '#F59E0B' },
-  LEGEND: { gradient: ['#374151', '#111827'], text: '#FFFFFF', glow: '#111827' },
+  LOVER: { gradient: ['#C8102E', '#9A0D24'], text: '#FAF8F5', glow: '#C8102E' },
+  MASTER: { gradient: ['#4A4A4A', '#2D2D2D'], text: '#FAF8F5', glow: '#4A4A4A' },
+  AMBASSADOR: { gradient: ['#D4AF37', '#B8860B'], text: '#FAF8F5', glow: '#D4AF37' },
+  LEGEND: { gradient: ['#1D1D1F', '#000000'], text: '#FAF8F5', glow: '#1D1D1F' },
 };
 
 export interface MemberCardShellViewModel {

@@ -5,6 +5,7 @@ import {
   DeviceEventEmitter, RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useTranslation } from 'react-i18next';
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications/build/Notifications.types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,6 +53,7 @@ const MenuItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false 
 // 2. KOMPONEN UTAMA
 // ==========================================
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -117,10 +119,10 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.logOut'), t('profile.logOutConfirm'), [
+      { text: t('profile.cancel'), style: 'cancel' },
       {
-        text: 'Log Out',
+        text: t('profile.logOut'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -138,15 +140,15 @@ export default function ProfileScreen() {
     setIsLinkingGoogle(true);
     try {
       await linkGoogleToAccount();
-      Alert.alert('Berhasil!', 'Akun Google kamu sudah terhubung. Sekarang bisa login dengan keduanya.');
+      Alert.alert(t('profile.success'), t('profile.googleConnected'));
     } catch (error: any) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) return;
       if (error.code === statusCodes.IN_PROGRESS) return;
       if (error.code === 'auth/credential-already-in-use') {
-        Alert.alert('Akun sudah dipakai', 'Google account ini sudah terhubung ke akun lain.');
+        Alert.alert(t('profile.googleAccountExists'), t('profile.googleAlreadyUsed'));
         return;
       }
-      Alert.alert('Gagal menghubungkan', error.message || 'Coba lagi nanti.');
+      Alert.alert(t('profile.googleLinkFailed'), error.message || t('profile.googleLinkFailed'));
     } finally {
       setIsLinkingGoogle(false);
     }
@@ -156,7 +158,7 @@ export default function ProfileScreen() {
     try {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please allow notifications to see the preview.');
+        Alert.alert(t('profile.permissionNeeded'), t('profile.notificationPermissionNeeded'));
         return;
       }
       await Notifications.scheduleNotificationAsync({
@@ -164,7 +166,7 @@ export default function ProfileScreen() {
         trigger: { type: SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
       });
     } catch (error: any) {
-      Alert.alert('Notification error', String(error?.message || error));
+      Alert.alert(t('profile.notificationError'), String(error?.message || error));
     }
   };
 
@@ -197,34 +199,34 @@ export default function ProfileScreen() {
 
           {/* MENU SECTIONS */}
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
-            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Account</Text>
-            <MenuItem icon={User} title="Edit Profile" subtitle="Name, Phone, Email & Photo" onPress={() => navigation.navigate('EditProfile')} />
+            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>{t('profile.accountSection')}</Text>
+            <MenuItem icon={User} title={t('profile.editProfile')} subtitle={t('profile.editProfileSub')} onPress={() => navigation.navigate('EditProfile')} />
             {hasPasswordProvider && (
-              <MenuItem icon={Lock} title="Change Password" subtitle="Update your account password" onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} />
+              <MenuItem icon={Lock} title={t('profile.changePassword')} subtitle={t('profile.changePasswordSub')} onPress={() => navigation.navigate('UpdatePassword', { mode: 'change' })} />
             )}
             <MenuItem
               icon={ShieldCheck}
-              title="Security PIN"
+              title={t('profile.securityPin')}
               subtitle={
                 pinEnabled
                   ? biometricEnabled
                     ? appLockEnabled
-                      ? 'PIN and biometrics enabled, with app relock active'
-                      : 'PIN and biometrics enabled'
+                      ? t('profile.pinBioRelock')
+                      : t('profile.pinBio')
                     : appLockEnabled
-                      ? 'PIN enabled, with app relock active'
-                      : 'PIN enabled for sensitive actions'
-                  : 'Protect redemption, vouchers, and your member QR'
+                      ? t('profile.pinRelock')
+                      : t('profile.pinOnly')
+                  : t('profile.pinOff')
               }
               onPress={openSecuritySettings}
             />
-            <MenuItem icon={HistoryIcon} title="Transaction History" subtitle="Check your earned points" onPress={openHistory} />
-            <MenuItem icon={MapPin} title="Find a Store" subtitle="Locate nearest Gong Cha" onPress={() => navigation.navigate('StoreLocator')} />
+            <MenuItem icon={HistoryIcon} title={t('profile.transactionHistory')} subtitle={t('profile.transactionHistorySub')} onPress={openHistory} />
+            <MenuItem icon={MapPin} title={t('profile.findStore')} subtitle={t('profile.findStoreSub')} onPress={() => navigation.navigate('StoreLocator')} />
           </View>
 
           {/* CONNECTED ACCOUNTS */}
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
-            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Connected Accounts</Text>
+            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>{t('profile.connectedAccountsSection')}</Text>
             {hasGoogleProvider ? (
               <View style={styles.menuItem}>
                 <View style={[styles.menuIcon, { backgroundColor: '#F8F9FA' }]}>
@@ -232,10 +234,10 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.menuTextContainer}>
                   <Text style={[styles.menuTitle, { color: colors.text.primary }]}>Google</Text>
-                  <Text style={styles.menuSubtitle}>Terhubung</Text>
+                  <Text style={styles.menuSubtitle}>{t('profile.googleConnectedStatus')}</Text>
                 </View>
                 <View style={{ backgroundColor: '#D1FAE5', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#065F46' }}>✓ Aktif</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#065F46' }}>{t('profile.googleActiveStatus')}</Text>
                 </View>
               </View>
             ) : (
@@ -250,9 +252,9 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.menuTextContainer}>
                   <Text style={[styles.menuTitle, { color: colors.text.primary }]}>
-                    {isLinkingGoogle ? 'Menghubungkan...' : 'Hubungkan Google'}
+                    {isLinkingGoogle ? t('profile.googleConnecting') : t('profile.googleConnectLabel')}
                   </Text>
-                  <Text style={styles.menuSubtitle}>Login lebih mudah dengan akun Google</Text>
+                  <Text style={styles.menuSubtitle}>{t('profile.googleConnectSub')}</Text>
                 </View>
                 <Link size={16} color={colors.text.tertiary} />
               </TouchableOpacity>
@@ -261,12 +263,12 @@ export default function ProfileScreen() {
 
           {/* SUPPORT */}
           <View style={[styles.menuSection, { paddingHorizontal: horizontalPadding }]}>
-            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>Support</Text>
-            <MenuItem icon={HelpCircle} title="Help Center" onPress={() => navigation.navigate('HelpCenter')} />
-            <MenuItem icon={LogOut} title="Log Out" isDestructive onPress={handleLogout} />
+            <Text style={[styles.sectionHeader, { color: colors.text.primary }]}>{t('profile.supportSection')}</Text>
+            <MenuItem icon={HelpCircle} title={t('profile.helpCenter')} onPress={() => navigation.navigate('HelpCenter')} />
+            <MenuItem icon={LogOut} title={t('profile.logOut')} isDestructive onPress={handleLogout} />
           </View>
 
-          <Text style={[styles.versionText, { color: colors.text.secondary }]}>App Version 1.0.3</Text>
+          <Text style={[styles.versionText, { color: colors.text.secondary }]}>{t('profile.appVersion', { version: '1.0.3' })}</Text>
         </ScrollView>
       </View>
 

@@ -52,7 +52,6 @@ export default function LocalRewardsScreen() {
   );
   const state = useLocalLoyaltySummary(controller, member?.uid ?? null);
 
-  const [bonusLeaves] = useState(2000); // Override +2.000 Leaves untuk kemudahan pengujian emulator
   const [deductedLeaves, setDeductedLeaves] = useState(0);
   const [localVouchers, setLocalVouchers] = useState<any[]>([]);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
@@ -62,11 +61,11 @@ export default function LocalRewardsScreen() {
     return {
       availableLeaves: Math.max(
         0,
-        baseLeaves + bonusLeaves - deductedLeaves,
+        baseLeaves - deductedLeaves,
       ),
       pending: { leaves: 0, state: 'unsupported' as const },
     };
-  }, [state, bonusLeaves, deductedLeaves]);
+  }, [state, deductedLeaves]);
 
   const model = useMemo(() => {
     return buildLocalRewardsViewModel(

@@ -71,18 +71,18 @@ export default function LocalMembershipStatusScreen() {
     return (
       <View style={styles.stateRoot}>
         <StatusBar style="dark" />
-        <Text style={styles.errorTitle}>Membership gagal dimuat</Text>
+        <Text style={styles.errorTitle}>{t('membershipStatus.loadError')}</Text>
         <Text style={styles.stateText}>
-          Data tidak diganti nilai nol. Periksa local stack lalu coba lagi.
+          {t('membershipStatus.loadErrorDetail')}
         </Text>
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => void controller.retry()}
         >
-          <Text style={styles.retryText}>Coba Lagi</Text>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>Kembali</Text>
+          <Text style={styles.backText}>{t('common.back')}</Text>
         </TouchableOpacity>
       </View>
     );

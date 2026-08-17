@@ -723,7 +723,7 @@ export default function WelcomeScreen() {
                             <Text style={styles.headerBackText}>←</Text>
                           </TouchableOpacity>
                           <View>
-                            <Text style={styles.formTitle}>{getGreeting()}</Text>
+                            <Text style={styles.formTitle}>{t(getGreeting())}</Text>
                             <Text style={styles.formSubtext}>{t('welcome.chooseSignIn')}</Text>
                           </View>
                         </View>
@@ -775,7 +775,7 @@ export default function WelcomeScreen() {
                             <Text style={styles.headerBackText}>←</Text>
                           </TouchableOpacity>
                           <View style={styles.headerCopy}>
-                            <Text style={styles.formTitle}>{getGreeting()}</Text>
+                            <Text style={styles.formTitle}>{t(getGreeting())}</Text>
                             <Text style={styles.formSubtext}>{t('welcome.enterPhoneToContinue')}</Text>
                           </View>
                         </View>
@@ -807,7 +807,7 @@ export default function WelcomeScreen() {
                             <Text style={styles.headerBackText}>←</Text>
                           </TouchableOpacity>
                           <View style={styles.headerCopy}>
-                            <Text style={styles.formTitle}>{getGreeting()}</Text>
+                            <Text style={styles.formTitle}>{t(getGreeting())}</Text>
                             <Text style={styles.formSubtext}>{t('welcome.continueWithEmail')}</Text>
                           </View>
                         </View>

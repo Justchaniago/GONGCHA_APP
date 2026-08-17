@@ -209,15 +209,15 @@ export default function LocalLoyaltyActivityScreen() {
         </View>
       ) : state.phase === 'error' ? (
         <View style={styles.centerState}>
-          <Text style={styles.errorTitle}>Activity gagal dimuat</Text>
+          <Text style={styles.errorTitle}>{t('loyaltyActivity.loadError')}</Text>
           <Text style={styles.stateText}>
-            Backend tidak mengembalikan empty state, jadi error tetap terlihat.
+            {t('loyaltyActivity.loadErrorDetail')}
           </Text>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => void localLoyaltyActivityController.retry()}
           >
-            <Text style={styles.primaryButtonText}>Coba Lagi</Text>
+            <Text style={styles.primaryButtonText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -239,9 +239,9 @@ export default function LocalLoyaltyActivityScreen() {
           }
           ListEmptyComponent={
             <View style={styles.centerState}>
-              <Text style={styles.emptyTitle}>Belum ada loyalty activity</Text>
+              <Text style={styles.emptyTitle}>{t('loyaltyActivity.emptyTitle')}</Text>
               <Text style={styles.stateText}>
-                Member lokal baru belum memiliki earn, refund, atau redemption.
+                {t('loyaltyActivity.emptyDetail')}
               </Text>
             </View>
           }
@@ -250,7 +250,7 @@ export default function LocalLoyaltyActivityScreen() {
               {state.pageError === 'activity_load_failed' ? (
                 <View style={styles.inlineError}>
                   <Text style={styles.inlineErrorText}>
-                    Refresh gagal. Activity terakhir tetap ditampilkan.
+                    {t('loyaltyActivity.refreshError')}
                   </Text>
                   <TouchableOpacity
                     style={styles.inlineRetryButton}
@@ -258,14 +258,14 @@ export default function LocalLoyaltyActivityScreen() {
                       void localLoyaltyActivityController.retry()
                     }
                   >
-                    <Text style={styles.inlineRetryText}>Coba Lagi</Text>
+                    <Text style={styles.inlineRetryText}>{t('common.retry')}</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
               {state.pageError === 'activity_pagination_failed' ? (
                 <View style={styles.inlineError}>
                   <Text style={styles.inlineErrorText}>
-                    Halaman berikutnya gagal. Activity sebelumnya tetap aman.
+                    {t('loyaltyActivity.paginationError')}
                   </Text>
                 </View>
               ) : null}

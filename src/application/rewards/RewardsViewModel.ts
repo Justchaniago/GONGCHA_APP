@@ -1,5 +1,6 @@
 export interface RewardDisplayItem {
   id: string;
+  code?: string;
   title: string;
   description: string;
   pointsRequired: number;
@@ -31,7 +32,10 @@ export interface RewardsViewModel {
   historyVouchers: VoucherDisplayItem[];
 }
 
+import { TFunction } from 'i18next';
+
 export function buildLocalRewardsViewModel(
+  t: TFunction,
   summary: any,
   catalog: any[],
   vouchers: any[],
@@ -43,16 +47,18 @@ export function buildLocalRewardsViewModel(
     const required = c.pointsRequired ?? c.pointsrequired ?? 0;
     const canAfford = points >= required;
     const diff = required - points;
+    const code = c.code || c.id;
     return {
       id: c.id,
-      title: c.title,
-      description: c.description || '',
+      code,
+      title: t(`catalog.rewards.${code}.title`, { defaultValue: c.title }),
+      description: t(`catalog.rewards.${code}.description`, { defaultValue: c.description || '' }),
       pointsRequired: required,
       pointsRequiredLabel: `${required.toLocaleString('id-ID')} Leaves`,
       imageUrl: c.imageUrl,
       category: c.category,
       canAfford,
-      actionLabel: canAfford ? 'Tukar' : `${diff.toLocaleString('id-ID')} Leaves Lagi`,
+      actionLabel: canAfford ? t('common.redeem') : `${diff.toLocaleString('id-ID')} Leaves Lagi`,
     };
   });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -17,6 +18,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 interface RewardItem {
   id: string;
+  code?: string;
   title: string;
   description: string;
   pointsrequired: number;
@@ -27,6 +29,7 @@ interface RewardItem {
 }
 
 export default function RewardsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
   const { member } = useMember();
   const { ensureVerified } = useSecurity();
@@ -41,7 +44,12 @@ export default function RewardsScreen() {
   const fetchRewards = useCallback(async () => {
     try {
       const data = await FastAPIRewardsRepository.listRewards();
-      setRewards(data);
+      const localized = data.map((r) => ({
+        ...r,
+        title: t(`catalog.rewards.${r.code}.title`, { defaultValue: r.title }),
+        description: t(`catalog.rewards.${r.code}.description`, { defaultValue: r.description }),
+      }));
+      setRewards(localized);
     } catch (error) {
       console.error('Error fetching rewards:', error);
     } finally {
@@ -61,25 +69,27 @@ export default function RewardsScreen() {
     const verified = await ensureVerified('redeem');
     if (!verified) return;
 
+    const rewardTitle = t('catalog.rewards.' + reward.code + '.title', { defaultValue: reward.title });
+
     Alert.alert(
-      'Tukar Poin',
-      `Tukar ${reward.pointsRequired} Leaves untuk \"${reward.title}\"?`,
+      t('rewards.redeemConfirmTitle'),
+      t('rewards.redeemConfirmMessage', { points: reward.pointsRequired, title: rewardTitle }),
       [
-        { text: 'Batal', style: 'cancel' },
+        { text: t('rewards.cancel'), style: 'cancel' },
         {
-          text: 'Tukar',
+          text: t('rewards.redeem'),
           onPress: async () => {
             setRedeemingId(reward.id);
             try {
               const commandId = crypto.randomUUID();
               await FastAPIRewardsRepository.redeemReward(reward.id, commandId);
-              Alert.alert('Berhasil!', 'Voucher telah ditambahkan ke My Vouchers.');
+              Alert.alert(t('rewards.success'), t('rewards.successMessage'));
             } catch (error: any) {
               const msg =
                 error?.message === 'insufficient_points'
-                  ? 'Leaves tidak cukup untuk menukar reward ini.'
-                  : 'Terjadi kesalahan saat menukar poin.';
-              Alert.alert('Gagal', msg);
+                  ? t('rewards.insufficientPoints')
+                  : t('rewards.redeemError');
+              Alert.alert(t('rewards.failed'), msg);
             } finally {
               setRedeemingId(null);
             }
@@ -90,8 +100,8 @@ export default function RewardsScreen() {
   };
 
   const model = useMemo(
-    () => buildLocalRewardsViewModel(summary, rewards, member?.vouchers ?? []),
-    [summary, rewards, member?.vouchers],
+    () => buildLocalRewardsViewModel(t, summary, rewards, member?.vouchers ?? []),
+    [t, summary, rewards, member?.vouchers],
   );
 
   return (

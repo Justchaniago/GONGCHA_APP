@@ -52,7 +52,7 @@ export default function LocalDashboardScreen() {
       await authCommands.logout();
     } catch {
       setLoggingOut(false);
-      Alert.alert('Logout gagal', 'Coba lagi sebentar.');
+      Alert.alert(t('dashboard.logoutFailed'), t('dashboard.logoutFailedMsg'));
     }
   };
 
@@ -188,18 +188,18 @@ export default function LocalDashboardScreen() {
         {summaryState.phase === 'error' ? (
           <View style={styles.summaryErrorCard}>
             <Text style={styles.summaryError}>
-              Loyalty summary gagal dimuat. Nilai nol tidak ditampilkan.
+              {t('dashboard.loadError')}
             </Text>
             <TouchableOpacity
               style={styles.summaryRetry}
               onPress={() => void localLoyaltySummaryController.retry()}
             >
-              <Text style={styles.summaryRetryText}>Coba Lagi</Text>
+              <Text style={styles.summaryRetryText}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
         ) : summaryState.error ? (
           <Text style={styles.summaryError}>
-            Refresh gagal; data sebelumnya tetap ditampilkan.
+            {t('dashboard.refreshError')}
           </Text>
         ) : null}
         <View style={styles.walletRegion}>

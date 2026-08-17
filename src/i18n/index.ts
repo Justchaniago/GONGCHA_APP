@@ -10,6 +10,7 @@ const supportedLocale = ['en', 'id'].includes(deviceLocale) ? deviceLocale : 'id
 i18n
   .use(initReactI18next)
   .init({
+    compatibilityJSON: 'v3',
     resources: { en: { translation: en }, id: { translation: id } },
     lng: supportedLocale,
     fallbackLng: 'id',

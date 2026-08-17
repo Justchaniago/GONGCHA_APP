@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Animated,
   FlatList,
@@ -187,6 +188,7 @@ export function ProfileHistorySheet({
   onRetry,
   onTabBarVisibilityChange,
 }: HistorySheetProps) {
+  const { t } = useTranslation();
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
@@ -315,7 +317,7 @@ export function ProfileHistorySheet({
                 {errorMessage}
               </Text>
               <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-                <Text style={styles.retryText}>Coba Lagi</Text>
+                <Text style={styles.retryText}>{t('common.retry')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -338,7 +340,7 @@ export function ProfileHistorySheet({
                       {errorMessage}
                     </Text>
                     <TouchableOpacity onPress={onRetry}>
-                      <Text style={styles.footerRetry}>Coba lagi</Text>
+                      <Text style={styles.footerRetry}>{t('common.retry')}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : null
