@@ -420,7 +420,7 @@ export default function HomeScreen() {
                 {/* Centered Gongcha logo that stays fixed at the top on scroll */}
                 <Animated.View style={{
                   position: 'absolute',
-                  top: insets.top > 0 ? insets.top + 12 : 36,
+                  top: insets.top > 0 ? insets.top + 2 : 20,
                   left: 0,
                   right: 0,
                   alignItems: 'center',
