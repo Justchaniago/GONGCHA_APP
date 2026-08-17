@@ -64,6 +64,7 @@ export function buildMemberData(
 
   const currentPoints = asNumber(data.currentPoints, asNumber(data.points));
   const rawPendingPoints = asNumber(data.pendingPoints);
+
   const tierXp = asNumber(
     data.tierXp,
     asNumber(data.lifetimePoints, asNumber(data.xp)),

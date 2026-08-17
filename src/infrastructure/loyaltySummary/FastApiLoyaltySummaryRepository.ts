@@ -21,7 +21,7 @@ type FetchLike = (
   },
 ) => Promise<JsonResponse>;
 
-const LOCAL_BACKEND_PATTERN = /^https?:\/\/.+/;
+const LOCAL_BACKEND_PATTERN = /^https?:\/\//;
 const TIER_CODES = new Set<CandidateTierCode>([
   'LOVER',
   'MASTER',
@@ -50,8 +50,7 @@ function isSafeInteger(value: unknown): value is number {
 }
 
 function parseTierCode(value: unknown): CandidateTierCode | null {
-  return typeof value === 'string' &&
-    TIER_CODES.has(value as CandidateTierCode)
+  return typeof value === 'string' && TIER_CODES.has(value as CandidateTierCode)
     ? (value as CandidateTierCode)
     : null;
 }

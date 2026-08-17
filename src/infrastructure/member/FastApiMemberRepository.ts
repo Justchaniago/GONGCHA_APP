@@ -142,7 +142,7 @@ export class FastApiMemberRepository implements MemberRepository {
         qualifyingLeaves = typeof summaryData.qualifying_leaves === 'number' ? summaryData.qualifying_leaves : 0;
       }
     } catch {
-      // ponytail: silent fallback — loyalty-summary optional here; RewardsScreen shows 0 if unavailable
+      // ponytail: silent fallback — loyalty-summary optional here
     }
 
     return {
