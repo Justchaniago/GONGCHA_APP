@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import './global.css';
 
 import { EnvironmentProvider } from './src/context/EnvironmentContext';
@@ -10,8 +11,10 @@ const RuntimeApp =
 
 export default function App() {
   return (
-    <EnvironmentProvider>
-      <RuntimeApp />
-    </EnvironmentProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <EnvironmentProvider>
+        <RuntimeApp />
+      </EnvironmentProvider>
+    </GestureHandlerRootView>
   );
 }
