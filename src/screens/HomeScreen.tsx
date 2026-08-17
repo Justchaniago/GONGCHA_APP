@@ -334,35 +334,6 @@ export default function HomeScreen() {
         <StatusBar style="light" translucent backgroundColor="transparent" />
         <DecorativeBackground />
 
-        {/* STICKY MIDDLE LOGO NAVBAR (FADES IN ON SCROLL) */}
-        <Animated.View style={[
-          styles.stickyNavbar,
-          {
-            paddingTop: insets.top > 0 ? insets.top : 20,
-            height: (insets.top > 0 ? insets.top : 20) + 50,
-            opacity: scrollY.interpolate({
-              inputRange: [80, 140],
-              outputRange: [0, 1],
-              extrapolate: 'clamp',
-            }),
-            transform: [{
-              translateY: scrollY.interpolate({
-                inputRange: [80, 140],
-                outputRange: [-10, 0],
-                extrapolate: 'clamp',
-              })
-            }]
-          }
-        ]}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Image
-              source={require('../../assets/images/GongchaLogo.png')}
-              style={{ width: 100, height: 28, tintColor: '#FFFFFF' }}
-              resizeMode="contain"
-            />
-          </View>
-        </Animated.View>
-
         <View style={styles.mainLayout}>
           {/* SCROLLABLE BENTO CONTENT (SLIDE-UP STAGGERED ENTRANCE) */}
           <Animated.View style={{ flex: 1, opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
@@ -430,6 +401,30 @@ export default function HomeScreen() {
                   transform: [{ translateY: headerTranslateY }],
                 },
               ]}>
+                {/* Centered Gongcha logo that stays fixed at the top on scroll */}
+                <Animated.View style={{
+                  position: 'absolute',
+                  top: insets.top > 0 ? insets.top + 20 : 48,
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: scrollY.interpolate({
+                    inputRange: [40, 100],
+                    outputRange: [0, 1],
+                    extrapolate: 'clamp',
+                  }),
+                  transform: [
+                    { translateY: scrollY }
+                  ]
+                }}>
+                  <Image
+                    source={require('../../assets/images/GongchaLogo.png')}
+                    style={{ width: 100, height: 28, tintColor: '#FFFFFF' }}
+                    resizeMode="contain"
+                  />
+                </Animated.View>
+
                 <Animated.View style={{
                   flex: 1,
                   opacity: scrollY.interpolate({
