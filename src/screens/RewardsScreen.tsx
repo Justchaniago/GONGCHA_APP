@@ -3,14 +3,15 @@ import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-
 import { useMember } from '../context/MemberContext';
 import { useSecurity } from '../context/SecurityContext';
-import { buildLegacyRewardsViewModel } from '../application/rewards/RewardsViewModel';
+import { buildLocalRewardsViewModel } from '../application/rewards/RewardsViewModel';
 import { RewardsView } from '../presentation/rewards/RewardsView';
 import type { RewardDisplayItem } from '../application/rewards/RewardsViewModel';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { FastAPIRewardsRepository } from '../infrastructure/rewards/FastAPIRewardsRepository';
+import { localLoyaltySummaryController } from '../composition/loyaltySummary';
+import { useLocalLoyaltySummary } from '../presentation/loyaltySummary/useLocalLoyaltySummary';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -35,6 +36,8 @@ export default function RewardsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
 
+  const { summary } = useLocalLoyaltySummary(localLoyaltySummaryController, member?.uid ?? null);
+
   const fetchRewards = useCallback(async () => {
     try {
       const data = await FastAPIRewardsRepository.listRewards();
@@ -55,12 +58,12 @@ export default function RewardsScreen() {
   }, [fetchRewards]);
 
   const handleRedeem = async (reward: RewardDisplayItem) => {
-    const verified = await ensureVerified();
+    const verified = await ensureVerified('redeem');
     if (!verified) return;
 
     Alert.alert(
       'Tukar Poin',
-      `Tukar ${reward.pointsRequired} Leaves untuk "${reward.title}"?`,
+      `Tukar ${reward.pointsRequired} Leaves untuk \"${reward.title}\"?`,
       [
         { text: 'Batal', style: 'cancel' },
         {
@@ -87,8 +90,8 @@ export default function RewardsScreen() {
   };
 
   const model = useMemo(
-    () => buildLegacyRewardsViewModel(member, rewards, member?.vouchers ?? []),
-    [member, rewards],
+    () => buildLocalRewardsViewModel(summary, rewards, member?.vouchers ?? []),
+    [summary, rewards, member?.vouchers],
   );
 
   return (

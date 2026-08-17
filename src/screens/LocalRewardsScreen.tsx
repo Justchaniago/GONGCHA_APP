@@ -60,22 +60,21 @@ export default function LocalRewardsScreen() {
   const summary = useMemo(() => {
     const baseLeaves = state.phase === 'ready' && state.summary ? state.summary.availableLeaves : 0;
     return {
-      leaves_balance: Math.max(
+      availableLeaves: Math.max(
         0,
         baseLeaves + bonusLeaves - deductedLeaves,
       ),
-      pending_leaves: state.phase === 'ready' && state.summary ? (state.summary.pending?.leaves ?? 0) : 0,
+      pending: { leaves: 0, state: 'unsupported' as const },
     };
   }, [state, bonusLeaves, deductedLeaves]);
 
   const model = useMemo(() => {
     return buildLocalRewardsViewModel(
-      member,
       summary,
       MOCK_CATALOG,
       localVouchers,
     );
-  }, [member, summary, localVouchers]);
+  }, [summary, localVouchers]);
 
   const handleRedeem = (item: RewardDisplayItem) => {
     if (model.availableLeavesValue < item.pointsRequired) {
@@ -104,7 +103,7 @@ export default function LocalRewardsScreen() {
       setLocalVouchers((prev) => [newVoucher, ...prev]);
       Alert.alert(
         'Penukaran Berhasil 🎉',
-        `Voucher "${item.title}" telah ditambahkan ke tab "Voucher Saya".`,
+        `Voucher \"${item.title}\" telah ditambahkan ke tab \"Voucher Saya\".`,
       );
     }, 800);
   };
