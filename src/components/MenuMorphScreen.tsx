@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Star, Heart, X, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 const BRAND_RED = '#C8102E';
 const BRAND_BG = '#FAF8F5';
@@ -225,6 +226,7 @@ export const MenuMorphScreen = ({
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+      <StatusBar style="dark" />
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Menu & Katalog</Text>
         <Text style={styles.headerSubtitle}>Nikmati kesegaran Gong Cha terbaik</Text>
