@@ -224,8 +224,11 @@ export const MenuMorphScreen = ({
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Menu & Katalog</Text>
+    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Menu & Katalog</Text>
+        <Text style={styles.headerSubtitle}>Nikmati kesegaran Gong Cha terbaik</Text>
+      </View>
       
       <View style={styles.searchContainer}>
         <Search size={18} color={TEXT_MUTED} style={styles.searchIcon} />
@@ -397,12 +400,14 @@ export const MenuMorphScreen = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BRAND_BG, paddingTop: 16 },
+  container: { flex: 1, backgroundColor: BRAND_BG },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: TEXT_DARK, paddingHorizontal: 16, marginBottom: 12 },
+  headerContainer: { paddingHorizontal: 16, marginBottom: 12 },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: TEXT_DARK },
+  headerSubtitle: { fontSize: 13, color: TEXT_MUTED, marginTop: 4 },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
